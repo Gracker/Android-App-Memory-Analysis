@@ -1,0 +1,316 @@
+Unknown : 1.091 M
+	pss: 1.091 M
+	swapPss: 0.000 M
+		  : 573 kB
+		[anon:.bss] : 276 kB
+		[anon:linker_alloc] : 159 kB
+		[anon:bionic_alloc_small_objects] : 63 kB
+		[anon:System property context nodes] : 8 kB
+		[anon:atexit handlers] : 4 kB
+		[anon:arc4random data] : 4 kB
+		[anon:bionic_alloc_lob] : 4 kB
+Dalvik : 1.648 M
+	pss: 1.648 M
+	swapPss: 0.000 M
+		[anon:dalvik-main space (region space)] : 884 kB
+		[anon:dalvik-zygote space] : 557 kB
+		[anon:dalvik-large object space allocation] : 111 kB
+		[anon:dalvik-non moving space] : 96 kB
+Native : 8.288 M
+	pss: 8.288 M
+	swapPss: 0.000 M
+		[anon:libc_malloc] : 8288 kB
+Dalvik Other : 3.857 M
+	pss: 3.857 M
+	swapPss: 0.000 M
+		[anon:dalvik-classes.dex extracted in memory from /data/app/sample.tencent.matrix-rb4xni1rF5Dyc87wQ2g3pA==/base.apk] : 2640 kB
+		[anon:dalvik-LinearAlloc] : 653 kB
+		[anon:dalvik-classes2.dex extracted in memory from /data/app/sample.tencent.matrix-rb4xni1rF5Dyc87wQ2g3pA==/base.apk!classes2.dex] : 352 kB
+		[anon:dalvik-indirect ref table] : 128 kB
+		[anon:dalvik-card table] : 36 kB
+		[anon:dalvik-large live objects] : 12 kB
+		[anon:dalvik-region space live bitmap] : 12 kB
+		[anon:dalvik-Jit thread pool worker thread 0] : 8 kB
+		[anon:dalvik-zygote-data-code-cache] : 5 kB
+		[anon:dalvik-mod union bitmap] : 4 kB
+		[anon:dalvik-allocspace non moving space live-bitmap 1] : 4 kB
+		[anon:dalvik-allocspace zygote / non moving space live-bitmap 0] : 2 kB
+		[anon:dalvik-zygote-jit-code-cache] : 1 kB
+Stack : 0.044 M
+	pss: 0.044 M
+	swapPss: 0.000 M
+		[stack] : 44 kB
+Cursor : 0.000 M
+	pss: 0.000 M
+	swapPss: 0.000 M
+Ashmem : 0.002 M
+	pss: 0.002 M
+	swapPss: 0.000 M
+		/dev/ashmem/GFXStats-30591 (deleted) : 2 kB
+Gfx dev : 0.868 M
+	pss: 0.868 M
+	swapPss: 0.000 M
+		/dev/kgsl-3d0 : 868 kB
+Other dev : 0.017 M
+	pss: 0.017 M
+	swapPss: 0.000 M
+		/dev/binder : 8 kB
+		/dev/hwbinder : 8 kB
+		/dev/__properties__/u:object_r:system_prop:s0 : 1 kB
+.so mmap : 5.240 M
+	pss: 5.240 M
+	swapPss: 0.000 M
+		/vendor/lib/egl/libGLESv2_adreno.so : 1067 kB
+		/system/lib/libhwui.so : 743 kB
+		/vendor/lib/libllvm-glnext.so : 582 kB
+		/data/app/sample.tencent.matrix-rb4xni1rF5Dyc87wQ2g3pA==/lib/arm/libSqliteLint-lib.so : 476 kB
+		/apex/com.android.runtime/lib/libart.so : 319 kB
+		/vendor/lib/libgsl.so : 196 kB
+		/apex/com.android.runtime/lib/libart-compiler.so : 164 kB
+		/system/lib/libharfbuzz_ng.so : 139 kB
+		/system/lib/libandroid_runtime.so : 106 kB
+		/apex/com.android.runtime/lib/libicuuc.so : 100 kB
+		/system/lib/libgui.so : 89 kB
+		/system/lib/libcrypto.so : 76 kB
+		/apex/com.android.runtime/lib/libvixl.so : 60 kB
+		/system/lib/libft2.so : 51 kB
+		/system/lib/vndk-sp-29/libz.so : 44 kB
+		/system/lib/vndk-sp-29/libhidlbase.so : 42 kB
+		/system/lib/libhidlbase.so : 41 kB
+		/apex/com.android.runtime/lib/libartbase.so : 34 kB
+		/apex/com.android.runtime/lib/bionic/libc.so : 33 kB
+		/vendor/lib/hw/gralloc.lito.so : 32 kB
+		/system/lib/libpng.so : 28 kB
+		/system/lib/libbinder.so : 26 kB
+		/system/lib/libinput.so : 25 kB
+		/vendor/lib/libadreno_utils.so : 25 kB
+		/apex/com.android.runtime/lib/libicui18n.so : 23 kB
+		/system/lib/libandroidfw.so : 23 kB
+		/system/lib/libvpsextension.so : 22 kB
+		/system/lib/android.hardware.configstore@1.0.so : 22 kB
+		/system/lib/vndk-sp-29/libc++.so : 21 kB
+		/system/lib/libsqlite.so : 21 kB
+		/apex/com.android.runtime/lib/libprofile.so : 19 kB
+		/system/lib/libc++.so : 19 kB
+		/system/lib/libui.so : 17 kB
+		/system/lib/libminikin.so : 15 kB
+		/system/lib/libEGL.so : 15 kB
+		/apex/com.android.runtime/lib/libdexfile.so : 14 kB
+		/system/lib/libGLESv2.so : 13 kB
+		/system/lib/vndk-sp-29/android.hardware.graphics.mapper@3.0.so : 12 kB
+		/apex/com.android.runtime/lib/libjavacore.so : 11 kB
+		/vendor/lib/vendor.qti.hardware.display.mapperextensions@1.1.so : 11 kB
+		/system/lib/libprocessgroup.so : 10 kB
+		/system/lib/android.hardware.graphics.mapper@3.0.so : 10 kB
+		/vendor/lib/egl/eglSubDriverAndroid.so : 10 kB
+		/apex/com.android.runtime/lib/libopenjdk.so : 9 kB
+		/system/lib/libz.so : 9 kB
+		/vendor/lib/vendor.qti.hardware.display.mapper@3.0.so : 8 kB
+		/system/lib/libpdfium.so : 8 kB
+		/apex/com.android.runtime/lib/libandroidicu.so : 8 kB
+		/vendor/lib/libgrallocutils.so : 8 kB
+		/system/lib/libselinux.so : 8 kB
+		/system/lib/libstagefright_bufferqueue_helper.so : 7 kB
+		/system/lib/libstagefright.so : 7 kB
+		/system/lib/libmedia.so : 7 kB
+		/vendor/lib/libgralloccore.so : 6 kB
+		/vendor/lib/egl/libEGL_adreno.so : 6 kB
+		/system/lib/vndk-sp-29/libcutils.so : 6 kB
+		/system/lib/libcamera_client.so : 6 kB
+		/system/lib/libunwindstack.so : 6 kB
+		/system/lib/libaudioclient.so : 6 kB
+		/system/lib/libaaudio.so : 6 kB
+		/system/lib/android.hardware.neuralnetworks@1.0.so : 6 kB
+		/system/lib/android.hardware.neuralnetworks@1.2.so : 6 kB
+		/system/lib/libcutils.so : 6 kB
+		/system/lib/libdng_sdk.so : 6 kB
+		/system/lib/libmedia_jni.so : 6 kB
+		/system/lib/android.hardware.drm@1.1.so : 5 kB
+		/system/lib/libstagefright_omx.so : 5 kB
+		/system/lib/android.hardware.drm@1.2.so : 5 kB
+		/system/lib/libexif.so : 5 kB
+		/system/lib/android.hardware.renderscript@1.0.so : 5 kB
+		/system/lib/libavenhancements.so : 5 kB
+		/system/lib/libmediaplayerservice.so : 5 kB
+		/system/lib/libxml2.so : 5 kB
+		/system/lib/liblog.so : 5 kB
+		/system/lib/libmtp.so : 5 kB
+		/system/lib/libGLESv1_CM.so : 5 kB
+		/system/lib/android.hardware.media.c2@1.0.so : 5 kB
+		/system/lib/libmedia_omx.so : 5 kB
+		/system/lib/android.hardware.media.omx@1.0.so : 5 kB
+		/system/lib/android.hardware.media.bufferpool@2.0.so : 5 kB
+		/system/lib/android.hardware.drm@1.0.so : 5 kB
+		/system/lib/android.hardware.cas@1.0.so : 5 kB
+		/vendor/lib/hw/android.hardware.graphics.mapper@3.0-impl-qti-display.so : 5 kB
+		/system/lib/libmediadrm.so : 5 kB
+		/system/lib/libprotobuf-cpp-lite.so : 4 kB
+		/system/lib/libandroid.so : 4 kB
+		/system/lib/libdrmframework.so : 4 kB
+		/system/lib/libstagefright_foundation.so : 4 kB
+		/apex/com.android.runtime/lib/libnativeloader.so : 4 kB
+		/system/lib/vndk-sp-29/android.hardware.graphics.mapper@2.1.so : 4 kB
+		/vendor/lib/egl/libGLESv1_CM_adreno.so : 4 kB
+		/apex/com.android.runtime/lib/bionic/libm.so : 4 kB
+		/system/lib/libstagefright_httplive.so : 4 kB
+		/system/lib/android.hardware.graphics.bufferqueue@2.0.so : 4 kB
+		/system/lib/libstagefright_bufferpool@2.0.1.so : 4 kB
+		/system/lib/libcodec2_vndk.so : 4 kB
+		/system/lib/android.hardware.graphics.bufferqueue@1.0.so : 4 kB
+		/system/lib/libpdx_default_transport.so : 3 kB
+		/system/lib/libiatlasservice.so : 3 kB
+		/system/lib/libgraphicsenv.so : 3 kB
+		/system/lib/vndk-sp-29/libbase.so : 3 kB
+		/system/lib/vndk-sp-29/android.hardware.graphics.mapper@2.0.so : 3 kB
+		/apex/com.android.conscrypt/lib/libcrypto.so : 3 kB
+		/system/lib/libutils.so : 3 kB
+		/vendor/lib/vendor.qti.hardware.display.mapper@2.0.so : 3 kB
+		/system/lib/libneuralnetworks.so : 3 kB
+		/system/lib/libmediadrmmetrics_lite.so : 3 kB
+		/system/lib/android.hardware.neuralnetworks@1.1.so : 3 kB
+		/system/lib/libmediandk.so : 3 kB
+		/system/lib/libRScpp.so : 3 kB
+		/system/lib/libvintf.so : 3 kB
+		/vendor/lib/vendor.qti.hardware.display.mapperextensions@1.0.so : 3 kB
+		/system/lib/vndk-sp-29/libprocessgroup.so : 3 kB
+		/system/lib/libnblog.so : 3 kB
+		/system/lib/libmemunreachable.so : 2 kB
+		/product/lib/vendor.qti.hardware.iop@2.0.so : 2 kB
+		/apex/com.android.runtime/lib/libadbconnection.so : 2 kB
+		/system/lib/android.frameworks.bufferhub@1.0.so : 2 kB
+		/system/lib/libbufferhubqueue.so : 2 kB
+		/system/lib/android.hardware.graphics.mapper@2.0.so : 2 kB
+		/system/lib/libziparchive.so : 2 kB
+		/system/lib/libstatslog.so : 2 kB
+		/system/lib/libcodec2_client.so : 2 kB
+		/system/lib/libmedia_helper.so : 2 kB
+		/system/lib/android.system.suspend@1.0.so : 2 kB
+		/system/lib/android.hardware.graphics.mapper@2.1.so : 2 kB
+		/system/lib/android.hardware.configstore@1.1.so : 2 kB
+		/system/lib/vndk-sp-29/libutils.so : 2 kB
+		/system/lib/libhidl-gen-utils.so : 2 kB
+		/system/lib/libGLESv3.so : 2 kB
+		/product/lib/vendor.qti.hardware.audiohalext@1.0.so : 2 kB
+		/product/lib/vendor.qti.hardware.perf@2.0.so : 2 kB
+		/system/lib/android.hidl.memory@1.0.so : 2 kB
+		/system/lib/libcamera2ndk.so : 2 kB
+		/system/lib/android.hardware.configstore-utils.so : 2 kB
+		/system/lib/libjpeg.so : 1 kB
+		/system/lib/libpcre2.so : 1 kB
+		/system/lib/liblzma.so : 1 kB
+		/system/lib/libjunk_log_collector_service.so : 1 kB
+		/system/lib/libRS.so : 1 kB
+		/system/lib/libVoiceScenceDiscern.so : 1 kB
+		/system/lib/libbacktrace.so : 1 kB
+		/system/lib/libaudioutils.so : 1 kB
+		/apex/com.android.conscrypt/lib/libc++.so : 1 kB
+		/system/lib/libmediametrics.so : 1 kB
+		/system/lib/libmeminfo.so : 1 kB
+		/system/lib/libexpat.so : 1 kB
+		/system/lib/libvibrator.so : 1 kB
+		/system/lib/libbinder_ndk.so : 1 kB
+		/system/lib/android.hardware.graphics.allocator@2.0.so : 1 kB
+		/system/lib/libtinyxml2.so : 1 kB
+		/system/lib/libtinyxmlbp.so : 1 kB
+		/system/lib/libbase.so : 1 kB
+		/system/lib/android.hidl.memory.token@1.0.so : 1 kB
+		/system/lib/libcompiler_rt.so : 1 kB
+		/system/lib/libstagefright_xmlparser.so : 1 kB
+		/system/lib/libvulkan.so : 1 kB
+		/system/lib/android.hidl.allocator@1.0.so : 1 kB
+		/system/lib/libsensor.so : 1 kB
+		/system/lib/android.hardware.cas.native@1.0.so : 1 kB
+		/system/lib/android.hidl.token@1.0.so : 1 kB
+		/system/lib/libmediautils.so : 1 kB
+		/system/lib/android.hidl.base@1.0.so : 1 kB
+		/system/lib/libheif.so : 1 kB
+		/system/lib/libcamera_metadata.so : 1 kB
+		/system/lib/libsoundpool.so : 1 kB
+		/system/lib/libqspmsvc.so : 1 kB
+		/system/lib/vndk-sp-29/libhardware.so : 1 kB
+		/system/lib/libbufferhub.so : 1 kB
+		/system/lib/libmedia2_jni_core.so : 1 kB
+		/system/lib/libsonivox.so : 1 kB
+		/system/lib/libpiex.so : 1 kB
+		/system/lib/libwilhelm.so : 1 kB
+		/system/lib/libimg_utils.so : 1 kB
+		/system/lib/android.hardware.graphics.allocator@3.0.so : 1 kB
+		/system/lib/libcodec2_hidl_client@1.0.so : 1 kB
+		/system/lib/libnetdutils.so : 1 kB
+		/system/lib/libbpf.so : 1 kB
+.jar mmap : 1.268 M
+	pss: 1.268 M
+	swapPss: 0.000 M
+		/system/framework/framework.jar : 1030 kB
+		/apex/com.android.runtime/javalib/core-libart.jar : 112 kB
+		/apex/com.android.runtime/javalib/core-oj.jar : 89 kB
+		/system/framework/ext.jar : 6 kB
+		/system/framework/coloros-framework.jar : 6 kB
+		/system/framework/telephony-common.jar : 6 kB
+		/system/framework/voip-common.jar : 5 kB
+		/apex/com.android.runtime/javalib/bouncycastle.jar : 4 kB
+		/apex/com.android.conscrypt/javalib/conscrypt.jar : 4 kB
+		/system/framework/ims-common.jar : 3 kB
+		/apex/com.android.runtime/javalib/okhttp.jar : 2 kB
+		/apex/com.android.media/javalib/updatable-media.jar : 1 kB
+.apk mmap : 0.434 M
+	pss: 0.434 M
+	swapPss: 0.000 M
+		/system/framework/oppo-framework-res.apk : 250 kB
+		/system/framework/framework-res.apk : 149 kB
+		/data/app/sample.tencent.matrix-rb4xni1rF5Dyc87wQ2g3pA==/base.apk : 35 kB
+.ttf mmap : 0.166 M
+	pss: 0.166 M
+	swapPss: 0.000 M
+		/system/fonts/SysSans-Hans-Regular.ttf : 111 kB
+		/system/fonts/Roboto-Regular.ttf : 41 kB
+		/system/fonts/Roboto-Medium.ttf : 14 kB
+.dex mmap : 0.000 M
+	pss: 0.000 M
+	swapPss: 0.000 M
+.oat mmap : 0.163 M
+	pss: 0.163 M
+	swapPss: 0.000 M
+		/system/framework/arm/boot-framework.oat : 115 kB
+		/system/framework/arm/boot-core-libart.oat : 21 kB
+		/system/framework/arm/boot.oat : 13 kB
+		/system/framework/arm/boot-telephony-common.oat : 4 kB
+		/system/framework/arm/boot-bouncycastle.oat : 3 kB
+		/system/framework/arm/boot-okhttp.oat : 3 kB
+		/system/framework/arm/boot-ext.oat : 2 kB
+		/system/framework/arm/boot-apache-xml.oat : 1 kB
+		/system/framework/arm/boot-ims-common.oat : 1 kB
+.art mmap : 4.834 M
+	pss: 4.834 M
+	swapPss: 0.000 M
+		/system/framework/arm/boot-framework.art : 3077 kB
+		/system/framework/arm/boot.art : 834 kB
+		/system/framework/arm/boot-core-libart.art : 340 kB
+		/system/framework/arm/boot-telephony-common.art : 310 kB
+		/system/framework/arm/boot-okhttp.art : 62 kB
+		/system/framework/arm/boot-bouncycastle.art : 52 kB
+		/system/framework/arm/boot-ext.art : 29 kB
+		/system/framework/arm/boot-coloros-framework.art : 28 kB
+		/system/framework/arm/boot-ims-common.art : 22 kB
+		/system/framework/arm/boot-voip-common.art : 14 kB
+		/system/framework/arm/boot-oppo-framework.art : 12 kB
+		/system/framework/arm/boot-QPerformance.art : 8 kB
+		/system/framework/arm/boot-apache-xml.art : 8 kB
+		/system/framework/arm/boot-WfdCommon.art : 6 kB
+		/system/framework/arm/boot-com.nxp.nfc.nq.art : 5 kB
+		/system/framework/arm/boot-qcom.fmradio.art : 5 kB
+		/system/framework/arm/boot-android.test.base.art : 5 kB
+		/system/framework/arm/boot-telephony-ext.art : 5 kB
+		/system/framework/arm/boot-ifaamanager.art : 4 kB
+		/system/framework/arm/boot-UxPerformance.art : 4 kB
+		/system/framework/arm/boot-coloros-support-wrapper.art : 2 kB
+		/system/framework/arm/boot-tcmiface.art : 2 kB
+Other mmap : 0.196 M
+	pss: 0.196 M
+	swapPss: 0.000 M
+		/memfd:/jit-cache (deleted) : 132 kB
+		/apex/com.android.runtime/etc/icu/icudt63l.dat : 32 kB
+		/apex/com.android.runtime/bin/linker : 27 kB
+		/apex/com.android.tzdata/etc/tz/tzdata : 3 kB
+		/system/bin/app_process32 : 1 kB
+		/apex/com.android.tzdata/etc/icu/icu_tzdata.dat : 1 kB
