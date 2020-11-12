@@ -18,7 +18,6 @@ python smaps_parser.py -p 21936 -o out.txt
 1. 获取对应进程的 smaps 文件
 ```
 adb pull /proc/pid_of_app/smaps . 
-
 ```
 
 2. 执行解析脚本
@@ -26,8 +25,6 @@ adb pull /proc/pid_of_app/smaps .
 python /smap/smaps_parser.py -f <path_of_smaps>
 ```
 
-
-## 直接
 
 # 对比
 
