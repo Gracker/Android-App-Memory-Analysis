@@ -4,8 +4,30 @@
 
 # 脚本使用
 
-1. 获取对应进程的 smaps 文件 ： adb pull /proc/pid_of_app/smaps . 
-2. 执行解析脚本：python /smap/smaps_parser.py -f <path_of_smaps>
+## 知道 pid 直接解析(推荐)
+注意 ：需要手机有 Root 权限
+
+```
+python smaps_parser.py -p 21936 -o out.txt 
+```
+
+
+## 如果有现成的 smaps 文件
+注意 ：获取 smaps 文件需要手机有 Root 权限
+
+1. 获取对应进程的 smaps 文件
+```
+adb pull /proc/pid_of_app/smaps . 
+
+```
+
+2. 执行解析脚本
+```
+python /smap/smaps_parser.py -f <path_of_smaps>
+```
+
+
+## 直接
 
 # 对比
 
@@ -26,3 +48,10 @@ Smaps 包含的数据
 ![Smap](pic/image1.png)
 
 ![Smap](pic/image2.png)
+
+# Sample
+sample 文件夹里面包含了 Launcer 的数据，感兴趣的可以自己看一下
+1. smaps 文件
+2. meminfo 数据
+3. showmaps 数据
+4. smaps 经过解析后的文件

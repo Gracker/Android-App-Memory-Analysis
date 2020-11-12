@@ -1,0 +1,274 @@
+Unknown : 0.793 M
+	pss: 0.793 M
+	swapPss: 0.000 M
+		[anon:.bss] : 294 kB
+		[anon:linker_alloc] : 222 kB
+		[anon:thread signal stack] : 176 kB
+		[anon:bionic_alloc_small_objects] : 60 kB
+		[anon:System property context nodes] : 12 kB
+		[anon:arc4random data] : 8 kB
+		[anon:bionic_alloc_lob] : 8 kB
+		[anon:atexit handlers] : 5 kB
+		  : 4 kB
+		[anon:cfi shadow] : 4 kB
+Dalvik : 3.783 M
+	pss: 3.783 M
+	swapPss: 0.000 M
+		[anon:dalvik-main space (region space)] : 2500 kB
+		[anon:dalvik-zygote space] : 656 kB
+		[anon:dalvik-free list large object space] : 327 kB
+		[anon:dalvik-non moving space] : 300 kB
+Native : 24.482 M
+	pss: 24.482 M
+	swapPss: 0.000 M
+		[anon:scudo:primary] : 16491 kB
+		[anon:scudo:secondary] : 7991 kB
+Dalvik Other : 1.731 M
+	pss: 1.731 M
+	swapPss: 0.000 M
+		[anon:dalvik-LinearAlloc] : 1145 kB
+		/memfd:jit-cache (deleted) : 368 kB
+		[anon:dalvik-indirect ref table] : 100 kB
+		[anon:dalvik-card table] : 44 kB
+		[anon:dalvik-region space live bitmap] : 36 kB
+		[anon:dalvik-large object free list space allocation info map] : 20 kB
+		[anon:dalvik-allocspace non moving space live-bitmap 1] : 8 kB
+		[anon:dalvik-mod union bitmap] : 4 kB
+		[anon:dalvik-large live objects] : 4 kB
+		[anon:dalvik-allocspace zygote / non moving space mark-bitmap 0] : 2 kB
+Stack : 0.976 M
+	pss: 0.976 M
+	swapPss: 0.000 M
+		[anon:stack_and_tls:22379] : 100 kB
+		[stack] : 60 kB
+		[anon:stack_and_tls:25810] : 32 kB
+		[anon:stack_and_tls:21976] : 32 kB
+		[anon:stack_and_tls:21963] : 32 kB
+		[anon:stack_and_tls:24523] : 32 kB
+		[anon:stack_and_tls:27684] : 32 kB
+		[anon:stack_and_tls:21962] : 32 kB
+		[anon:stack_and_tls:21970] : 32 kB
+		[anon:stack_and_tls:22365] : 32 kB
+		[anon:stack_and_tls:22241] : 32 kB
+		[anon:stack_and_tls:21975] : 28 kB
+		[anon:stack_and_tls:21957] : 24 kB
+		[anon:stack_and_tls:21951] : 24 kB
+		[anon:stack_and_tls:22518] : 24 kB
+		[anon:stack_and_tls:21972] : 24 kB
+		[anon:stack_and_tls:23012] : 20 kB
+		[anon:stack_and_tls:21971] : 20 kB
+		[anon:stack_and_tls:21959] : 20 kB
+		[anon:stack_and_tls:21960] : 20 kB
+		[anon:stack_and_tls:23011] : 20 kB
+		[anon:stack_and_tls:28812] : 16 kB
+		[anon:stack_and_tls:28806] : 16 kB
+		[anon:stack_and_tls:23872] : 16 kB
+		[anon:stack_and_tls:24122] : 16 kB
+		[anon:stack_and_tls:22420] : 16 kB
+		[anon:stack_and_tls:23776] : 16 kB
+		[anon:stack_and_tls:23827] : 16 kB
+		[anon:stack_and_tls:23005] : 16 kB
+		[anon:stack_and_tls:21958] : 16 kB
+		[anon:stack_and_tls:23828] : 16 kB
+		[anon:stack_and_tls:23779] : 16 kB
+		[anon:stack_and_tls:22433] : 16 kB
+		[anon:stack_and_tls:21956] : 16 kB
+		[anon:stack_and_tls:23775] : 16 kB
+		[anon:stack_and_tls:23777] : 16 kB
+		[anon:stack_and_tls:21961] : 12 kB
+		[anon:stack_and_tls:22558] : 12 kB
+		[anon:stack_and_tls:21952] : 12 kB
+		[anon:stack_and_tls:22625] : 12 kB
+		[anon:stack_and_tls:23773] : 12 kB
+		[anon:stack_and_tls:main] : 4 kB
+Cursor : 0.000 M
+	pss: 0.000 M
+	swapPss: 0.000 M
+Ashmem : 0.002 M
+	pss: 0.002 M
+	swapPss: 0.000 M
+		/dev/ashmem/GFXStats-21936 (deleted) : 2 kB
+Gfx dev : 5.884 M
+	pss: 5.884 M
+	swapPss: 0.000 M
+		/dev/kgsl-3d0 : 5884 kB
+Other dev : 0.136 M
+	pss: 0.136 M
+	swapPss: 0.000 M
+		/dev/binder : 132 kB
+		/dev/hwbinder : 4 kB
+.so mmap : 3.294 M
+	pss: 3.294 M
+	swapPss: 0.000 M
+		/vendor/lib64/libllvm-glnext.so : 859 kB
+		/system/lib64/libhwui.so : 804 kB
+		/apex/com.android.art/lib64/libart.so : 239 kB
+		/vendor/lib64/egl/libGLESv2_adreno.so : 235 kB
+		/apex/com.android.art/lib64/libart-compiler.so : 177 kB
+		/apex/com.android.i18n/lib64/libicuuc.so : 86 kB
+		/system/lib64/libgui.so : 75 kB
+		/system/lib64/libsqlite.so : 70 kB
+		/system/lib64/libft2.so : 57 kB
+		/system/lib64/libandroid_runtime.so : 54 kB
+		/system/lib64/libharfbuzz_ng.so : 48 kB
+		/system/lib64/libmediandk.so : 36 kB
+		/system/lib64/libminikin.so : 29 kB
+		/apex/com.android.i18n/lib64/libicui18n.so : 26 kB
+		/system/lib64/libpng.so : 26 kB
+		/apex/com.android.art/lib64/libvixl.so : 22 kB
+		/vendor/lib64/libgsl.so : 19 kB
+		/system/lib64/libunwindstack.so : 16 kB
+		/apex/com.android.conscrypt/lib64/libcrypto.so : 16 kB
+		/system/lib64/libEGL.so : 15 kB
+		/system/lib64/liblzma.so : 14 kB
+		/system/lib64/libhidlbase.so : 14 kB
+		/system/lib64/libandroidfw.so : 14 kB
+		/system/lib64/libinput.so : 14 kB
+		/apex/com.android.runtime/lib64/bionic/libc.so : 14 kB
+		/system/lib64/libsensor.so : 14 kB
+		/system/lib64/libc++.so : 12 kB
+		/vendor/lib64/hw/gralloc.sdm845.so : 12 kB
+		/system/lib64/libbacktrace.so : 12 kB
+		/apex/com.android.vndk.vS/lib64/libz.so : 11 kB
+		/system/lib64/libstagefright_foundation.so : 11 kB
+		/apex/com.android.runtime/lib64/bionic/libm.so : 11 kB
+		/system/lib64/libz.so : 9 kB
+		/vendor/lib64/libadreno_utils.so : 9 kB
+		/apex/com.android.art/lib64/libprofile.so : 9 kB
+		/apex/com.android.art/lib64/libartbase.so : 9 kB
+		/system/lib64/libui.so : 8 kB
+		/vendor/lib64/egl/eglSubDriverAndroid.so : 8 kB
+		/system/lib64/libbinder.so : 7 kB
+		/apex/com.android.art/lib64/libjavacore.so : 7 kB
+		/vendor/lib64/libgralloccore.so : 6 kB
+		/vendor/lib64/libgrallocutils.so : 6 kB
+		/vendor/lib64/egl/libEGL_adreno.so : 6 kB
+		/system/lib64/libnativedisplay.so : 6 kB
+		/apex/com.android.vndk.vS/lib64/libc++.so : 6 kB
+		/apex/com.android.art/lib64/libadbconnection.so : 5 kB
+		/system/lib64/libselinux.so : 5 kB
+		/system/lib64/libutils.so : 5 kB
+		/system/lib64/libGLESv2.so : 5 kB
+		/apex/com.android.conscrypt/lib64/libjavacrypto.so : 5 kB
+		/system/lib64/libbase.so : 5 kB
+		/apex/com.android.vndk.vS/lib64/libcutils.so : 5 kB
+		/system/lib64/libprocessgroup.so : 5 kB
+		/system/lib64/libsync.so : 4 kB
+		/apex/com.android.adbd/lib64/libadbconnection_client.so : 4 kB
+		/apex/com.android.art/lib64/libdexfile.so : 4 kB
+		/apex/com.android.os.statsd/lib64/libstatssocket.so : 4 kB
+		/system/lib64/libgraphicsenv.so : 4 kB
+		/apex/com.android.art/lib64/libandroidio.so : 4 kB
+		/apex/com.android.os.statsd/lib64/libstats_jni.so : 4 kB
+		/system/lib64/liblog.so : 4 kB
+		/system/lib64/libnetd_client.so : 4 kB
+		/apex/com.android.art/lib64/libnativehelper.so : 4 kB
+		/system/lib64/libcutils.so : 4 kB
+		/apex/com.android.art/lib64/libperfetto_hprof.so : 4 kB
+		/system/lib64/android.hardware.graphics.mapper@2.1.so : 3 kB
+		/system/lib64/libmedia.so : 3 kB
+		/system/lib64/libpdfium.so : 3 kB
+		/apex/com.android.vndk.vS/lib64/android.hardware.graphics.mapper@2.1.so : 2 kB
+		/system/lib64/libaudioclient.so : 2 kB
+		/system/lib64/android.hardware.graphics.allocator@2.0.so : 2 kB
+		/apex/com.android.art/lib64/libopenjdk.so : 2 kB
+		/system/lib64/libcrypto.so : 2 kB
+		/system/lib64/libstagefright.so : 2 kB
+		/system/lib64/libmedia_jni_utils.so : 2 kB
+		/apex/com.android.art/lib64/libnativeloader.so : 2 kB
+		/system/lib64/android.hardware.graphics.allocator@3.0.so : 1 kB
+		/system/lib64/android.hardware.media.c2@1.0.so : 1 kB
+		/system/lib64/libSurfaceFlingerProp.so : 1 kB
+		/system/lib64/libGLESv1_CM.so : 1 kB
+		/system/lib64/android.hardware.graphics.allocator@4.0.so : 1 kB
+		/system/lib64/libandroid.so : 1 kB
+		/apex/com.android.i18n/lib64/libicu_jni.so : 1 kB
+		/apex/com.android.vndk.vS/lib64/libhidlbase.so : 1 kB
+		/system/lib64/android.hardware.media.omx@1.0.so : 1 kB
+		/system/lib64/android.hardware.drm@1.2.so : 1 kB
+		/apex/com.android.conscrypt/lib64/libc++.so : 1 kB
+		/apex/com.android.vndk.vS/lib64/android.hardware.graphics.mapper@2.0.so : 1 kB
+		/system/lib64/android.hardware.graphics.mapper@2.0.so : 1 kB
+		/vendor/lib64/hw/android.hardware.graphics.mapper@2.0-impl-qti-display.so : 1 kB
+		/system/lib64/android.hardware.graphics.mapper@4.0.so : 1 kB
+		/system/lib64/libcamera_client.so : 1 kB
+		/system/lib64/libnativewindow.so : 1 kB
+		/system/lib64/libziparchive.so : 1 kB
+		/system/lib64/libmedia_omx.so : 1 kB
+		/system/lib64/libbinder_ndk.so : 1 kB
+		/system/lib64/libmedia_jni.so : 1 kB
+		/system/lib64/libprotobuf-cpp-full.so : 1 kB
+		/system/lib64/android.hardware.drm@1.0.so : 1 kB
+.jar mmap : 1.084 M
+	pss: 1.084 M
+	swapPss: 0.000 M
+		/system/framework/framework.jar : 764 kB
+		/apex/com.android.i18n/javalib/core-icu4j.jar : 140 kB
+		/apex/com.android.art/javalib/core-oj.jar : 131 kB
+		/apex/com.android.art/javalib/core-libart.jar : 18 kB
+		/apex/com.android.conscrypt/javalib/conscrypt.jar : 12 kB
+		/system/framework/telephony-common.jar : 5 kB
+		/apex/com.android.art/javalib/bouncycastle.jar : 4 kB
+		/apex/com.android.wifi/javalib/framework-wifi.jar : 2 kB
+		/system/framework/voip-common.jar : 2 kB
+		/apex/com.android.os.statsd/javalib/framework-statsd.jar : 2 kB
+		/system/framework/ext.jar : 1 kB
+		/apex/com.android.art/javalib/okhttp.jar : 1 kB
+		/apex/com.android.art/javalib/apache-xml.jar : 1 kB
+		/apex/com.android.media/javalib/updatable-media.jar : 1 kB
+.apk mmap : 3.048 M
+	pss: 3.048 M
+	swapPss: 0.000 M
+		/system_ext/priv-app/Launcher3QuickStep/Launcher3QuickStep.apk : 2480 kB
+		/system/framework/framework-res.apk : 508 kB
+		/product/app/QuickSearchBox/QuickSearchBox.apk : 60 kB
+.ttf mmap : 0.039 M
+	pss: 0.039 M
+	swapPss: 0.000 M
+		/system/fonts/Roboto-Medium.ttf : 24 kB
+		/system/fonts/Roboto-Regular.ttf : 15 kB
+.dex mmap : 0.054 M
+	pss: 0.054 M
+	swapPss: 0.000 M
+		/data/dalvik-cache/arm64/system_ext@priv-app@Launcher3QuickStep@Launcher3QuickStep.apk@classes.dex (deleted) : 52 kB
+		/data/dalvik-cache/arm64/system_ext@priv-app@Launcher3QuickStep@Launcher3QuickStep.apk@classes.vdex (deleted) : 2 kB
+.oat mmap : 1.169 M
+	pss: 1.169 M
+	swapPss: 0.000 M
+		/system/framework/arm64/boot-framework.oat : 862 kB
+		/apex/com.android.art/javalib/arm64/boot.oat : 184 kB
+		/system/framework/arm64/boot-core-icu4j.oat : 95 kB
+		/apex/com.android.art/javalib/arm64/boot-core-libart.oat : 28 kB
+.art mmap : 2.732 M
+	pss: 2.732 M
+	swapPss: 0.000 M
+		[anon:dalvik-/system/framework/boot-framework.art] : 1537 kB
+		[anon:dalvik-/apex/com.android.art/javalib/boot.art] : 369 kB
+		[anon:dalvik-/data/dalvik-cache/arm64/system_ext@priv-app@Launcher3QuickStep@Launcher3QuickStep.apk@classes.art] : 344 kB
+		[anon:dalvik-/system/framework/boot-core-icu4j.art] : 230 kB
+		[anon:dalvik-/apex/com.android.art/javalib/boot-core-libart.art] : 97 kB
+		[anon:dalvik-/system/framework/boot-telephony-common.art] : 58 kB
+		[anon:dalvik-/system/framework/boot-voip-common.art] : 30 kB
+		/system/framework/arm64/boot-framework.art : 16 kB
+		[anon:dalvik-/apex/com.android.art/javalib/boot-bouncycastle.art] : 10 kB
+		[anon:dalvik-/apex/com.android.art/javalib/boot-okhttp.art] : 8 kB
+		[anon:dalvik-/system/framework/boot-ext.art] : 6 kB
+		[anon:dalvik-/system/framework/boot-ims-common.art] : 5 kB
+		/data/dalvik-cache/arm64/system_ext@priv-app@Launcher3QuickStep@Launcher3QuickStep.apk@classes.art (deleted) : 4 kB
+		/system/framework/arm64/boot-telephony-common.art : 4 kB
+		/system/framework/arm64/boot-voip-common.art : 3 kB
+		/system/framework/arm64/boot-framework-atb-backward-compatibility.art : 2 kB
+		/apex/com.android.art/javalib/arm64/boot.art : 2 kB
+		[anon:dalvik-/apex/com.android.art/javalib/boot-apache-xml.art] : 2 kB
+		/apex/com.android.art/javalib/arm64/boot-apache-xml.art : 1 kB
+		/system/framework/arm64/boot-core-icu4j.art : 1 kB
+		/apex/com.android.art/javalib/arm64/boot-bouncycastle.art : 1 kB
+		/system/framework/arm64/boot-ext.art : 1 kB
+		/apex/com.android.art/javalib/arm64/boot-okhttp.art : 1 kB
+Other mmap : 0.491 M
+	pss: 0.491 M
+	swapPss: 0.000 M
+		/system/fonts/NotoSansCJK-Regular.ttc : 383 kB
+		/apex/com.android.i18n/etc/icu/icudt66l.dat : 96 kB
+		/apex/com.android.runtime/bin/linker64 : 11 kB
+		/apex/com.android.tzdata/etc/icu/icu_tzdata.dat : 1 kB

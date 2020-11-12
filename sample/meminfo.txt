@@ -1,0 +1,76 @@
+$ mem -a -d com.android.launcher3
+Applications Memory Usage (in Kilobytes):
+Uptime: 277172845 Realtime: 423847246
+
+** MEMINFO in pid 21936 [com.android.launcher3] **
+                   Pss      Pss   Shared  Private   Shared  Private     Swap      Rss     Heap     Heap     Heap
+                 Total    Clean    Dirty    Dirty    Clean    Clean    Dirty    Total     Size    Alloc     Free
+                ------   ------   ------   ------   ------   ------   ------   ------   ------   ------   ------
+  Native Heap    24482        0     2692    24380        0        0        0    27072    39580    24489    11037
+  Dalvik Heap     3783        0     4596     3588        0        0        0     8184    28651     4075    24576
+ Dalvik Other     1755        0     1532     1376        0        0        0     2908
+        Stack      976        0       12      976        0        0        0      988
+       Ashmem        2        0        4        0       16        0        0       20
+      Gfx dev     5884        0        0     5884        0        0        0     5884
+    Other dev      136        0      216        0        0      136        0      352
+     .so mmap     3294      168     4280      228    22656      168        0    27332
+    .jar mmap     1084        8        0        0    11616        8        0    11624
+    .apk mmap     3048      448        0        0    15468      448        0    15916
+    .ttf mmap       39        0        0        0      200        0        0      200
+    .dex mmap       54        0       12        4      128        0        0      144
+    .oat mmap     1169        4       64        0     9040        4        0     9108
+    .art mmap     2732        4    16136     2012      156        4        0    18308
+   Other mmap      490        0       36        8     1776       80        0     1900
+   EGL mtrack    51348        0        0    51348        0        0        0    51348
+    GL mtrack     4460        0        0     4460        0        0        0     4460
+      Unknown      793        0      520      784        0        0        0     1304
+        TOTAL   105529      632    30100    95048    61056      848        0   187052    68231    28564    35613
+
+ Dalvik Details
+        .Heap     2500        0        0     2500        0        0        0     2500
+         .LOS      327        0     1616      260        0        0        0     1876
+      .Zygote      656        0     2980      528        0        0        0     3508
+   .NonMoving      300        0        0      300        0        0        0      300
+ .LinearAlloc     1145        0      756     1116        0        0        0     1872
+          .GC      122        0       56      120        0        0        0      176
+   .ZygoteJIT        0        0       16        0        0        0        0       16
+      .AppJIT      368        0      696       20        0        0        0      716
+ .IndirectRef      120        0        8      120        0        0        0      128
+   .Boot vdex        0        0        0        0       16        0        0       16
+     .App dex       52        0       12        4      108        0        0      124
+    .App vdex        2        0        0        0        4        0        0        4
+     .App art      348        4        0      344        0        4        0      348
+    .Boot art     2384        0    16136     1668      156        0        0    17960
+
+ App Summary
+                       Pss(KB)                        Rss(KB)
+                        ------                         ------
+           Java Heap:     5604                          26492
+         Native Heap:    24380                          27072
+                Code:      880                          65056
+               Stack:      976                            988
+            Graphics:    61692                          61692
+       Private Other:     2364
+              System:     9633
+             Unknown:                                    5752
+
+           TOTAL PSS:   105529            TOTAL RSS:   187052      TOTAL SWAP (KB):        0
+
+ Objects
+               Views:      114         ViewRootImpl:        1
+         AppContexts:        9           Activities:        1
+              Assets:        7        AssetManagers:        0
+       Local Binders:       39        Proxy Binders:       41
+       Parcel memory:       17         Parcel count:       75
+    Death Recipients:        1      OpenSSL Sockets:        0
+            WebViews:        0
+
+ SQL
+         MEMORY_USED:      217
+  PAGECACHE_OVERFLOW:       36          MALLOC_SIZE:       46
+
+ DATABASES
+      pgsz     dbsz   Lookaside(b)          cache  Dbname
+         4      400             64       171/60/5  /data/user/0/com.android.launcher3/databases/app_icons.db
+         4       56             87        26/61/6  /data/user/0/com.android.launcher3/databases/launcher.db
+         4       16             27        36/61/2  /data/user/0/com.android.launcher3/databases/widgetpreviews.db
