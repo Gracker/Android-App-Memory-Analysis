@@ -10,7 +10,7 @@ from collections import Counter
 import os
 import subprocess
 
-type_length = 17
+type_length = 40
 pssSum_count = [0] * type_length
 pss_count = [0] * type_length
 swapPss_count = [0] * type_length
@@ -60,7 +60,14 @@ HEAP_DEX_APP_VDEX = 32
 HEAP_ART_APP = 33
 HEAP_ART_BOOT = 34
 
-_NUM_HEAP = 35
+# New heap types for Android 15
+HEAP_NATIVE_HEAP = 35
+HEAP_DMABUF = 36
+HEAP_JIT_CACHE = 37
+HEAP_ZYGOTE_CODE_CACHE = 38
+HEAP_APP_CODE_CACHE = 39
+
+_NUM_HEAP = 40
 _NUM_EXCLUSIVE_HEAP = HEAP_OTHER_MEMTRACK+1
 _NUM_CORE_HEAP = HEAP_NATIVE+1
 
@@ -71,13 +78,13 @@ _NUM_CORE_HEAP = HEAP_NATIVE+1
 #           "HEAP_DALVIK_OTHER_LINEARALLOC","HEAP_DALVIK_OTHER_ACCOUNTING","HEAP_DALVIK_OTHER_ZYGOTE_CODE_CACHE","HEAP_DALVIK_OTHER_APP_CODE_CACHE","HEAP_DALVIK_OTHER_COMPILER_METADATA","HEAP_DALVIK_OTHER_INDIRECT_REFERENCE_TABLE", \
 #           "HEAP_DEX_BOOT_VDEX", "HEAP_DEX_APP_DEX","HEAP_DEX_APP_VDEX", \
 #           "HEAP_ART_APP","HEAP_ART_BOOT" ]
-pss_type = ["Unknown", "Dalvik", "Native", "Dalvik Other", "Stack", "Cursor", "Ashmem", "Gfx dev", \
-            "Other dev", ".so mmap", ".jar mmap", ".apk mmap", ".ttf mmap", ".dex mmap", ".oat mmap", ".art mmap", "Other mmap", \
-            "graphics","gl","other memtrack", \
-                "dalvik normal","dalvik large","dalvik zygote","dalvik non moving" ,\
-                    "dalvik other lineralloc","dalvik other accounting","dalvik other zygote code cache","dalvik other app code cache","dalvik other compiler metadata","dalvik other indirect reference table" ,\
-                        "dex boot vdex","dex app dex","dex app vdex", \
-                            "heap art app","heap art boot"]
+pss_type = ["Unknown (未知内存)", "Dalvik (Dalvik虚拟机运行时内存)", "Native (本地C/C++代码内存)", "Dalvik Other (Dalvik虚拟机额外内存)", "Stack (线程栈内存)", "Cursor (数据库游标内存)", "Ashmem (匿名共享内存)", "Gfx dev (图形设备内存)", \
+            "Other dev (其他设备内存)", ".so mmap (动态链接库映射内存)", ".jar mmap (JAR文件映射内存)", ".apk mmap (APK文件映射内存)", ".ttf mmap (字体文件映射内存)", ".dex mmap (DEX字节码文件映射内存)", ".oat mmap (编译后的安卓应用程序映射内存)", ".art mmap (ART运行时文件映射内存)", "Other mmap (其他文件映射内存)", \
+            "graphics (图形相关内存)","gl (OpenGL图形内存)","other memtrack (其他内存追踪)", \
+                "dalvik normal (Dalvik普通内存空间)","dalvik large (Dalvik大对象内存空间)","dalvik zygote (Dalvik进程孵化器内存)","dalvik non moving (Dalvik非移动对象内存)" ,\
+                    "dalvik other lineralloc (Dalvik线性分配器内存)","dalvik other accounting (Dalvik内存记账)","dalvik other zygote code cache (Zygote代码缓存)","dalvik other app code cache (应用代码缓存)","dalvik other compiler metadata (编译器元数据)","dalvik other indirect reference table (间接引用表)" ,\
+                        "dex boot vdex (启动阶段DEX验证文件)","dex app dex (应用DEX文件)","dex app vdex (应用DEX验证文件)", \
+                            "heap art app (应用ART堆)","heap art boot (启动ART堆)", "native heap (本地堆)", "dmabuf (直接内存缓冲区)", "jit cache (即时编译缓存)", "zygote code cache (Zygote代码缓存)", "app code cache (应用代码缓存)"]
 type_list = []
 for i in range(type_length):
     type_list.append({})
@@ -106,18 +113,20 @@ def match_type(name, prewhat):
 
     size = len(name)
 
-    if name.startswith("[heap]"):
-        which_heap = HEAP_NATIVE
+    if name.startswith("[heap]") or name.startswith("[anon:native]"):
+        which_heap = HEAP_NATIVE_HEAP
     elif name.startswith("[anon:libc_malloc]"):
         which_heap = HEAP_NATIVE
-    elif name.startswith("[anon:scudo:"):
+    elif name.startswith("[anon:scudo:") or name.startswith("[anon:GWP-ASan"):
         which_heap = HEAP_NATIVE
-    elif name.startswith("[anon:GWP-ASan"):
-        which_heap = HEAP_NATIVE
-    elif name.startswith("[stack"):
+    elif name.startswith("[stack") or name.startswith("[anon:stack_and_tls:"):
         which_heap = HEAP_STACK
-    elif name.startswith("[anon:stack_and_tls:"):
-        which_heap = HEAP_STACK
+    elif name.startswith("/dev/dma_heap/"):
+        which_heap = HEAP_DMABUF
+    elif name.startswith("/memfd:jit-cache") or name.startswith("[anon:jit-cache"):
+        which_heap = HEAP_JIT_CACHE
+    elif name.startswith("/memfd:jit-zygote-cache") or name.startswith("[anon:jit-zygote-cache"):
+        which_heap = HEAP_ZYGOTE_CODE_CACHE
     elif name.endswith(".so"):
         which_heap = HEAP_SO
         is_swappable = True
@@ -192,9 +201,21 @@ def match_type(name, prewhat):
             elif name.startswith("[anon:dalvik-indirect ref"):
                 sub_heap = HEAP_DALVIK_OTHER_INDIRECT_REFERENCE_TABLE
             elif name.startswith("[anon:dalvik-jit-code-cache") | name.startswith("[anon:dalvik-data-code-cache"):
-                sub_heap = HEAP_DALVIK_OTHER_APP_CODE_CACHE
+                which_heap = HEAP_APP_CODE_CACHE
             elif name.startswith("[anon:dalvik-CompilerMetadata"):
                 sub_heap = HEAP_DALVIK_OTHER_COMPILER_METADATA
+            elif name.startswith("[anon:dalvik-other-accounting"):
+                sub_heap = HEAP_DALVIK_OTHER_ACCOUNTING
+            elif name.startswith("[anon:dalvik-other-linearalloc"):
+                sub_heap = HEAP_DALVIK_OTHER_LINEARALLOC
+            elif name.startswith("[anon:dalvik-other-zygote-code-cache"):
+                sub_heap = HEAP_DALVIK_OTHER_ZYGOTE_CODE_CACHE
+            elif name.startswith("[anon:dalvik-other-app-code-cache"):
+                sub_heap = HEAP_DALVIK_OTHER_APP_CODE_CACHE
+            elif name.startswith("[anon:dalvik-other-compiler-metadata"):
+                sub_heap = HEAP_DALVIK_OTHER_COMPILER_METADATA  
+            elif name.startswith("[anon:dalvik-other-indirect-reference-table"):
+                sub_heap = HEAP_DALVIK_OTHER_INDIRECT_REFERENCE_TABLE
             else:
                 sub_heap = HEAP_DALVIK_OTHER_ACCOUNTING
     elif not name.__eq__(" "):
@@ -205,12 +226,12 @@ def match_type(name, prewhat):
     return which_heap
 
 def match_pss(line):
-    tmp = re.match('Pss:\s+([0-9]*) kB', line, re.I)
+    tmp = re.match(r'Pss:\s+([0-9]*)\s*kB', line, re.I)
     if tmp:
         return tmp
 
 def match_swapPss(line):
-    tmp = re.match('SwapPss:\s+([0-9]*) kB', line, re.I)
+    tmp = re.match(r'SwapPss:\s+([0-9]*) kB', line, re.I)
     if tmp:
         return tmp
 
