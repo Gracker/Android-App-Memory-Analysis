@@ -226,12 +226,12 @@ def match_type(name, prewhat):
     return which_heap
 
 def match_pss(line):
-    tmp = re.match(r'Pss:\s+([0-9]*)\s*kB', line, re.I)
+    tmp = re.match(r'Pss:\s+([0-9.]+)\s*[kM]B\s*(?::?\s*(.+))?', line, re.I)
     if tmp:
         return tmp
 
 def match_swapPss(line):
-    tmp = re.match(r'SwapPss:\s+([0-9]*) kB', line, re.I)
+    tmp = re.match(r'SwapPss:\s+([0-9.]+)\s*[kM]B\s*(?::?\s*(.+))?', line, re.I)
     if tmp:
         return tmp
 
@@ -242,6 +242,7 @@ def parse_smaps(filename):
         return
     what = 0
     prewhat = 0
+    name = ""  # Initialize name here
     while 1:
         tmp = match_head(line)
         if tmp:
@@ -255,6 +256,7 @@ def parse_smaps(filename):
                 return
             tmp2 = match_pss(line2)
             tmp3 = match_swapPss(line2)
+            pss = 0  # Initialize pss with default value
             if tmp2 or tmp3:
                 if what >= 0:
                     if tmp2:
