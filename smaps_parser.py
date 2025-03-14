@@ -9,6 +9,7 @@ import re
 from collections import Counter
 import os
 import subprocess
+import sys
 
 type_length = 40
 pssSum_count = [0] * type_length
@@ -349,7 +350,10 @@ if __name__ == "__main__":
         if args.pid.isdigit():
             pid = int(args.pid)
             if pid > 0:
-                check_cmd = "adb shell su root ls /proc/%d/smaps >> /dev/null" % int(pid)
+                if sys.platform == "win32":
+                    check_cmd = 'adb shell "su root ls /proc/%d/smaps >> /dev/null"' % int(pid)
+                else:
+                    check_cmd = "adb shell su root ls /proc/%d/smaps >> /dev/null" % int(pid)
                 ret = os.system(check_cmd)
                 if ret == 0:
                     cmd = "adb shell su root cat /proc/%d/smaps" % int(pid)
