@@ -1,16 +1,17 @@
 
 ========================================
 Android App Memory Analysis Report
-Generated: 2025-07-12 22:53:18
-Script Version: Universal Android Support
+Generated: 2025-07-12 12:30:34
+Script Version: Android 16 Enhanced
 ========================================
 
 内存概览 / Memory Overview:
 总内存使用: 49.70 MB
 总交换内存: 0.00 MB
 
-Unknown (未知内存类型) : 0.793 MB
+Unknown (未知内存类型 - 无法分类的内存区域) : 0.793 MB
 	PSS: 0.793 MB
+	SwapPSS: 0.000 MB
 		[anon:.bss] : 294 kB
 		[anon:linker_alloc] : 222 kB
 		[anon:thread signal stack] : 176 kB
@@ -21,18 +22,18 @@ Unknown (未知内存类型) : 0.793 MB
 		[anon:atexit handlers] : 5 kB
 		[anon:cfi shadow] : 4 kB
 		 : 4 kB
-	SwapPSS: 0.000 MB
 
-Dalvik (Dalvik虚拟机运行时内存) : 3.783 MB
+Dalvik (Dalvik虚拟机运行时内存 - Java代码执行环境) : 3.783 MB
 	PSS: 3.783 MB
+	SwapPSS: 0.000 MB
 		[anon:dalvik-main space (region space)] : 2500 kB
 		[anon:dalvik-zygote space] : 656 kB
 		[anon:dalvik-free list large object space] : 327 kB
 		[anon:dalvik-non moving space] : 300 kB
-	SwapPSS: 0.000 MB
 
-Dalvik Other (Dalvik虚拟机额外内存) : 1.363 MB
+Dalvik Other (Dalvik虚拟机额外内存 - 虚拟机辅助功能内存) : 1.363 MB
 	PSS: 1.363 MB
+	SwapPSS: 0.000 MB
 		[anon:dalvik-LinearAlloc] : 1145 kB
 		[anon:dalvik-indirect ref table] : 100 kB
 		[anon:dalvik-card table] : 44 kB
@@ -42,10 +43,10 @@ Dalvik Other (Dalvik虚拟机额外内存) : 1.363 MB
 		[anon:dalvik-mod union bitmap] : 4 kB
 		[anon:dalvik-large live objects] : 4 kB
 		[anon:dalvik-allocspace zygote / non moving space mark-bitmap 0] : 2 kB
-	SwapPSS: 0.000 MB
 
-Stack (线程栈内存) : 0.976 MB
+Stack (线程栈内存 - 函数调用和局部变量存储) : 0.976 MB
 	PSS: 0.976 MB
+	SwapPSS: 0.000 MB
 		[anon:stack_and_tls:22379] : 100 kB
 		[stack] : 60 kB
 		[anon:stack_and_tls:25810] : 32 kB
@@ -56,26 +57,26 @@ Stack (线程栈内存) : 0.976 MB
 		[anon:stack_and_tls:21970] : 32 kB
 		[anon:stack_and_tls:21963] : 32 kB
 		[anon:stack_and_tls:21962] : 32 kB
-	SwapPSS: 0.000 MB
 
-Ashmem (匿名共享内存) : 0.002 MB
+Ashmem (匿名共享内存 - 进程间共享的内存区域) : 0.002 MB
 	PSS: 0.002 MB
+	SwapPSS: 0.000 MB
 		/dev/ashmem/GFXStats-21936 (deleted) : 2 kB
-	SwapPSS: 0.000 MB
 
-Gfx dev (图形设备内存) : 5.884 MB
+Gfx dev (图形设备内存 - GPU和图形驱动内存) : 5.884 MB
 	PSS: 5.884 MB
-		/dev/kgsl-3d0 : 5884 kB
 	SwapPSS: 0.000 MB
+		/dev/kgsl-3d0 : 5884 kB
 
-Other dev (其他设备内存) : 0.136 MB
+Other dev (其他设备内存 - 非图形设备驱动内存) : 0.136 MB
 	PSS: 0.136 MB
+	SwapPSS: 0.000 MB
 		/dev/binder : 132 kB
 		/dev/hwbinder : 4 kB
-	SwapPSS: 0.000 MB
 
-.so mmap (动态链接库映射内存) : 2.608 MB
+.so mmap (动态链接库映射内存 - 共享库文件映射) : 2.608 MB
 	PSS: 2.608 MB
+	SwapPSS: 0.000 MB
 		/vendor/lib64/libllvm-glnext.so : 859 kB
 		/system/lib64/libhwui.so : 804 kB
 		/vendor/lib64/egl/libGLESv2_adreno.so : 235 kB
@@ -86,43 +87,43 @@ Other dev (其他设备内存) : 0.136 MB
 		/system/lib64/libharfbuzz_ng.so : 48 kB
 		/system/lib64/libmediandk.so : 36 kB
 		/system/lib64/libminikin.so : 29 kB
-	SwapPSS: 0.000 MB
 
-.jar mmap (JAR文件映射内存) : 0.772 MB
+.jar mmap (JAR文件映射内存 - Java归档文件映射) : 0.772 MB
 	PSS: 0.772 MB
+	SwapPSS: 0.000 MB
 		/system/framework/framework.jar : 764 kB
 		/system/framework/telephony-common.jar : 5 kB
 		/system/framework/voip-common.jar : 2 kB
 		/system/framework/ext.jar : 1 kB
-	SwapPSS: 0.000 MB
 
-.apk mmap (APK文件映射内存) : 3.048 MB
+.apk mmap (APK文件映射内存 - 应用安装包文件映射) : 3.048 MB
 	PSS: 3.048 MB
+	SwapPSS: 0.000 MB
 		/system_ext/priv-app/Launcher3QuickStep/Launcher3QuickStep.apk : 2480 kB
 		/system/framework/framework-res.apk : 508 kB
 		/product/app/QuickSearchBox/QuickSearchBox.apk : 60 kB
-	SwapPSS: 0.000 MB
 
-.ttf mmap (字体文件映射内存) : 0.039 MB
+.ttf mmap (字体文件映射内存 - 字体资源文件映射) : 0.039 MB
 	PSS: 0.039 MB
+	SwapPSS: 0.000 MB
 		/system/fonts/Roboto-Medium.ttf : 24 kB
 		/system/fonts/Roboto-Regular.ttf : 15 kB
-	SwapPSS: 0.000 MB
 
-.dex mmap (DEX字节码文件映射内存) : 0.054 MB
+.dex mmap (DEX字节码文件映射内存 - Android字节码映射) : 0.054 MB
 	PSS: 0.054 MB
+	SwapPSS: 0.000 MB
 		/data/dalvik-cache/arm64/system_ext@priv-app@Launcher3QuickStep@Launcher3QuickStep.apk@classes.dex (deleted) : 52 kB
 		/data/dalvik-cache/arm64/system_ext@priv-app@Launcher3QuickStep@Launcher3QuickStep.apk@classes.vdex (deleted) : 2 kB
-	SwapPSS: 0.000 MB
 
-.oat mmap (编译后的安卓应用程序映射内存) : 0.957 MB
+.oat mmap (编译后OAT文件映射内存 - 预编译的本地代码) : 0.957 MB
 	PSS: 0.957 MB
+	SwapPSS: 0.000 MB
 		/system/framework/arm64/boot-framework.oat : 862 kB
 		/system/framework/arm64/boot-core-icu4j.oat : 95 kB
-	SwapPSS: 0.000 MB
 
-.art mmap (ART运行时文件映射内存) : 2.727 MB
+.art mmap (ART运行时文件映射内存 - 运行时映像文件) : 2.727 MB
 	PSS: 2.727 MB
+	SwapPSS: 0.000 MB
 		[anon:dalvik-/system/framework/boot-framework.art] : 1537 kB
 		[anon:dalvik-/apex/com.android.art/javalib/boot.art] : 369 kB
 		[anon:dalvik-/data/dalvik-cache/arm64/system_ext@priv-app@Launcher3QuickStep@Launcher3QuickStep.apk@classes.art] : 344 kB
@@ -133,26 +134,26 @@ Other dev (其他设备内存) : 0.136 MB
 		/system/framework/arm64/boot-framework.art : 16 kB
 		[anon:dalvik-/apex/com.android.art/javalib/boot-bouncycastle.art] : 10 kB
 		[anon:dalvik-/apex/com.android.art/javalib/boot-okhttp.art] : 8 kB
-	SwapPSS: 0.000 MB
 
-Other mmap (其他文件映射内存) : 0.383 MB
+Other mmap (其他文件映射内存 - 未分类的文件映射) : 0.383 MB
 	PSS: 0.383 MB
+	SwapPSS: 0.000 MB
 		/system/fonts/NotoSansCJK-Regular.ttc : 383 kB
-	SwapPSS: 0.000 MB
 
-jit cache (即时编译缓存) : 0.368 MB
+JIT Cache (JIT编译缓存 - 即时编译代码缓存) : 0.368 MB
 	PSS: 0.368 MB
-		/memfd:jit-cache (deleted) : 368 kB
 	SwapPSS: 0.000 MB
+		/memfd:jit-cache (deleted) : 368 kB
 
-scudo heap (Scudo安全内存分配器) : 24.482 MB
+Scudo Heap (Scudo内存分配器堆 - 安全内存分配器) : 24.482 MB
 	PSS: 24.482 MB
+	SwapPSS: 0.000 MB
 		[anon:scudo:primary] : 16491 kB
 		[anon:scudo:secondary] : 7991 kB
-	SwapPSS: 0.000 MB
 
-apex mapping (APEX模块映射内存) : 1.323 MB
+APEX Mapping (APEX模块映射内存 - 模块化系统组件) : 1.323 MB
 	PSS: 1.323 MB
+	SwapPSS: 0.000 MB
 		/apex/com.android.art/lib64/libart.so : 239 kB
 		/apex/com.android.art/javalib/arm64/boot.oat : 184 kB
 		/apex/com.android.art/lib64/libart-compiler.so : 177 kB
@@ -163,8 +164,12 @@ apex mapping (APEX模块映射内存) : 1.323 MB
 		/apex/com.android.art/javalib/arm64/boot-core-libart.oat : 28 kB
 		/apex/com.android.i18n/lib64/libicui18n.so : 26 kB
 		/apex/com.android.art/lib64/libvixl.so : 22 kB
-	SwapPSS: 0.000 MB
 
 
-分析完成 / Analysis completed: 2025-07-12 22:53:18
-工具版本 / Tool version: Universal Android Memory Parser
+==================================================
+内存分析洞察 / Memory Analysis Insights
+==================================================
+
+
+分析完成 / Analysis completed: 2025-07-12 12:30:34
+工具版本 / Tool version: Android 16 Enhanced Memory Parser
