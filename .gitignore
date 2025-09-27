@@ -1,0 +1,13 @@
+# Analysis results
+*.txt
+*.json
+
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+
+# Build artifacts
+/output/

@@ -12,7 +12,7 @@ import subprocess
 
 # 导入现有的解析器
 from hprof_parser import HprofParser
-from smaps_parser import parse_smaps, pss_type, type_list, pss_count, swapPss_count, pssSum_count
+from smaps_parser import parse_smaps, pss_type, pss_count, swapPss_count, pssSum_count
 
 class MemoryAnalyzer:
     def __init__(self):
@@ -48,13 +48,10 @@ class MemoryAnalyzer:
         
         try:
             # 重置全局变量
-            global pss_count, swapPss_count, pssSum_count, type_list
+            global pss_count, swapPss_count, pssSum_count
             pss_count = [0] * 40
             swapPss_count = [0] * 40
             pssSum_count = [0] * 40
-            type_list = []
-            for i in range(40):
-                type_list.append({})
             
             parse_smaps(smaps_file)
             
