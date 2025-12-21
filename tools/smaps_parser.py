@@ -310,15 +310,20 @@ def match_type(name, prewhat):
 
     size = len(name)
 
-    # Enhanced native heap detection (Android 15+, fallback for older versions)
+    # Native heap detection - all versions should be classified as HEAP_NATIVE
+    # for consistent Native memory reporting across Android versions
+    #
+    # Supported patterns:
+    # - [heap]: Traditional native heap (Android 4.x - 10)
+    # - [anon:libc_malloc]: libc malloc allocator (Android 5.x - 10)
+    # - [anon:scudo:primary/secondary]: Scudo allocator (Android 11+)
+    # - [anon:native]: Generic native memory marker
     if name.startswith("[heap]") or name.startswith("[anon:native]"):
-        which_heap = HEAP_NATIVE_HEAP if HEAP_NATIVE_HEAP < type_length else HEAP_NATIVE
+        which_heap = HEAP_NATIVE
     elif name.startswith("[anon:libc_malloc]"):
         which_heap = HEAP_NATIVE
-    
-    # Android 16+ Scudo allocator detection (with fallback)
     elif name.startswith("[anon:scudo:") or name.startswith("[anon:scudo_"):
-        which_heap = HEAP_SCUDO_HEAP if HEAP_SCUDO_HEAP < type_length else HEAP_NATIVE
+        which_heap = HEAP_NATIVE
     
     # Android 16+ GWP-ASan debugging heap detection (with fallback)
     elif name.startswith("[anon:GWP-ASan") or name.startswith("[anon:gwp_asan"):
