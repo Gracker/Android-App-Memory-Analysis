@@ -31,7 +31,7 @@ The main script `analyze.py` provides two commands: `hprof` and `smaps`.
 2.  **Analyze a smaps file:**
     Use the `smaps` command and provide the path to your `smaps` file. Sample files are in the `demo/smaps_sample` directory.
     ```bash
-    python3 analyze.py smaps demo/smaps_sample/2056_smaps_file.txt
+    python3 analyze.py smaps demo/smaps_sample/smaps
     ```
 
 ## Analysis Tools

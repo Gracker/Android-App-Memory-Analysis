@@ -310,50 +310,35 @@ def match_type(name, prewhat):
 
     size = len(name)
 
-    # Native heap detection - all versions should be classified as HEAP_NATIVE
-    # for consistent Native memory reporting across Android versions
+    # Native heap detection - matches AOSP android_os_Debug.cpp classification
+    # All native allocator patterns should be classified as HEAP_NATIVE
     #
-    # Supported patterns:
+    # Supported patterns (per AOSP):
     # - [heap]: Traditional native heap (Android 4.x - 10)
     # - [anon:libc_malloc]: libc malloc allocator (Android 5.x - 10)
     # - [anon:scudo:primary/secondary]: Scudo allocator (Android 11+)
-    # - [anon:native]: Generic native memory marker
-    if name.startswith("[heap]") or name.startswith("[anon:native]"):
+    # - [anon:GWP-ASan]: GWP-ASan debugging allocator (Android 11+)
+    if name.startswith("[heap]"):
         which_heap = HEAP_NATIVE
     elif name.startswith("[anon:libc_malloc]"):
         which_heap = HEAP_NATIVE
     elif name.startswith("[anon:scudo:") or name.startswith("[anon:scudo_"):
         which_heap = HEAP_NATIVE
-    
-    # Android 16+ GWP-ASan debugging heap detection (with fallback)
     elif name.startswith("[anon:GWP-ASan") or name.startswith("[anon:gwp_asan"):
-        which_heap = HEAP_GWP_ASAN if HEAP_GWP_ASAN < type_length else HEAP_NATIVE
-    
-    # Android 16+ TLS optimization detection (with fallback)
-    elif name.startswith("[anon:tls_") or name.startswith("[anon:thread_local"):
-        which_heap = HEAP_TLS_OPTIMIZED if HEAP_TLS_OPTIMIZED < type_length else HEAP_STACK
-    
-    elif name.startswith("[stack") or name.startswith("[anon:stack_and_tls:") or name.startswith("[anon:stack:"):
+        which_heap = HEAP_NATIVE
+
+    # Stack detection - matches AOSP classification
+    elif name.startswith("[stack") or name.startswith("[anon:stack_and_tls:"):
         which_heap = HEAP_STACK
-    
-    # Android 15+ DMA-BUF heap detection (with fallback)
-    elif name.startswith("/dev/dma_heap/") or name.startswith("/dev/dmabuf/"):
-        which_heap = HEAP_DMABUF if HEAP_DMABUF < type_length else HEAP_UNKNOWN_DEV
-    
-    # Android 15+ JIT cache detection (with fallback)
-    elif name.startswith("/memfd:jit-cache") or name.startswith("[anon:jit-cache"):
-        which_heap = HEAP_JIT_CACHE if HEAP_JIT_CACHE < type_length else HEAP_DALVIK_OTHER
-    
-    elif name.startswith("/memfd:jit-zygote-cache") or name.startswith("[anon:jit-zygote-cache"):
-        which_heap = HEAP_ZYGOTE_CODE_CACHE if HEAP_ZYGOTE_CODE_CACHE < type_length else HEAP_DALVIK_OTHER
-    
-    # Android 16+ APEX module mapping detection (with fallback)
-    elif name.startswith("/apex/") or name.startswith("[anon:apex_"):
-        which_heap = HEAP_APEX_MAPPING if HEAP_APEX_MAPPING < type_length else HEAP_UNKNOWN_MAP
-    
-    # Android 16+ 16KB page aligned memory detection (with fallback)
-    elif "16kb" in name.lower() or "16k_page" in name.lower():
-        which_heap = HEAP_16KB_PAGE_ALIGNED if HEAP_16KB_PAGE_ALIGNED < type_length else HEAP_UNKNOWN
+
+    # JIT cache detection - matches AOSP classification (HEAP_DALVIK_OTHER + subtype)
+    elif name.startswith("/memfd:jit-cache"):
+        which_heap = HEAP_DALVIK_OTHER
+        sub_heap = HEAP_DALVIK_OTHER_APP_CODE_CACHE if HEAP_DALVIK_OTHER_APP_CODE_CACHE < type_length else HEAP_UNKNOWN
+
+    elif name.startswith("/memfd:jit-zygote-cache"):
+        which_heap = HEAP_DALVIK_OTHER
+        sub_heap = HEAP_DALVIK_OTHER_ZYGOTE_CODE_CACHE if HEAP_DALVIK_OTHER_ZYGOTE_CODE_CACHE < type_length else HEAP_UNKNOWN
     
     elif name.endswith(".so"):
         which_heap = HEAP_SO
@@ -391,6 +376,7 @@ def match_type(name, prewhat):
             sub_heap = HEAP_ART_APP if HEAP_ART_APP < type_length else HEAP_UNKNOWN
         is_swappable = True
     elif name.startswith("/dev"):
+        # Device memory classification - matches AOSP
         which_heap = HEAP_UNKNOWN_DEV
         if name.startswith("/dev/kgsl-3d0"):
             which_heap = HEAP_GL_DEV
@@ -401,12 +387,6 @@ def match_type(name, prewhat):
             sub_heap = HEAP_DALVIK_OTHER_ZYGOTE_CODE_CACHE if HEAP_DALVIK_OTHER_ZYGOTE_CODE_CACHE < type_length else HEAP_UNKNOWN
         elif "/dev/ashmem" in name:
             which_heap = HEAP_ASHMEM
-    elif name.startswith("/memfd:jit-cache"):
-        which_heap = HEAP_DALVIK_OTHER
-        sub_heap = HEAP_DALVIK_OTHER_APP_CODE_CACHE if HEAP_DALVIK_OTHER_APP_CODE_CACHE < type_length else HEAP_UNKNOWN
-    elif name.startswith("/memfd:jit-zygote-cache"):
-        which_heap = HEAP_DALVIK_OTHER
-        sub_heap = HEAP_DALVIK_OTHER_ZYGOTE_CODE_CACHE if HEAP_DALVIK_OTHER_ZYGOTE_CODE_CACHE < type_length else HEAP_UNKNOWN
     elif name.startswith("[anon:"):
         which_heap = HEAP_UNKNOWN
         if name.startswith("[anon:dalvik-"):
@@ -429,7 +409,9 @@ def match_type(name, prewhat):
             elif name.startswith("[anon:dalvik-indirect ref"):
                 sub_heap = HEAP_DALVIK_OTHER_INDIRECT_REFERENCE_TABLE if HEAP_DALVIK_OTHER_INDIRECT_REFERENCE_TABLE < type_length else HEAP_UNKNOWN
             elif name.startswith("[anon:dalvik-jit-code-cache") or name.startswith("[anon:dalvik-data-code-cache"):
-                which_heap = HEAP_APP_CODE_CACHE if HEAP_APP_CODE_CACHE < type_length else HEAP_DALVIK_OTHER
+                # AOSP classifies as HEAP_DALVIK_OTHER + HEAP_DALVIK_OTHER_APP_CODE_CACHE
+                which_heap = HEAP_DALVIK_OTHER
+                sub_heap = HEAP_DALVIK_OTHER_APP_CODE_CACHE if HEAP_DALVIK_OTHER_APP_CODE_CACHE < type_length else HEAP_UNKNOWN
             elif name.startswith("[anon:dalvik-CompilerMetadata"):
                 sub_heap = HEAP_DALVIK_OTHER_COMPILER_METADATA if HEAP_DALVIK_OTHER_COMPILER_METADATA < type_length else HEAP_UNKNOWN
             elif name.startswith("[anon:dalvik-other-accounting"):

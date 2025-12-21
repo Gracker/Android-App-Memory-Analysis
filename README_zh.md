@@ -31,7 +31,7 @@
 2.  **分析 smaps 文件:**
     使用 `smaps` 命令并提供 `smaps` 文件的路径。示例文件位于 `demo/smaps_sample` 目录中。
     ```bash
-    python3 analyze.py smaps demo/smaps_sample/2056_smaps_file.txt
+    python3 analyze.py smaps demo/smaps_sample/smaps
     ```
 
 ## 分析工具
