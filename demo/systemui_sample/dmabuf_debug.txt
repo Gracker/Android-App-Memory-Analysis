@@ -1,0 +1,797 @@
+
+Dma-buf Objects:
+size	flags	mode	count	exp_name
+size    	flags   	mode    	count   	exp_name	ino     
+00032768	00000002	00000007	00000002	ion	00075971	
+	Attached Devices:
+Total 0 devices attached
+
+00032768	00000002	00000007	00000002	ion	00075412	
+	Attached Devices:
+Total 0 devices attached
+
+00032768	00000002	00000007	00000002	ion	00075411	
+	Attached Devices:
+Total 0 devices attached
+
+00032768	00000002	00000007	00000002	ion	00075410	
+	Attached Devices:
+Total 0 devices attached
+
+00016384	00000002	00000007	00000002	ion	00076877	
+	Attached Devices:
+Total 0 devices attached
+
+00032768	00000002	00000007	00000002	ion	00075247	
+	Attached Devices:
+Total 0 devices attached
+
+00032768	00000002	00000007	00000002	ion	00075245	
+	Attached Devices:
+Total 0 devices attached
+
+00032768	00000002	00000007	00000002	ion	00075243	
+	Attached Devices:
+Total 0 devices attached
+
+00032768	00000002	00000007	00000004	ion	00075241	
+	Attached Devices:
+Total 0 devices attached
+
+00032768	00000002	00000007	00000004	ion	00075147	
+	Attached Devices:
+Total 0 devices attached
+
+00016384	00000002	00000007	00000002	ion	00057969	
+	Attached Devices:
+Total 0 devices attached
+
+00016384	00000002	00000007	00000002	ion	00057958	
+	Attached Devices:
+Total 0 devices attached
+
+00016384	00000002	00000007	00000002	ion	00057952	
+	Attached Devices:
+Total 0 devices attached
+
+00032768	00000002	00000007	00000004	ion	00075126	
+	Attached Devices:
+Total 0 devices attached
+
+00032768	00000002	00000007	00000002	ion	00075124	
+	Attached Devices:
+Total 0 devices attached
+
+00032768	00000002	00000007	00000004	ion	00075122	
+	Attached Devices:
+Total 0 devices attached
+
+00020480	00000002	00000007	00000002	ion	00065436	
+	Attached Devices:
+Total 0 devices attached
+
+00057344	00000002	00000007	00000003	ion	00065435	
+	Attached Devices:
+	kgsl-3d0
+Total 1 devices attached
+
+00020480	00000002	00000007	00000002	ion	00065434	
+	Attached Devices:
+Total 0 devices attached
+
+00057344	00000002	00000007	00000003	ion	00065433	
+	Attached Devices:
+	kgsl-3d0
+Total 1 devices attached
+
+00020480	00000002	00000007	00000002	ion	00054189	
+	Attached Devices:
+Total 0 devices attached
+
+00057344	00000002	00000007	00000003	ion	00054188	
+	Attached Devices:
+	kgsl-3d0
+Total 1 devices attached
+
+00020480	00000002	00000007	00000002	ion	00054187	
+	Attached Devices:
+Total 0 devices attached
+
+00057344	00000002	00000007	00000003	ion	00054186	
+	Attached Devices:
+	kgsl-3d0
+Total 1 devices attached
+
+00020480	00000002	00000007	00000002	ion	00054185	
+	Attached Devices:
+Total 0 devices attached
+
+00057344	00000002	00000007	00000003	ion	00054184	
+	Attached Devices:
+	kgsl-3d0
+Total 1 devices attached
+
+00020480	00000002	00000007	00000002	ion	00063330	
+	Attached Devices:
+Total 0 devices attached
+
+00057344	00000002	00000007	00000003	ion	00063329	
+	Attached Devices:
+	kgsl-3d0
+Total 1 devices attached
+
+00020480	00000002	00000007	00000006	ion	00054178	
+	Attached Devices:
+Total 0 devices attached
+
+17526784	00000002	00000007	00000006	ion	00054177	
+	Attached Devices:
+	ae00000.qcom,mdss_mdp
+	kgsl-3d0
+	kgsl-3d0
+Total 3 devices attached
+
+00020480	00000002	00000007	00000006	ion	00054176	
+	Attached Devices:
+Total 0 devices attached
+
+17526784	00000002	00000007	00000006	ion	00054175	
+	Attached Devices:
+	ae00000.qcom,mdss_mdp
+	kgsl-3d0
+	kgsl-3d0
+Total 3 devices attached
+
+00020480	00000002	00000007	00000006	ion	00054174	
+	Attached Devices:
+Total 0 devices attached
+
+17526784	00000002	00000007	00000007	ion	00054173	
+	Attached Devices:
+	ae00000.qcom,mdss_mdp
+	kgsl-3d0
+	kgsl-3d0
+Total 3 devices attached
+
+00020480	00000002	00000007	00000002	ion	00063247	
+	Attached Devices:
+Total 0 devices attached
+
+00200704	00000002	00000007	00000003	ion	00063246	
+	Attached Devices:
+	kgsl-3d0
+Total 1 devices attached
+
+00020480	00000002	00000007	00000002	ion	00053971	
+	Attached Devices:
+Total 0 devices attached
+
+00200704	00000002	00000007	00000003	ion	00053970	
+	Attached Devices:
+	kgsl-3d0
+Total 1 devices attached
+
+00020480	00000002	00000007	00000002	ion	00063228	
+	Attached Devices:
+Total 0 devices attached
+
+00200704	00000002	00000007	00000003	ion	00063227	
+	Attached Devices:
+	kgsl-3d0
+Total 1 devices attached
+
+00020480	00000002	00000007	00000002	ion	00063226	
+	Attached Devices:
+Total 0 devices attached
+
+00200704	00000002	00000007	00000003	ion	00063225	
+	Attached Devices:
+	kgsl-3d0
+Total 1 devices attached
+
+00020480	00000002	00000007	00000002	ion	00063224	
+	Attached Devices:
+Total 0 devices attached
+
+00200704	00000002	00000007	00000003	ion	00063223	
+	Attached Devices:
+	kgsl-3d0
+Total 1 devices attached
+
+00020480	00000002	00000007	00000002	ion	00053969	
+	Attached Devices:
+Total 0 devices attached
+
+00200704	00000002	00000007	00000003	ion	00053968	
+	Attached Devices:
+	kgsl-3d0
+Total 1 devices attached
+
+00020480	00000002	00000007	00000002	ion	00063222	
+	Attached Devices:
+Total 0 devices attached
+
+00200704	00000002	00000007	00000003	ion	00063221	
+	Attached Devices:
+	kgsl-3d0
+Total 1 devices attached
+
+00020480	00000002	00000007	00000002	ion	00063220	
+	Attached Devices:
+Total 0 devices attached
+
+00200704	00000002	00000007	00000003	ion	00063219	
+	Attached Devices:
+	kgsl-3d0
+Total 1 devices attached
+
+00020480	00000002	00000007	00000002	ion	00053967	
+	Attached Devices:
+Total 0 devices attached
+
+00200704	00000002	00000007	00000003	ion	00053966	
+	Attached Devices:
+	kgsl-3d0
+Total 1 devices attached
+
+00020480	00000002	00000007	00000002	ion	00053965	
+	Attached Devices:
+Total 0 devices attached
+
+00200704	00000002	00000007	00000003	ion	00053964	
+	Attached Devices:
+	kgsl-3d0
+Total 1 devices attached
+
+00020480	00000002	00000007	00000002	ion	00053962	
+	Attached Devices:
+Total 0 devices attached
+
+00200704	00000002	00000007	00000003	ion	00053961	
+	Attached Devices:
+	kgsl-3d0
+Total 1 devices attached
+
+00020480	00000002	00000007	00000002	ion	00053960	
+	Attached Devices:
+Total 0 devices attached
+
+00200704	00000002	00000007	00000003	ion	00053959	
+	Attached Devices:
+	kgsl-3d0
+Total 1 devices attached
+
+00020480	00000002	00000007	00000002	ion	00053958	
+	Attached Devices:
+Total 0 devices attached
+
+00200704	00000002	00000007	00000003	ion	00053957	
+	Attached Devices:
+	kgsl-3d0
+Total 1 devices attached
+
+00020480	00000002	00000007	00000002	ion	00053956	
+	Attached Devices:
+Total 0 devices attached
+
+00200704	00000002	00000007	00000003	ion	00053955	
+	Attached Devices:
+	kgsl-3d0
+Total 1 devices attached
+
+00020480	00000002	00000007	00000002	ion	00053954	
+	Attached Devices:
+Total 0 devices attached
+
+00200704	00000002	00000007	00000003	ion	00053953	
+	Attached Devices:
+	kgsl-3d0
+Total 1 devices attached
+
+00020480	00000002	00000007	00000002	ion	00063208	
+	Attached Devices:
+Total 0 devices attached
+
+00200704	00000002	00000007	00000003	ion	00063207	
+	Attached Devices:
+	kgsl-3d0
+Total 1 devices attached
+
+00020480	00000002	00000007	00000002	ion	00071842	
+	Attached Devices:
+Total 0 devices attached
+
+00020480	00000002	00000007	00000001	ion	00071841	
+	Attached Devices:
+Total 0 devices attached
+
+00020480	00000002	00000007	00000002	ion	00071840	
+	Attached Devices:
+Total 0 devices attached
+
+00020480	00000002	00000007	00000001	ion	00071839	
+	Attached Devices:
+Total 0 devices attached
+
+00020480	00000002	00000007	00000006	ion	00054658	
+	Attached Devices:
+Total 0 devices attached
+
+01044480	00000002	00000007	00000006	ion	00054657	
+	Attached Devices:
+	ae00000.qcom,mdss_mdp
+	kgsl-3d0
+	kgsl-3d0
+Total 3 devices attached
+
+00020480	00000002	00000007	00000006	ion	00054656	
+	Attached Devices:
+Total 0 devices attached
+
+01044480	00000002	00000007	00000007	ion	00054655	
+	Attached Devices:
+	ae00000.qcom,mdss_mdp
+	kgsl-3d0
+	kgsl-3d0
+Total 3 devices attached
+
+00020480	00000002	00000007	00000006	ion	00054654	
+	Attached Devices:
+Total 0 devices attached
+
+01044480	00000002	00000007	00000006	ion	00054653	
+	Attached Devices:
+	ae00000.qcom,mdss_mdp
+	kgsl-3d0
+	kgsl-3d0
+Total 3 devices attached
+
+00020480	00000002	00000007	00000006	ion	00055380	
+	Attached Devices:
+Total 0 devices attached
+
+05275648	00000002	00000007	00000006	ion	00055379	
+	Attached Devices:
+	ae00000.qcom,mdss_mdp
+	kgsl-3d0
+Total 2 devices attached
+
+00020480	00000002	00000007	00000006	ion	00055373	
+	Attached Devices:
+Total 0 devices attached
+
+01044480	00000002	00000007	00000006	ion	00055372	
+	Attached Devices:
+	ae00000.qcom,mdss_mdp
+	kgsl-3d0
+	kgsl-3d0
+Total 3 devices attached
+
+00020480	00000002	00000007	00000006	ion	00042876	
+	Attached Devices:
+Total 0 devices attached
+
+01044480	00000002	00000007	00000006	ion	00042875	
+	Attached Devices:
+	ae00000.qcom,mdss_mdp
+	kgsl-3d0
+	kgsl-3d0
+Total 3 devices attached
+
+00020480	00000002	00000007	00000006	ion	00042874	
+	Attached Devices:
+Total 0 devices attached
+
+01044480	00000002	00000007	00000007	ion	00042873	
+	Attached Devices:
+	ae00000.qcom,mdss_mdp
+	kgsl-3d0
+	kgsl-3d0
+Total 3 devices attached
+
+00020480	00000002	00000007	00000006	ion	00052857	
+	Attached Devices:
+Total 0 devices attached
+
+01044480	00000002	00000007	00000006	ion	00052856	
+	Attached Devices:
+	ae00000.qcom,mdss_mdp
+	kgsl-3d0
+	kgsl-3d0
+Total 3 devices attached
+
+00020480	00000002	00000007	00000006	ion	00052855	
+	Attached Devices:
+Total 0 devices attached
+
+01044480	00000002	00000007	00000007	ion	00052854	
+	Attached Devices:
+	ae00000.qcom,mdss_mdp
+	kgsl-3d0
+	kgsl-3d0
+Total 3 devices attached
+
+00020480	00000002	00000007	00000006	ion	00052853	
+	Attached Devices:
+Total 0 devices attached
+
+01044480	00000002	00000007	00000006	ion	00052852	
+	Attached Devices:
+	ae00000.qcom,mdss_mdp
+	kgsl-3d0
+	kgsl-3d0
+Total 3 devices attached
+
+00020480	00000002	00000007	00000006	ion	00052849	
+	Attached Devices:
+Total 0 devices attached
+
+01044480	00000002	00000007	00000007	ion	00052848	
+	Attached Devices:
+	ae00000.qcom,mdss_mdp
+	kgsl-3d0
+	kgsl-3d0
+Total 3 devices attached
+
+00020480	00000002	00000007	00000006	ion	00052847	
+	Attached Devices:
+Total 0 devices attached
+
+01044480	00000002	00000007	00000006	ion	00052846	
+	Attached Devices:
+	ae00000.qcom,mdss_mdp
+	kgsl-3d0
+	kgsl-3d0
+Total 3 devices attached
+
+00020480	00000002	00000007	00000006	ion	00052845	
+	Attached Devices:
+Total 0 devices attached
+
+01044480	00000002	00000007	00000006	ion	00052844	
+	Attached Devices:
+	ae00000.qcom,mdss_mdp
+	kgsl-3d0
+	kgsl-3d0
+Total 3 devices attached
+
+00016384	00000002	00000007	00000001	ion	00041552	
+	Attached Devices:
+	soc:qcom,msm-audio-ion
+Total 1 devices attached
+
+00016384	00000002	00000007	00000002	ion	00041550	
+	Attached Devices:
+Total 0 devices attached
+
+00004096	00000002	00000007	00000001	ion	00041549	
+	Attached Devices:
+	soc:qcom,msm-audio-ion
+Total 1 devices attached
+
+00004096	00000002	00000007	00000002	ion	00041547	
+	Attached Devices:
+Total 0 devices attached
+
+00008192	00000002	00000007	00000001	ion	00041541	
+	Attached Devices:
+	soc:qcom,msm-audio-ion
+Total 1 devices attached
+
+00008192	00000002	00000007	00000002	ion	00041539	
+	Attached Devices:
+Total 0 devices attached
+
+00004096	00000002	00000007	00000001	ion	00041538	
+	Attached Devices:
+	soc:qcom,msm-audio-ion
+Total 1 devices attached
+
+00004096	00000002	00000007	00000002	ion	00041536	
+	Attached Devices:
+Total 0 devices attached
+
+00004096	00000002	00000007	00000001	ion	00041535	
+	Attached Devices:
+	soc:qcom,msm-audio-ion
+Total 1 devices attached
+
+00004096	00000002	00000007	00000002	ion	00041533	
+	Attached Devices:
+Total 0 devices attached
+
+00004096	00000002	00000007	00000002	ion	00041532	
+	Attached Devices:
+Total 0 devices attached
+
+00004096	00000002	00000007	00000002	ion	00041531	
+	Attached Devices:
+Total 0 devices attached
+
+00004096	00000002	00000007	00000001	ion	00041530	
+	Attached Devices:
+	soc:qcom,msm-audio-ion
+Total 1 devices attached
+
+00004096	00000002	00000007	00000002	ion	00041528	
+	Attached Devices:
+Total 0 devices attached
+
+00004096	00000002	00000007	00000001	ion	00041527	
+	Attached Devices:
+	soc:qcom,msm-audio-ion
+Total 1 devices attached
+
+00004096	00000002	00000007	00000002	ion	00041525	
+	Attached Devices:
+Total 0 devices attached
+
+00004096	00000002	00000007	00000001	ion	00037483	
+	Attached Devices:
+	soc:qcom,msm-audio-ion
+Total 1 devices attached
+
+00004096	00000002	00000007	00000002	ion	00037481	
+	Attached Devices:
+Total 0 devices attached
+
+00004096	00000002	00000007	00000001	ion	00041516	
+	Attached Devices:
+	soc:qcom,msm-audio-ion
+Total 1 devices attached
+
+00004096	00000002	00000007	00000002	ion	00041514	
+	Attached Devices:
+Total 0 devices attached
+
+00004096	00000002	00000007	00000001	ion	00041513	
+	Attached Devices:
+	soc:qcom,msm-audio-ion
+Total 1 devices attached
+
+00004096	00000002	00000007	00000002	ion	00041511	
+	Attached Devices:
+Total 0 devices attached
+
+00004096	00000002	00000007	00000001	ion	00042382	
+	Attached Devices:
+	soc:qcom,msm-audio-ion
+Total 1 devices attached
+
+00004096	00000002	00000007	00000002	ion	00042380	
+	Attached Devices:
+Total 0 devices attached
+
+00004096	00000002	00000007	00000001	ion	00042379	
+	Attached Devices:
+	soc:qcom,msm-audio-ion
+Total 1 devices attached
+
+00004096	00000002	00000007	00000002	ion	00042377	
+	Attached Devices:
+Total 0 devices attached
+
+00004096	00000002	00000007	00000001	ion	00042376	
+	Attached Devices:
+	soc:qcom,msm-audio-ion
+Total 1 devices attached
+
+00004096	00000002	00000007	00000002	ion	00042374	
+	Attached Devices:
+Total 0 devices attached
+
+00004096	00000002	00000007	00000001	ion	00042373	
+	Attached Devices:
+	soc:qcom,msm-audio-ion
+Total 1 devices attached
+
+00004096	00000002	00000007	00000002	ion	00042371	
+	Attached Devices:
+Total 0 devices attached
+
+00004096	00000002	00000007	00000001	ion	00041510	
+	Attached Devices:
+	soc:qcom,msm-audio-ion
+Total 1 devices attached
+
+00004096	00000002	00000007	00000002	ion	00041508	
+	Attached Devices:
+Total 0 devices attached
+
+00004096	00000002	00000007	00000001	ion	00041507	
+	Attached Devices:
+	soc:qcom,msm-audio-ion
+Total 1 devices attached
+
+00004096	00000002	00000007	00000002	ion	00041505	
+	Attached Devices:
+Total 0 devices attached
+
+00016384	00000002	00000007	00000001	ion	00041504	
+	Attached Devices:
+	soc:qcom,msm-audio-ion
+Total 1 devices attached
+
+00016384	00000002	00000007	00000002	ion	00041502	
+	Attached Devices:
+Total 0 devices attached
+
+00016384	00000002	00000007	00000001	ion	00045757	
+	Attached Devices:
+	soc:qcom,msm-audio-ion
+Total 1 devices attached
+
+00016384	00000002	00000007	00000002	ion	00045755	
+	Attached Devices:
+Total 0 devices attached
+
+00004096	00000002	00000007	00000001	ion	00041501	
+	Attached Devices:
+	soc:qcom,msm-audio-ion
+Total 1 devices attached
+
+00004096	00000002	00000007	00000002	ion	00041499	
+	Attached Devices:
+Total 0 devices attached
+
+00004096	00000002	00000007	00000001	ion	00041498	
+	Attached Devices:
+	soc:qcom,msm-audio-ion
+Total 1 devices attached
+
+00004096	00000002	00000007	00000002	ion	00041496	
+	Attached Devices:
+Total 0 devices attached
+
+00061440	00000002	00000007	00000001	ion	00041495	
+	Attached Devices:
+	soc:qcom,msm-audio-ion
+Total 1 devices attached
+
+00061440	00000002	00000007	00000002	ion	00041493	
+	Attached Devices:
+Total 0 devices attached
+
+00061440	00000002	00000007	00000001	ion	00041492	
+	Attached Devices:
+	soc:qcom,msm-audio-ion
+Total 1 devices attached
+
+00061440	00000002	00000007	00000002	ion	00041490	
+	Attached Devices:
+Total 0 devices attached
+
+00245760	00000002	00000007	00000001	ion	00041489	
+	Attached Devices:
+	soc:qcom,msm-audio-ion
+Total 1 devices attached
+
+00245760	00000002	00000007	00000002	ion	00041487	
+	Attached Devices:
+Total 0 devices attached
+
+00004096	00000002	00000007	00000002	ion	00041391	
+	Attached Devices:
+Total 0 devices attached
+
+00004096	00000002	00000007	00000002	ion	00041389	
+	Attached Devices:
+Total 0 devices attached
+
+00004096	00000002	00000007	00000001	ion	00041358	
+	Attached Devices:
+	aa00000.qcom,vidc:non_secure_cb
+Total 1 devices attached
+
+03137536	00000002	00000007	00000001	ion	00041357	
+	Attached Devices:
+	aa00000.qcom,vidc:non_secure_cb
+Total 1 devices attached
+
+00004096	00000002	00000007	00000001	ion	00040232	
+	Attached Devices:
+	soc:qcom,msm-audio-ion
+Total 1 devices attached
+
+00008192	00000002	00000007	00000001	ion	00040230	
+	Attached Devices:
+	soc:qcom,msm-audio-ion
+Total 1 devices attached
+
+00004096	00000002	00000007	00000001	ion	00040228	
+	Attached Devices:
+	soc:qcom,msm-audio-ion
+Total 1 devices attached
+
+01048576	00000002	00000007	00000001	ion	00037174	
+	Attached Devices:
+	soc:qcom,cam_smmu:msm_cam_smmu_icp
+Total 1 devices attached
+
+00008192	00000002	00000007	00000001	ion	00039246	
+	Attached Devices:
+	soc:qcom,cam_smmu:msm_cam_smmu_icp
+Total 1 devices attached
+
+01048576	00000002	00000007	00000001	ion	00039245	
+	Attached Devices:
+	soc:qcom,cam_smmu:msm_cam_smmu_icp
+Total 1 devices attached
+
+01048576	00000002	00000007	00000001	ion	00039244	
+	Attached Devices:
+	soc:qcom,cam_smmu:msm_cam_smmu_icp
+Total 1 devices attached
+
+01048576	00000002	00000007	00000001	ion	00039243	
+	Attached Devices:
+	soc:qcom,cam_smmu:msm_cam_smmu_icp
+Total 1 devices attached
+
+01048576	00000002	00000007	00000001	ion	00039242	
+	Attached Devices:
+	soc:qcom,cam_smmu:msm_cam_smmu_icp
+Total 1 devices attached
+
+00020480	00000002	00000007	00000001	ion	00026156	
+	Attached Devices:
+Total 0 devices attached
+
+17526784	00000002	00000007	00000001	ion	00026155	
+	Attached Devices:
+Total 0 devices attached
+
+00020480	00000002	00000007	00000001	ion	00026154	
+	Attached Devices:
+Total 0 devices attached
+
+17526784	00000002	00000007	00000001	ion	00026153	
+	Attached Devices:
+Total 0 devices attached
+
+00045056	00000002	00000007	00000002	ion	00015769	
+	Attached Devices:
+Total 0 devices attached
+
+00045056	00000002	00000007	00000002	ion	00025744	
+	Attached Devices:
+Total 0 devices attached
+
+00020480	00000002	00000007	00000002	ion	00025730	
+	Attached Devices:
+Total 0 devices attached
+
+00004096	00000002	00000007	00000002	ion	00025723	
+	Attached Devices:
+Total 0 devices attached
+
+00004096	00000002	00000007	00000002	ion	00025718	
+	Attached Devices:
+Total 0 devices attached
+
+00516096	00000002	00000007	00000002	ion	00024871	
+	Attached Devices:
+Total 0 devices attached
+
+00020480	00000002	00000007	00000002	ion	00023494	
+	Attached Devices:
+Total 0 devices attached
+
+00020480	00000002	00000007	00000002	ion	00023492	
+	Attached Devices:
+Total 0 devices attached
+
+00008192	00000002	00000007	00000002	ion	00025711	
+	Attached Devices:
+Total 0 devices attached
+
+00020480	00000002	00000007	00000002	ion	00025708	
+	Attached Devices:
+Total 0 devices attached
+
+00028672	00000002	00000007	00000002	ion	00025706	
+	Attached Devices:
+Total 0 devices attached
+
+
+Total 172 objects, 120500224 bytes

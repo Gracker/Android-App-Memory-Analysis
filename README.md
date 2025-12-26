@@ -2,58 +2,202 @@
 
 [中文版本](./README_zh.md) | English Version
 
-A toolkit for comprehensive Android application memory analysis, featuring two primary analysis tools for `smaps` and `hprof` files.
+A comprehensive toolkit for Android application memory analysis, featuring **one-click live dump** from connected devices and **multi-source correlation analysis** for deep memory insights.
 
-## Core Features
+## Features
 
-- **SMAPS Analysis**: Parses `/proc/pid/smaps` files to analyze native memory, system memory, and memory-mapped files. It supports all Android versions from 4.0 to 16+ and requires root access.
-- **HPROF Analysis**: Parses Java heap dump (`.hprof`) files to analyze Java objects, detect memory leaks, and identify large memory consumers. It works on all Android versions without requiring root access.
+### Core Capabilities
+
+| Feature | Description | Root Required |
+|---------|-------------|---------------|
+| **Live Dump** | One-click dump all memory data from connected device | Partial (see below) |
+| **Panorama Analysis** | Multi-source correlation (meminfo + gfxinfo + hprof + smaps) | No |
+| **HPROF Analysis** | Java heap analysis, leak detection, large object tracking | No |
+| **SMAPS Analysis** | Native memory mapping, detailed memory classification | Yes |
+| **Meminfo Analysis** | Parse `dumpsys meminfo` including Native Allocations | No |
+| **Gfxinfo Analysis** | Parse `dumpsys gfxinfo` for GPU/Graphics stats | No |
+
+### Root Permission Requirements
+
+| Data Source | Without Root | With Root |
+|-------------|--------------|-----------|
+| dumpsys meminfo | ✅ Full data | ✅ Full data |
+| dumpsys gfxinfo | ✅ Full data | ✅ Full data |
+| hprof dump | ⚠️ Debuggable apps only | ✅ All apps |
+| smaps | ❌ Permission denied | ✅ Full data |
 
 ## Quick Start
-
-This repository has been simplified to provide a clear, cross-platform entry point through a single Python script: `analyze.py`.
 
 ### Prerequisites
 
 - Python 3.6+
-- Android SDK with `adb` in your PATH
+- ADB (Android Debug Bridge) in your PATH or in `tools/` folder
+- Connected Android device with USB debugging enabled
+
+### Installation
+
+```bash
+git clone https://github.com/aspect-apps/Android-App-Memory-Analysis.git
+cd Android-App-Memory-Analysis
+```
 
 ### Usage
 
-The main script `analyze.py` provides two commands: `hprof` and `smaps`.
+#### One-Click Live Dump & Analysis (Recommended)
 
-1.  **Analyze an HPROF file:**
-    Use the `hprof` command and provide the path to your `.hprof` file. Sample files are in the `demo/hprof_sample` directory.
-    ```bash
-    python3 analyze.py hprof demo/hprof_sample/heapdump-20250921-122155.hprof
-    ```
-
-2.  **Analyze a smaps file:**
-    Use the `smaps` command and provide the path to your `smaps` file. Sample files are in the `demo/smaps_sample` directory.
-    ```bash
-    python3 analyze.py smaps demo/smaps_sample/smaps
-    ```
-
-## Analysis Tools
-
-This repository contains the following core analysis tools located in the `tools/` directory:
-
-- `hprof_parser.py`: A detailed parser for Java HPROF files.
-- `smaps_parser.py`: A comprehensive parser for process `smaps` files.
-- `memory_analyzer.py`: A script that can combine analysis from both HPROF and smaps, though the primary entry point is now `analyze.sh`.
-
-For advanced use cases, you can run these scripts directly. For example:
 ```bash
-python3 tools/hprof_parser.py -f demo/hprof_sample/heapdump-20250921-122155.hprof
+# List running apps on connected device
+python3 analyze.py live --list
+
+# Dump and analyze a specific app
+python3 analyze.py live --package com.example.app
+
+# Quick mode (skip hprof for faster results)
+python3 analyze.py live --package com.example.app --skip-hprof
+
+# Dump only (no analysis)
+python3 analyze.py live --package com.example.app --dump-only -o ./dumps
+```
+
+#### Panorama Analysis (Multi-Source Correlation)
+
+```bash
+# Analyze existing dump directory
+python3 analyze.py panorama -d ./dumps/com.example.app_20231225_120000
+
+# Analyze individual files
+python3 analyze.py panorama -m meminfo.txt -g gfxinfo.txt -H app.hprof -S smaps.txt
+```
+
+#### Individual File Analysis
+
+```bash
+# Analyze Java heap (HPROF)
+python3 analyze.py hprof demo/hprof_sample/heapdump.hprof
+
+# Analyze native memory (smaps)
+python3 analyze.py smaps demo/smaps_sample/smaps
+
+# Analyze meminfo
+python3 analyze.py meminfo dump/meminfo.txt
+
+# Analyze gfxinfo
+python3 analyze.py gfxinfo dump/gfxinfo.txt
+
+# Traditional combined analysis (HPROF + smaps)
+python3 analyze.py combined -H demo/hprof.hprof -S demo/smaps.txt
+```
+
+## What Gets Analyzed?
+
+### Panorama Analysis Output
+
+The panorama analysis provides a comprehensive view of memory usage:
+
+```
+================================================================================
+                     Android 内存全景分析报告
+================================================================================
+
+📊 Memory Overview:
+------------------------------
+  Total PSS:        245.67 MB
+  Java Heap:        89.34 MB
+  Native Heap:      34.21 MB
+  Graphics:         45.67 MB
+  Code:             23.78 MB
+  Stack:            1.23 MB
+
+🖼️ Bitmap Deep Analysis:
+------------------------------
+  Bitmap (malloced):     27 objects    6.78 MB
+  Bitmap (nonmalloced):   8 objects   11.59 MB
+  GPU Cache:             15.34 MB
+  GraphicBuffer:         12.45 MB
+
+📈 Native Memory Tracking:
+------------------------------
+  Tracked Native:        28.45 MB (83.2%)
+  Untracked Native:       5.76 MB (16.8%)
+
+  ⚠️ Warning: Significant untracked Native memory detected
+
+🎨 UI Resources:
+------------------------------
+  Views: 1,234
+  ViewRootImpl: 3
+  Activities: 5
+  WebViews: 0
+```
+
+### Key Analysis Features
+
+1. **Bitmap Correlation**: Links Java Bitmap objects to Native pixel memory
+2. **Native Memory Tracking**: Identifies tracked vs untracked Native allocations
+3. **GPU Memory Analysis**: GraphicBuffer and GPU cache usage
+4. **UI Resource Counting**: View hierarchy and Activity leak detection
+5. **Anomaly Detection**: Automatic warnings for potential issues
+
+## Project Structure
+
+```
+Android-App-Memory-Analysis/
+├── analyze.py              # Main entry point
+├── tools/
+│   ├── hprof_parser.py     # HPROF file parser
+│   ├── smaps_parser.py     # smaps file parser
+│   ├── meminfo_parser.py   # dumpsys meminfo parser
+│   ├── gfxinfo_parser.py   # dumpsys gfxinfo parser
+│   ├── panorama_analyzer.py # Multi-source correlation analyzer
+│   ├── combined_analyzer.py # HPROF + smaps combined analyzer
+│   ├── live_dumper.py      # Live dump from device
+│   ├── hprof_dumper.py     # HPROF dump utility
+│   └── adb                 # ADB binary (optional)
+├── demo/
+│   ├── hprof_sample/       # Sample HPROF files
+│   └── smaps_sample/       # Sample smaps files
+├── docs/
+│   ├── en/                 # English documentation
+│   └── zh/                 # Chinese documentation
+└── pic/                    # Images for documentation
 ```
 
 ## Documentation
 
-For a deeper understanding of memory analysis concepts and tool outputs, please refer to the documentation in the `docs/` directory.
+For detailed guides on interpreting analysis results:
 
 - [English Documentation](./docs/en/)
+  - [Analysis Results Guide](./docs/en/analysis_results_interpretation_guide.md)
+  - [Meminfo Interpretation](./docs/en/meminfo_interpretation_guide.md)
+  - [SMAPS Interpretation](./docs/en/smaps_interpretation_guide.md)
+
 - [Chinese Documentation](./docs/zh/)
+  - [分析结果解读指南](./docs/zh/analysis_results_interpretation_guide.md)
+  - [meminfo 解读](./docs/zh/meminfo_interpretation_guide.md)
+  - [smaps 解读](./docs/zh/smaps_interpretation_guide.md)
+
+## Data Sources
+
+| Data Source | Command | Information Provided |
+|-------------|---------|---------------------|
+| smaps | `cat /proc/<pid>/smaps` | Detailed memory mapping |
+| hprof | `am dumpheap <pkg> <path>` | Java heap objects and references |
+| meminfo | `dumpsys meminfo <pkg>` | Summary + Native Allocations (Bitmap stats) |
+| gfxinfo | `dumpsys gfxinfo <pkg>` | GPU cache, GraphicBuffer, frame stats |
+
+## Related Tools
+
+This toolkit complements these Android memory analysis tools:
+
+- **Android Studio Profiler**: Real-time memory monitoring
+- **LeakCanary**: Automatic memory leak detection
+- **MAT (Memory Analyzer Tool)**: Deep HPROF analysis
+- **Perfetto**: System-wide tracing
 
 ## Contributing
 
-Contributions are welcome. Please feel free to submit pull requests or open issues.
+Contributions are welcome! Please feel free to submit pull requests or open issues.
+
+## License
+
+This project is open source. See LICENSE file for details.

@@ -1,6 +1,6 @@
-# Analysis results
-*.txt
-*.json
+# Analysis results (keep sample data tracked)
+# *.txt
+# *.json
 
 # macOS
 .DS_Store
@@ -11,3 +11,15 @@ __pycache__/
 
 # Build artifacts
 /output/
+
+# Temporary trace files
+*.perfetto
+trace_*.perfetto
+
+# Perfetto binaries (download separately)
+tools/perfetto-mac-arm64/
+
+# IDE
+.idea/
+.vscode/
+*.swp

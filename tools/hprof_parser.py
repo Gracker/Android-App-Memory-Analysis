@@ -17,8 +17,9 @@ class HprofParser:
     - String/Bitmap/Collection analysis
     """
 
-    def __init__(self, filename):
+    def __init__(self, filename, verbose=True):
         self.filename = filename
+        self.verbose = verbose
         self.hprof = None
         self.size_of_identifier = 4
         self.strings = {}
@@ -65,6 +66,46 @@ class HprofParser:
         self.string_contents = {}  # string_object_id -> actual string content
         self.duplicate_strings = defaultdict(list)  # string_content -> [object_ids]
         self.bitmap_info = {}  # bitmap_id -> {'width': w, 'height': h, 'size': size}
+
+        # Phase 6: Deep insight analysis
+        self.large_byte_arrays = []  # [(array_id, size, holder_chain, inferred_usage)]
+        self.large_strings = []  # [(string_id, size, content, holder_chain)]
+        self.large_int_arrays = []  # [(array_id, size, holder_chain)]
+        self.large_long_arrays = []  # [(array_id, size, holder_chain)]
+
+        # Standard library classes to filter (noise)
+        self.NOISE_CLASSES = {
+            'sun.misc.Cleaner',
+            'java.lang.ref.WeakReference',
+            'java.lang.ref.SoftReference',
+            'java.lang.ref.PhantomReference',
+            'java.lang.ref.Finalizer',
+            'java.lang.ref.FinalizerReference',
+            'libcore.util.NativeAllocationRegistry$CleanerThunk',
+            'java.security.Provider$ServiceKey',
+            'java.security.Provider$Service',
+            'sun.security.jca.ServiceId',
+        }
+
+        # Interesting holder patterns (business objects)
+        self.INTERESTING_PATTERNS = [
+            'Activity', 'Fragment', 'View', 'Adapter', 'Holder',
+            'Manager', 'Service', 'Repository', 'Cache', 'Pool',
+            'Controller', 'Presenter', 'ViewModel', 'Model',
+            'Bitmap', 'Drawable', 'Image', 'Buffer',
+        ]
+
+        # App package name (to be detected)
+        self.app_package = None
+
+        # System/library prefixes (not App code)
+        self.SYSTEM_PREFIXES = [
+            'android.', 'androidx.', 'com.android.', 'com.google.android.',
+            'java.', 'javax.', 'kotlin.', 'kotlinx.',
+            'dalvik.', 'libcore.', 'sun.', 'org.apache.',
+            'com.google.gson.', 'com.squareup.', 'okhttp3.', 'retrofit2.',
+            'io.reactivex.', 'rx.', 'dagger.', 'org.greenrobot.',
+        ]
 
         # GC Root type names
         self.GC_ROOT_NAMES = {
@@ -157,7 +198,7 @@ class HprofParser:
 
     # ==================== Phase 1: Enhanced Data Collection ====================
 
-    def parse(self, simple_mode=False, top_n=20, min_size_mb=0.1, output_file=None, deep_analysis=True):
+    def parse(self, simple_mode=False, top_n=20, min_size_mb=0.1, output_file=None, deep_analysis=True, markdown=False):
         """Main parsing method with optional deep analysis"""
         try:
             self.openHprof(self.filename)
@@ -166,6 +207,8 @@ class HprofParser:
             self.readRecords()
 
             if deep_analysis:
+                print("正在检测 App 包名...")
+                self.detect_app_package()
                 print("正在构建引用图...")
                 self.build_reference_graph()
                 print("正在计算支配树和Retained Size...")
@@ -179,26 +222,47 @@ class HprofParser:
                 self.analyze_bitmaps()
                 print("正在分析集合类...")
                 self.analyze_collections()
+                print("正在分析 LruCache...")
+                self.analyze_lru_cache()
+                # Phase 6: Deep insight analysis
+                self.analyze_large_byte_arrays(top_n)
+                self.analyze_large_strings(top_n)
+                self.analyze_large_int_arrays(top_n)
+                self.analyze_suspicious_holdings()
 
             if not simple_mode:
                 self.print_gc_root_statistics()
+                if deep_analysis:
+                    # Print the most useful analysis first
+                    self.print_optimization_suggestions()  # Suggestions first!
+                    self.print_large_byte_arrays()
+                    self.print_large_strings()
+                    self.print_large_int_arrays()
+                    self.print_bitmap_analysis()
+                    self.print_collection_analysis()
+                    self.print_lru_cache_analysis()
+                    self.print_suspicious_holdings()
+                    self.print_dominator_tree_top(top_n)
+                    self.print_leak_suspects()
+                    self.print_duplicate_strings()
                 self.print_package_statistics(top_n)
                 self.print_class_statistics(top_n, min_size_mb)
                 self.print_primitive_statistics()
                 self.print_string_statistics()
-                if deep_analysis:
-                    self.print_dominator_tree_top(top_n)
-                    self.print_leak_suspects()
-                    self.print_duplicate_strings()
-                    self.print_bitmap_analysis()
-                    self.print_collection_analysis()
 
             if output_file:
-                self.export_analysis(output_file, deep_analysis)
+                if markdown:
+                    self.export_markdown(output_file, deep_analysis)
+                else:
+                    self.export_analysis(output_file, deep_analysis)
             else:
                 base_name = os.path.splitext(os.path.basename(self.filename))[0]
-                default_output = f"{base_name}_analysis.txt"
-                self.export_analysis(default_output, deep_analysis)
+                if markdown:
+                    default_output = f"{base_name}_analysis.md"
+                    self.export_markdown(default_output, deep_analysis)
+                else:
+                    default_output = f"{base_name}_analysis.txt"
+                    self.export_analysis(default_output, deep_analysis)
                 print(f"\n分析结果已导出到: {default_output}")
             return True
         except Exception as e:
@@ -242,9 +306,10 @@ class HprofParser:
         version = b''.join(version_bytes).decode('utf-8')
         self.size_of_identifier = self.readInt(4)
         timestamp = self.readInt(8) / 1000
-        print("HPROF版本: %s" % (version))
-        print("标识符大小: %d" % (self.size_of_identifier))
-        print("时间戳: %s" % (datetime.fromtimestamp(timestamp)))
+        if self.verbose:
+            print("HPROF版本: %s" % (version), file=sys.stderr)
+            print("标识符大小: %d" % (self.size_of_identifier), file=sys.stderr)
+            print("时间戳: %s" % (datetime.fromtimestamp(timestamp)), file=sys.stderr)
         self.BASIC_TYPES[self.TYPE_OBJECT] = (self.size_of_identifier, 'object')
 
     def readString(self, length):
@@ -980,7 +1045,7 @@ class HprofParser:
                             pass
 
     def analyze_bitmaps(self):
-        """Analyze Bitmap objects for memory usage (Phase 5.2)"""
+        """Analyze Bitmap objects with deep insights (Phase 5.2)"""
         # Find Bitmap class
         bitmap_class_id = None
         for class_id, class_info in self.classes.items():
@@ -1008,6 +1073,19 @@ class HprofParser:
                 field_offsets[field_name] = (offset, type_id, size)
             offset += size
 
+        # Bitmap config bytes per pixel mapping
+        config_bpp = {
+            'ALPHA_8': 1,
+            'RGB_565': 2,
+            'ARGB_4444': 2,
+            'ARGB_8888': 4,
+            'RGBA_F16': 8,
+            'HARDWARE': 4,
+        }
+
+        # For detecting duplicate bitmaps
+        size_to_bitmaps = defaultdict(list)
+
         # Analyze each Bitmap instance
         for obj_id, instance in self.instances.items():
             if instance['class_id'] != bitmap_class_id:
@@ -1016,6 +1094,11 @@ class HprofParser:
             fields_data = instance['fields_data']
             width = 0
             height = 0
+            density = 0
+            is_mutable = False
+            is_recycled = False
+            config_name = 'ARGB_8888'
+            native_ptr = 0
 
             # Extract mWidth
             if 'mWidth' in field_offsets:
@@ -1029,28 +1112,503 @@ class HprofParser:
                 if off + size <= len(fields_data) and type_id == self.TYPE_INT:
                     height = int.from_bytes(fields_data[off:off+size], byteorder='big', signed=True)
 
+            # Extract mDensity
+            if 'mDensity' in field_offsets:
+                off, type_id, size = field_offsets['mDensity']
+                if off + size <= len(fields_data) and type_id == self.TYPE_INT:
+                    density = int.from_bytes(fields_data[off:off+size], byteorder='big', signed=True)
+
+            # Extract mIsMutable
+            if 'mIsMutable' in field_offsets:
+                off, type_id, size = field_offsets['mIsMutable']
+                if off + size <= len(fields_data) and type_id == self.TYPE_BOOLEAN:
+                    is_mutable = fields_data[off] != 0
+
+            # Extract mRecycled
+            if 'mRecycled' in field_offsets:
+                off, type_id, size = field_offsets['mRecycled']
+                if off + size <= len(fields_data) and type_id == self.TYPE_BOOLEAN:
+                    is_recycled = fields_data[off] != 0
+
+            # Extract mNativePtr
+            if 'mNativePtr' in field_offsets:
+                off, type_id, size = field_offsets['mNativePtr']
+                if off + size <= len(fields_data) and type_id == self.TYPE_LONG:
+                    native_ptr = int.from_bytes(fields_data[off:off+size], byteorder='big', signed=False)
+
             # Sanity check - valid bitmap dimensions
-            if width > 0 and height > 0 and width < 10000 and height < 10000:
-                # Assume ARGB_8888 format (4 bytes per pixel)
-                estimated_size = width * height * 4
-                self.bitmap_info[obj_id] = {
+            if width > 0 and height > 0 and width < 20000 and height < 20000:
+                bpp = config_bpp.get(config_name, 4)
+                estimated_size = width * height * bpp
+
+                bitmap_data = {
                     'width': width,
                     'height': height,
-                    'estimated_size': estimated_size
+                    'density': density,
+                    'config': config_name,
+                    'bpp': bpp,
+                    'is_mutable': is_mutable,
+                    'is_recycled': is_recycled,
+                    'native_ptr': native_ptr,
+                    'estimated_size': estimated_size,
+                    'holder_chain': None
                 }
 
-    def analyze_collections(self):
-        """Analyze collection classes for capacity issues (Phase 5.3)"""
-        self.collection_analysis = []
+                self.bitmap_info[obj_id] = bitmap_data
+                size_to_bitmaps[(width, height)].append(obj_id)
 
-        # Find HashMap and ArrayList classes
+        # Detect duplicate bitmaps (same dimensions)
+        self.duplicate_bitmaps = []
+        for size_key, bitmap_ids in size_to_bitmaps.items():
+            if len(bitmap_ids) > 1:
+                width, height = size_key
+                self.duplicate_bitmaps.append({
+                    'size': size_key,
+                    'count': len(bitmap_ids),
+                    'bitmap_ids': bitmap_ids,
+                    'total_wasted': (len(bitmap_ids) - 1) * width * height * 4
+                })
+
+        self.duplicate_bitmaps.sort(key=lambda x: x['total_wasted'], reverse=True)
+
+        # Get holder chains for top bitmaps
+        sorted_bitmaps = sorted(self.bitmap_info.items(),
+                               key=lambda x: x[1]['estimated_size'], reverse=True)
+        for obj_id, info in sorted_bitmaps[:20]:
+            info['holder_chain'] = self.get_holder_chain(obj_id)
+
+    # ==================== Phase 6: Deep Insight Analysis ====================
+
+    def detect_app_package(self):
+        """Detect the App's package name from Activity classes"""
+        # Strategy 1: Find classes that extend Activity
+        activity_classes = []
+        for class_id, class_info in self.classes.items():
+            name = class_info.get('name', '')
+            # Look for Activity subclasses
+            if 'Activity' in name and not name.startswith(tuple(self.SYSTEM_PREFIXES)):
+                activity_classes.append(name)
+
+        # Extract package name from Activity classes
+        if activity_classes:
+            # Find common package prefix
+            packages = []
+            for name in activity_classes:
+                parts = name.rsplit('.', 1)
+                if len(parts) > 1:
+                    packages.append(parts[0])
+
+            if packages:
+                # Find most common package or shortest common prefix
+                from collections import Counter
+                pkg_counts = Counter(packages)
+                most_common = pkg_counts.most_common(1)
+                if most_common:
+                    self.app_package = most_common[0][0]
+                    print(f"检测到 App 包名: {self.app_package}")
+                    return
+
+        # Strategy 2: Find most common non-system package
+        package_counts = defaultdict(int)
+        for class_id, class_info in self.classes.items():
+            name = class_info.get('name', '')
+            if name.startswith(tuple(self.SYSTEM_PREFIXES)):
+                continue
+            parts = name.split('.')
+            if len(parts) >= 2:
+                pkg = '.'.join(parts[:2])  # e.g., com.example
+                package_counts[pkg] += 1
+
+        if package_counts:
+            most_common = max(package_counts.items(), key=lambda x: x[1])
+            self.app_package = most_common[0]
+            print(f"推测 App 包名: {self.app_package}")
+
+    def is_app_class(self, class_name):
+        """Check if a class belongs to the App"""
+        if not class_name or not self.app_package:
+            return False
+        return class_name.startswith(self.app_package)
+
+    def is_system_class(self, class_name):
+        """Check if a class is a system/library class"""
+        if not class_name:
+            return True
+        return class_name.startswith(tuple(self.SYSTEM_PREFIXES))
+
+    def analyze_large_byte_arrays(self, top_n=20):
+        """Analyze largest byte[] arrays with their holder chains (Phase 6.1)"""
+        print("正在分析大 byte[] 的持有者...")
+
+        # Find all byte arrays sorted by size
+        byte_arrays = []
+        for array_id, array_info in self.primitive_arrays.items():
+            if array_info.get('type_name') == 'byte':
+                size = array_info.get('size', 0)
+                byte_arrays.append((array_id, size))
+
+        # Sort by size descending
+        byte_arrays.sort(key=lambda x: x[1], reverse=True)
+
+        # Analyze top N
+        for array_id, size in byte_arrays[:top_n]:
+            holder_chain = self.get_holder_chain(array_id)
+            inferred_usage = self.infer_byte_array_usage(array_id, holder_chain)
+            self.large_byte_arrays.append({
+                'id': array_id,
+                'size': size,
+                'holder_chain': holder_chain,
+                'usage': inferred_usage
+            })
+
+    def analyze_large_strings(self, top_n=20):
+        """Analyze largest String objects with their content (Phase 6.2)"""
+        print("正在分析大 String 的内容...")
+
+        # Find String class
+        string_class_id = None
+        for class_id, class_info in self.classes.items():
+            if class_info.get('name') == 'java.lang.String':
+                string_class_id = class_id
+                break
+
+        if not string_class_id:
+            return
+
+        # Find all String instances with their backing array
+        string_sizes = []
+        for obj_id, instance in self.instances.items():
+            if instance['class_id'] != string_class_id:
+                continue
+
+            total_size = instance['size']
+            content = None
+            fields_data = instance.get('fields_data', b'')
+
+            # Android String layout varies by version.
+            # Scan all possible offsets for object references to find the value array
+            for offset in range(0, len(fields_data) - self.size_of_identifier + 1, self.size_of_identifier):
+                ref = int.from_bytes(
+                    fields_data[offset:offset + self.size_of_identifier],
+                    byteorder='big'
+                )
+                if ref in self.primitive_arrays:
+                    array = self.primitive_arrays[ref]
+                    # Only consider byte[] or char[] as potential String value
+                    if array.get('type') in [self.TYPE_BYTE, self.TYPE_CHAR]:
+                        array_size = array.get('size', 0)
+                        total_size += array_size
+                        content = self.decode_string_array(array)
+                        if content:
+                            break
+
+            string_sizes.append((obj_id, total_size, content))
+
+        # Sort by size descending
+        string_sizes.sort(key=lambda x: x[1], reverse=True)
+
+        # Get top N with holder chains
+        for obj_id, size, content in string_sizes[:top_n]:
+            holder_chain = self.get_holder_chain(obj_id)
+            self.large_strings.append({
+                'id': obj_id,
+                'size': size,
+                'content': content,
+                'holder_chain': holder_chain
+            })
+
+    def decode_string_array(self, array):
+        """Decode a char[] or byte[] array to string content"""
+        if not array.get('data'):
+            return None
+
+        data = array['data']
+        array_type = array.get('type')
+
+        # char[] - Java's native String storage (pre-Android 9)
+        if array_type == self.TYPE_CHAR:
+            try:
+                return data.decode('utf-16-be', errors='ignore')
+            except:
+                pass
+
+        # byte[] - Compact String storage (Android 9+)
+        if array_type == self.TYPE_BYTE:
+            # Try different encodings
+            for encoding in ['utf-8', 'latin-1', 'utf-16-le', 'utf-16-be']:
+                try:
+                    decoded = data.decode(encoding, errors='ignore')
+                    # Basic validity check - should be mostly printable
+                    printable_ratio = sum(1 for c in decoded if c.isprintable() or c in '\n\r\t') / max(len(decoded), 1)
+                    if printable_ratio > 0.7:
+                        return decoded
+                except:
+                    pass
+
+        return None
+
+    def analyze_large_int_arrays(self, top_n=20):
+        """Analyze largest int[] and long[] arrays (Phase 6.3)"""
+        print("正在分析大 int[]/long[] 的持有者...")
+
+        # Find int arrays
+        int_arrays = []
+        for array_id, array_info in self.primitive_arrays.items():
+            if array_info.get('type_name') == 'int':
+                size = array_info.get('size', 0)
+                int_arrays.append((array_id, size, 'int'))
+            elif array_info.get('type_name') == 'long':
+                size = array_info.get('size', 0)
+                int_arrays.append((array_id, size, 'long'))
+
+        # Sort by size
+        int_arrays.sort(key=lambda x: x[1], reverse=True)
+
+        # Analyze top N
+        for array_id, size, array_type in int_arrays[:top_n]:
+            holder_chain = self.get_holder_chain(array_id)
+            if array_type == 'int':
+                self.large_int_arrays.append({
+                    'id': array_id,
+                    'size': size,
+                    'holder_chain': holder_chain
+                })
+            else:
+                self.large_long_arrays.append({
+                    'id': array_id,
+                    'size': size,
+                    'holder_chain': holder_chain
+                })
+
+    def get_holder_chain(self, obj_id, max_depth=10):
+        """Get the holder chain from object to interesting business object or GC root"""
+        chain = []
+        visited = set()
+        current_id = obj_id
+
+        for _ in range(max_depth):
+            if current_id in visited:
+                break
+            visited.add(current_id)
+
+            # Get object info
+            obj_info = self.get_object_info(current_id)
+            chain.append(obj_info)
+
+            # Check if we've reached a GC root
+            if current_id in self.gc_roots:
+                root_type = self.gc_roots[current_id].get('type')
+                obj_info['is_gc_root'] = True
+                obj_info['gc_root_type'] = self.GC_ROOT_NAMES.get(root_type, 'UNKNOWN')
+                break
+
+            # Check if we've reached an interesting object
+            class_name = obj_info.get('class_name', '')
+            if self.is_interesting_class(class_name):
+                obj_info['is_interesting'] = True
+                # Continue a bit more to find the ultimate holder
+                incoming = list(self.incoming_refs.get(current_id, []))
+                if incoming:
+                    # Pick the holder that's not a noise class
+                    best_holder = None
+                    for holder_id in incoming:
+                        holder_info = self.get_object_info(holder_id)
+                        holder_class = holder_info.get('class_name', '')
+                        if not self.is_noise_class(holder_class):
+                            best_holder = holder_id
+                            break
+                    if best_holder and best_holder not in visited:
+                        current_id = best_holder
+                        continue
+                break
+
+            # Find incoming references (who holds this object)
+            incoming = list(self.incoming_refs.get(current_id, []))
+            if not incoming:
+                break
+
+            # Prefer non-noise class holders
+            best_holder = None
+            for holder_id in incoming:
+                if holder_id in visited:
+                    continue
+                holder_info = self.get_object_info(holder_id)
+                holder_class = holder_info.get('class_name', '')
+                if not self.is_noise_class(holder_class):
+                    best_holder = holder_id
+                    break
+
+            if best_holder is None and incoming:
+                # Fallback to first available
+                for holder_id in incoming:
+                    if holder_id not in visited:
+                        best_holder = holder_id
+                        break
+
+            if best_holder is None:
+                break
+
+            current_id = best_holder
+
+        return chain
+
+    def get_object_info(self, obj_id):
+        """Get detailed info about an object"""
+        info = {
+            'id': obj_id,
+            'class_name': 'unknown',
+            'type': 'unknown'
+        }
+
+        if obj_id in self.instances:
+            instance = self.instances[obj_id]
+            class_id = instance['class_id']
+            class_name = self.classes.get(class_id, {}).get('name', 'unknown')
+            info['class_name'] = class_name
+            info['type'] = 'instance'
+            info['size'] = instance.get('size', 0)
+            info['is_app_class'] = self.is_app_class(class_name)
+
+            # Try to find the field name that references this object
+            info['field_names'] = self.get_field_names_for_class(class_id)
+
+        elif obj_id in self.object_arrays:
+            array = self.object_arrays[obj_id]
+            class_id = array['class_id']
+            class_name = self.classes.get(class_id, {}).get('name', 'unknown')
+            info['class_name'] = class_name + '[]'
+            info['type'] = 'object_array'
+            info['length'] = array.get('length', 0)
+            info['size'] = array.get('size', 0)
+            info['is_app_class'] = self.is_app_class(class_name)
+
+        elif obj_id in self.primitive_arrays:
+            array = self.primitive_arrays[obj_id]
+            info['class_name'] = f"{array.get('type_name', 'unknown')}[]"
+            info['type'] = 'primitive_array'
+            info['length'] = array.get('length', 0)
+            info['size'] = array.get('size', 0)
+
+        elif obj_id in self.classes:
+            class_name = self.classes[obj_id].get('name', 'unknown')
+            info['class_name'] = class_name + ' (class)'
+            info['type'] = 'class'
+            info['is_app_class'] = self.is_app_class(class_name)
+
+        return info
+
+    def get_field_names_for_class(self, class_id):
+        """Get field names for a class"""
+        field_names = []
+        if class_id in self.class_fields:
+            for field in self.class_fields[class_id].get('instance_fields', []):
+                name_id = field.get('name_id')
+                if name_id and name_id in self.strings:
+                    field_names.append(self.strings[name_id])
+        return field_names
+
+    def is_noise_class(self, class_name):
+        """Check if a class is a noise/standard library class"""
+        if not class_name:
+            return True
+
+        # Check exact matches
+        if class_name in self.NOISE_CLASSES:
+            return True
+
+        # Check prefixes that are usually noise
+        noise_prefixes = [
+            'sun.', 'java.lang.ref.', 'java.security.', 'libcore.',
+            'dalvik.system.', 'android.icu.', 'com.android.org.bouncycastle.',
+        ]
+        for prefix in noise_prefixes:
+            if class_name.startswith(prefix):
+                return True
+
+        return False
+
+    def is_interesting_class(self, class_name):
+        """Check if a class is an interesting business object"""
+        if not class_name:
+            return False
+
+        for pattern in self.INTERESTING_PATTERNS:
+            if pattern in class_name:
+                return True
+
+        # Also check if it's an app-specific class (not android.* or java.*)
+        if not class_name.startswith(('android.', 'java.', 'kotlin.', 'com.android.', 'dalvik.')):
+            # Likely an app class
+            return True
+
+        return False
+
+    def infer_byte_array_usage(self, array_id, holder_chain):
+        """Infer the usage of a byte[] based on its holder chain"""
+        for obj in holder_chain:
+            class_name = obj.get('class_name', '')
+
+            # Check for Bitmap
+            if 'Bitmap' in class_name:
+                return 'Bitmap 像素数据'
+
+            # Check for streams/buffers
+            if 'InputStream' in class_name or 'OutputStream' in class_name:
+                return 'IO 流缓冲区'
+            if 'Buffer' in class_name:
+                return '缓冲区'
+
+            # Check for network
+            if 'Socket' in class_name or 'Http' in class_name or 'Network' in class_name:
+                return '网络数据'
+
+            # Check for file operations
+            if 'File' in class_name:
+                return '文件数据'
+
+            # Check for codec/media
+            if 'Codec' in class_name or 'Media' in class_name or 'Audio' in class_name or 'Video' in class_name:
+                return '多媒体数据'
+
+            # Check for crypto
+            if 'Cipher' in class_name or 'Crypto' in class_name or 'Encrypt' in class_name:
+                return '加密数据'
+
+            # Check for String
+            if class_name == 'java.lang.String':
+                return 'String 内部存储'
+
+        # Check array size for hints
+        array = self.primitive_arrays.get(array_id, {})
+        size = array.get('size', 0)
+
+        if size > 1024 * 1024:  # > 1MB
+            return '大型数据块 (可能是图片/文件)'
+        elif size > 100 * 1024:  # > 100KB
+            return '中型数据块'
+        else:
+            return '小型数据块'
+
+    def analyze_collections(self):
+        """Analyze collection classes for capacity issues and problems (Phase 5.3)"""
+        self.collection_analysis = []
+        self.empty_collections = []
+        self.large_collections = []
+
+        # Find collection classes
         collection_classes = {}
         for class_id, class_info in self.classes.items():
             name = class_info.get('name', '')
             if name in ['java.util.HashMap', 'java.util.ArrayList',
                        'java.util.HashSet', 'java.util.LinkedList',
-                       'java.util.concurrent.ConcurrentHashMap']:
+                       'java.util.concurrent.ConcurrentHashMap',
+                       'java.util.LinkedHashMap', 'java.util.TreeMap',
+                       'java.util.Vector', 'java.util.Stack',
+                       'android.util.ArrayMap', 'android.util.SparseArray',
+                       'android.util.LongSparseArray']:
                 collection_classes[class_id] = name
+
+        empty_count_by_type = defaultdict(int)
 
         for obj_id, instance in self.instances.items():
             class_id = instance['class_id']
@@ -1084,15 +1642,38 @@ class HprofParser:
                 if off + field_size <= len(fields_data) and type_id == self.TYPE_INT:
                     size = int.from_bytes(fields_data[off:off+field_size], byteorder='big', signed=True)
 
+            # Extract mSize for Android collections
+            if 'mSize' in field_offsets:
+                off, type_id, field_size = field_offsets['mSize']
+                if off + field_size <= len(fields_data) and type_id == self.TYPE_INT:
+                    size = int.from_bytes(fields_data[off:off+field_size], byteorder='big', signed=True)
+
             # Extract threshold for HashMap (capacity = threshold / 0.75)
             if 'threshold' in field_offsets:
                 off, type_id, field_size = field_offsets['threshold']
                 if off + field_size <= len(fields_data) and type_id == self.TYPE_INT:
                     threshold = int.from_bytes(fields_data[off:off+field_size], byteorder='big', signed=True)
-                    if threshold > 0 and threshold < 10000000:  # Sanity check
+                    if threshold > 0 and threshold < 10000000:
                         capacity = int(threshold / 0.75)
 
-            # Check for over-allocated collections with reasonable values
+            # Sanity check for size
+            if size < 0 or size > 10000000:  # Invalid or unreasonably large
+                continue
+
+            # Detect empty collections
+            if size == 0:
+                empty_count_by_type[class_name] += 1
+
+            # Detect large collections (>1000 elements)
+            if size > 1000:
+                self.large_collections.append({
+                    'object_id': obj_id,
+                    'class_name': class_name,
+                    'size': size,
+                    'holder_chain': None  # Will be filled later
+                })
+
+            # Check for over-allocated collections
             if capacity > 0 and size >= 0 and capacity < 10000000 and size < capacity:
                 utilization = size / capacity if capacity > 0 else 0
                 wasted_slots = capacity - size
@@ -1106,38 +1687,683 @@ class HprofParser:
                         'wasted_slots': wasted_slots
                     })
 
+        # Store empty collection stats
+        self.empty_collections = [(name, count) for name, count in empty_count_by_type.items()]
+        self.empty_collections.sort(key=lambda x: x[1], reverse=True)
+
         # Sort by wasted slots
         self.collection_analysis.sort(key=lambda x: x['wasted_slots'], reverse=True)
 
-    def print_bitmap_analysis(self, top_n=10):
-        """Print Bitmap analysis results"""
-        if not self.bitmap_info:
+        # Sort large collections by size
+        self.large_collections.sort(key=lambda x: x['size'], reverse=True)
+
+        # Get holder chains for top large collections
+        for item in self.large_collections[:10]:
+            item['holder_chain'] = self.get_holder_chain(item['object_id'])
+
+    def analyze_suspicious_holdings(self):
+        """Detect suspicious memory holdings (Phase 6.4)"""
+        print("正在检测不合理持有...")
+        self.suspicious_holdings = []
+
+        # 1. Find static fields holding large objects
+        for class_id, class_info in self.classes.items():
+            class_name = class_info.get('name', '')
+
+            # Skip system classes
+            if self.is_system_class(class_name):
+                continue
+
+            # Check static fields
+            if class_id in self.class_fields:
+                static_fields = self.class_fields[class_id].get('static_fields', [])
+                for field in static_fields:
+                    field_value = field.get('value')
+                    if not field_value or field_value == 0:
+                        continue
+
+                    # Check if this static field points to a large object
+                    retained = self.retained_sizes.get(field_value, 0)
+                    if retained > 100 * 1024:  # > 100KB
+                        field_name = self.strings.get(field.get('name_id'), 'unknown')
+                        self.suspicious_holdings.append({
+                            'type': 'STATIC_FIELD',
+                            'class_name': class_name,
+                            'field_name': field_name,
+                            'retained_size': retained,
+                            'object_id': field_value,
+                            'description': f'静态字段 {class_name}.{field_name} 持有 {retained/1024/1024:.2f} MB'
+                        })
+
+        # 2. Detect singleton patterns holding too much
+        singleton_patterns = ['$Companion', 'INSTANCE', 'sInstance', 'mInstance']
+        for class_id, class_info in self.classes.items():
+            class_name = class_info.get('name', '')
+
+            if self.is_system_class(class_name):
+                continue
+
+            if class_id in self.class_fields:
+                static_fields = self.class_fields[class_id].get('static_fields', [])
+                for field in static_fields:
+                    field_name_id = field.get('name_id')
+                    if not field_name_id:
+                        continue
+
+                    field_name = self.strings.get(field_name_id, '')
+                    is_singleton = any(pattern in field_name for pattern in singleton_patterns)
+
+                    if is_singleton:
+                        field_value = field.get('value')
+                        if field_value and field_value != 0:
+                            retained = self.retained_sizes.get(field_value, 0)
+                            if retained > 500 * 1024:  # > 500KB for singleton
+                                self.suspicious_holdings.append({
+                                    'type': 'SINGLETON',
+                                    'class_name': class_name,
+                                    'field_name': field_name,
+                                    'retained_size': retained,
+                                    'object_id': field_value,
+                                    'description': f'单例 {class_name} 持有 {retained/1024/1024:.2f} MB'
+                                })
+
+        # 3. Detect Activities/Fragments in static fields (potential leak)
+        for holding in self.suspicious_holdings[:]:  # Copy list to modify during iteration
+            obj_id = holding.get('object_id')
+            if obj_id in self.instances:
+                instance = self.instances[obj_id]
+                class_id = instance['class_id']
+                obj_class_name = self.classes.get(class_id, {}).get('name', '')
+
+                if 'Activity' in obj_class_name or 'Fragment' in obj_class_name:
+                    holding['type'] = 'LEAKED_COMPONENT'
+                    holding['description'] = f'⚠️ 可能泄漏! {obj_class_name} 被静态字段持有'
+
+        # Sort by retained size
+        self.suspicious_holdings.sort(key=lambda x: x['retained_size'], reverse=True)
+
+    def analyze_lru_cache(self):
+        """Analyze LruCache usage (Phase 4.3)"""
+        print("正在分析 LruCache...")
+        self.lru_cache_analysis = []
+
+        # Find LruCache and related cache classes (strict match)
+        cache_class_names = [
+            'android.util.LruCache',
+            'androidx.collection.LruCache',
+            'android.support.v4.util.LruCache',
+        ]
+
+        cache_classes = {}
+        for class_id, class_info in self.classes.items():
+            name = class_info.get('name', '')
+            # Only match exact LruCache classes or subclasses (contain LruCache in name)
+            for cache_name in cache_class_names:
+                if name == cache_name or 'LruCache' in name:
+                    cache_classes[class_id] = name
+                    break
+
+        for obj_id, instance in self.instances.items():
+            class_id = instance['class_id']
+            if class_id not in cache_classes:
+                continue
+
+            class_name = cache_classes[class_id]
+            fields_data = instance['fields_data']
+            fields = self.get_all_instance_fields(class_id)
+
+            # Build field offsets
+            field_offsets = {}
+            offset = 0
+            for field in fields:
+                type_id = field['type']
+                field_size, _ = self.BASIC_TYPES.get(type_id, (0, ''))
+                if field_size == 0:
+                    continue
+                name_id = field.get('name_id')
+                if name_id and name_id in self.strings:
+                    field_name = self.strings[name_id]
+                    field_offsets[field_name] = (offset, type_id, field_size)
+                offset += field_size
+
+            # Extract LruCache fields
+            cache_info = {
+                'object_id': obj_id,
+                'class_name': class_name,
+                'size': 0,
+                'maxSize': 0,
+                'putCount': 0,
+                'hitCount': 0,
+                'missCount': 0,
+                'evictionCount': 0,
+                'createCount': 0,
+                'utilization': 0.0,
+                'hit_rate': 0.0,
+                'holder_chain': None
+            }
+
+            # Read size
+            if 'size' in field_offsets:
+                off, type_id, field_size = field_offsets['size']
+                if off + field_size <= len(fields_data) and type_id == self.TYPE_INT:
+                    cache_info['size'] = int.from_bytes(fields_data[off:off+field_size], byteorder='big', signed=True)
+
+            # Read maxSize
+            if 'maxSize' in field_offsets:
+                off, type_id, field_size = field_offsets['maxSize']
+                if off + field_size <= len(fields_data) and type_id == self.TYPE_INT:
+                    cache_info['maxSize'] = int.from_bytes(fields_data[off:off+field_size], byteorder='big', signed=True)
+
+            # Read putCount
+            if 'putCount' in field_offsets:
+                off, type_id, field_size = field_offsets['putCount']
+                if off + field_size <= len(fields_data) and type_id == self.TYPE_INT:
+                    cache_info['putCount'] = int.from_bytes(fields_data[off:off+field_size], byteorder='big', signed=True)
+
+            # Read hitCount
+            if 'hitCount' in field_offsets:
+                off, type_id, field_size = field_offsets['hitCount']
+                if off + field_size <= len(fields_data) and type_id == self.TYPE_INT:
+                    cache_info['hitCount'] = int.from_bytes(fields_data[off:off+field_size], byteorder='big', signed=True)
+
+            # Read missCount
+            if 'missCount' in field_offsets:
+                off, type_id, field_size = field_offsets['missCount']
+                if off + field_size <= len(fields_data) and type_id == self.TYPE_INT:
+                    cache_info['missCount'] = int.from_bytes(fields_data[off:off+field_size], byteorder='big', signed=True)
+
+            # Read evictionCount
+            if 'evictionCount' in field_offsets:
+                off, type_id, field_size = field_offsets['evictionCount']
+                if off + field_size <= len(fields_data) and type_id == self.TYPE_INT:
+                    cache_info['evictionCount'] = int.from_bytes(fields_data[off:off+field_size], byteorder='big', signed=True)
+
+            # Read createCount
+            if 'createCount' in field_offsets:
+                off, type_id, field_size = field_offsets['createCount']
+                if off + field_size <= len(fields_data) and type_id == self.TYPE_INT:
+                    cache_info['createCount'] = int.from_bytes(fields_data[off:off+field_size], byteorder='big', signed=True)
+
+            # Calculate utilization
+            if cache_info['maxSize'] > 0:
+                cache_info['utilization'] = cache_info['size'] / cache_info['maxSize']
+
+            # Calculate hit rate
+            total_access = cache_info['hitCount'] + cache_info['missCount']
+            if total_access > 0:
+                cache_info['hit_rate'] = cache_info['hitCount'] / total_access
+
+            # Get holder chain
+            cache_info['holder_chain'] = self.get_holder_chain(obj_id)
+
+            # Only add if we have valid data
+            if cache_info['maxSize'] > 0 or cache_info['size'] > 0:
+                self.lru_cache_analysis.append(cache_info)
+
+        # Sort by size descending
+        self.lru_cache_analysis.sort(key=lambda x: x['size'], reverse=True)
+
+    def print_lru_cache_analysis(self):
+        """Print LruCache analysis results"""
+        if not hasattr(self, 'lru_cache_analysis') or not self.lru_cache_analysis:
+            print("\n=== LruCache 分析 ===")
+            print("未检测到 LruCache 实例")
             return
 
-        print(f"\n=== Bitmap 分析 TOP {top_n} ===")
-        print(f"{'尺寸':<20} {'估算内存':<15} {'对象ID'}")
-        print("-" * 50)
+        print(f"\n{'='*80}")
+        print(f"=== LruCache 缓存分析 (共 {len(self.lru_cache_analysis)} 个) ===")
+        print(f"{'='*80}")
+
+        for i, cache in enumerate(self.lru_cache_analysis[:20], 1):
+            print(f"\n[{i}] {cache['class_name']}")
+            print(f"    当前大小/最大容量: {cache['size']:,} / {cache['maxSize']:,}")
+            print(f"    利用率: {cache['utilization']*100:.1f}%")
+
+            if cache['hitCount'] > 0 or cache['missCount'] > 0:
+                print(f"    命中率: {cache['hit_rate']*100:.1f}% (命中: {cache['hitCount']:,}, 未命中: {cache['missCount']:,})")
+
+            if cache['evictionCount'] > 0:
+                print(f"    淘汰次数: {cache['evictionCount']:,}")
+
+            if cache['putCount'] > 0:
+                print(f"    写入次数: {cache['putCount']:,}")
+
+            # Print holder chain if available
+            if cache['holder_chain']:
+                print("    持有者链:")
+                for j, holder_info in enumerate(cache['holder_chain'][:5]):
+                    indent = "      " + "  " * j
+                    holder_name = holder_info.get('class_name', 'unknown')
+                    type_marker = ""
+                    if holder_info.get('is_gc_root'):
+                        type_marker = f" [GC Root: {holder_info.get('gc_root_type', 'UNKNOWN')}]"
+                    elif holder_info.get('is_app_class'):
+                        type_marker = " [★ 业务对象]"
+                    print(f"{indent}└─ {holder_name}{type_marker}")
+
+        # Print summary insights
+        print(f"\n--- LruCache 使用建议 ---")
+
+        # Check for low hit rates
+        low_hit_caches = [c for c in self.lru_cache_analysis if c['hit_rate'] < 0.5 and (c['hitCount'] + c['missCount']) > 10]
+        if low_hit_caches:
+            print(f"⚠️  {len(low_hit_caches)} 个缓存命中率低于 50%，考虑:")
+            print("   1. 增加缓存容量")
+            print("   2. 优化缓存键策略")
+            print("   3. 预加载常用数据")
+
+        # Check for high eviction rates
+        high_eviction = [c for c in self.lru_cache_analysis if c['evictionCount'] > c['putCount'] * 0.5 and c['putCount'] > 10]
+        if high_eviction:
+            print(f"⚠️  {len(high_eviction)} 个缓存淘汰频繁，建议增加 maxSize")
+
+        # Check for underutilized caches
+        underutilized = [c for c in self.lru_cache_analysis if c['utilization'] < 0.3 and c['maxSize'] > 0]
+        if underutilized:
+            print(f"💡 {len(underutilized)} 个缓存利用率低于 30%，可减小 maxSize 节省内存")
+
+    def print_suspicious_holdings(self, top_n=10):
+        """Print suspicious holdings analysis"""
+        if not hasattr(self, 'suspicious_holdings') or not self.suspicious_holdings:
+            return
+
+        print(f"\n{'='*80}")
+        print("=== 不合理持有检测 ===")
+        print(f"{'='*80}")
+
+        # Group by type
+        leaked = [h for h in self.suspicious_holdings if h['type'] == 'LEAKED_COMPONENT']
+        static = [h for h in self.suspicious_holdings if h['type'] == 'STATIC_FIELD']
+        singleton = [h for h in self.suspicious_holdings if h['type'] == 'SINGLETON']
+
+        if leaked:
+            print(f"\n--- ⚠️ 可能的内存泄漏 ({len(leaked)} 个) ---")
+            for item in leaked[:5]:
+                print(f"  {item['description']}")
+                print(f"    位置: {item['class_name']}.{item['field_name']}")
+
+        if static:
+            print(f"\n--- 静态字段持有大对象 ({len(static)} 个) ---")
+            print("提示: 静态字段生命周期与进程相同，持有大对象会导致内存无法释放")
+            for item in static[:top_n]:
+                print(f"  {item['class_name']}.{item['field_name']}")
+                print(f"    Retained: {item['retained_size']/1024/1024:.2f} MB")
+
+        if singleton:
+            print(f"\n--- 单例持有过多数据 ({len(singleton)} 个) ---")
+            print("提示: 单例不会被回收，其持有的数据也不会释放")
+            for item in singleton[:top_n]:
+                print(f"  {item['class_name']}")
+                print(f"    Retained: {item['retained_size']/1024/1024:.2f} MB")
+
+    def print_optimization_suggestions(self):
+        """Print optimization suggestions based on analysis"""
+        print(f"\n{'='*80}")
+        print("=== 内存优化建议 ===")
+        print(f"{'='*80}")
+
+        suggestions = []
+        priority_high = []
+        priority_medium = []
+        priority_low = []
+
+        # 1. Check for memory leaks
+        if hasattr(self, 'suspicious_holdings'):
+            leaked = [h for h in self.suspicious_holdings if h['type'] == 'LEAKED_COMPONENT']
+            if leaked:
+                priority_high.append({
+                    'issue': '检测到可能的内存泄漏',
+                    'detail': f'{len(leaked)} 个 Activity/Fragment 被静态字段持有',
+                    'suggestion': '1. 检查是否有 static 变量持有 Activity/Fragment 引用\n'
+                                  '2. 使用 WeakReference 替代强引用\n'
+                                  '3. 在 onDestroy() 中清理引用'
+                })
+
+        # 2. Check for large bitmaps
+        if self.bitmap_info:
+            large_bitmaps = [b for b in self.bitmap_info.values() if b['estimated_size'] > 1024*1024]
+            if large_bitmaps:
+                total_mb = sum(b['estimated_size'] for b in large_bitmaps) / 1024 / 1024
+                priority_medium.append({
+                    'issue': '大尺寸 Bitmap',
+                    'detail': f'{len(large_bitmaps)} 个 Bitmap 超过 1MB，共占用 {total_mb:.1f} MB',
+                    'suggestion': '1. 使用 inSampleSize 降低图片分辨率\n'
+                                  '2. 使用 RGB_565 替代 ARGB_8888（节省 50% 内存）\n'
+                                  '3. 及时调用 recycle() 释放不用的 Bitmap'
+                })
+
+        # 3. Check for duplicate bitmaps
+        if hasattr(self, 'duplicate_bitmaps') and self.duplicate_bitmaps:
+            total_wasted = sum(d['total_wasted'] for d in self.duplicate_bitmaps) / 1024 / 1024
+            if total_wasted > 1:
+                priority_medium.append({
+                    'issue': '重复加载 Bitmap',
+                    'detail': f'相同尺寸 Bitmap 重复加载，浪费约 {total_wasted:.1f} MB',
+                    'suggestion': '1. 使用 LruCache 或 Glide/Picasso 缓存图片\n'
+                                  '2. 检查是否多次加载相同资源'
+                })
+
+        # 4. Check for empty collections
+        if hasattr(self, 'empty_collections') and self.empty_collections:
+            total_empty = sum(count for _, count in self.empty_collections)
+            if total_empty > 100:
+                priority_low.append({
+                    'issue': '大量空集合',
+                    'detail': f'{total_empty} 个空集合对象',
+                    'suggestion': '1. 使用 Collections.emptyList()/emptyMap() 替代 new ArrayList()\n'
+                                  '2. 延迟初始化：需要时再创建集合'
+                })
+
+        # 5. Check for large collections
+        if hasattr(self, 'large_collections') and self.large_collections:
+            priority_medium.append({
+                'issue': '超大集合',
+                'detail': f'{len(self.large_collections)} 个集合超过 1000 个元素',
+                'suggestion': '1. 检查是否需要保存这么多数据\n'
+                              '2. 考虑分页加载或使用数据库\n'
+                              '3. 定期清理不需要的数据'
+            })
+
+        # 6. Check for static field holdings
+        if hasattr(self, 'suspicious_holdings'):
+            static = [h for h in self.suspicious_holdings if h['type'] == 'STATIC_FIELD']
+            if static:
+                total_mb = sum(h['retained_size'] for h in static) / 1024 / 1024
+                priority_medium.append({
+                    'issue': '静态字段持有大量数据',
+                    'detail': f'{len(static)} 个静态字段共持有 {total_mb:.1f} MB',
+                    'suggestion': '1. 评估是否需要静态持有\n'
+                                  '2. 考虑使用软引用 SoftReference\n'
+                                  '3. 在内存紧张时主动释放'
+                })
+
+        # 7. Check for LruCache issues
+        if hasattr(self, 'lru_cache_analysis') and self.lru_cache_analysis:
+            # Check for low hit rates
+            low_hit = [c for c in self.lru_cache_analysis if c['hit_rate'] < 0.5 and (c['hitCount'] + c['missCount']) > 10]
+            if low_hit:
+                priority_medium.append({
+                    'issue': 'LruCache 命中率低',
+                    'detail': f'{len(low_hit)} 个缓存命中率低于 50%',
+                    'suggestion': '1. 增加缓存容量 (maxSize)\n'
+                                  '2. 优化缓存键策略\n'
+                                  '3. 预加载常用数据'
+                })
+
+            # Check for underutilized caches
+            underutilized = [c for c in self.lru_cache_analysis if c['utilization'] < 0.3 and c['maxSize'] > 0]
+            if underutilized:
+                priority_low.append({
+                    'issue': 'LruCache 利用率低',
+                    'detail': f'{len(underutilized)} 个缓存利用率低于 30%',
+                    'suggestion': '1. 减小 maxSize 节省内存\n'
+                                  '2. 检查缓存是否有必要'
+                })
+
+        # Print suggestions
+        if priority_high:
+            print("\n🔴 高优先级 (需立即处理)")
+            for i, s in enumerate(priority_high, 1):
+                print(f"\n  [{i}] {s['issue']}")
+                print(f"      {s['detail']}")
+                print(f"      建议:")
+                for line in s['suggestion'].split('\n'):
+                    print(f"        {line}")
+
+        if priority_medium:
+            print("\n🟡 中优先级 (建议优化)")
+            for i, s in enumerate(priority_medium, 1):
+                print(f"\n  [{i}] {s['issue']}")
+                print(f"      {s['detail']}")
+                print(f"      建议:")
+                for line in s['suggestion'].split('\n'):
+                    print(f"        {line}")
+
+        if priority_low:
+            print("\n🟢 低优先级 (可选优化)")
+            for i, s in enumerate(priority_low, 1):
+                print(f"\n  [{i}] {s['issue']}")
+                print(f"      {s['detail']}")
+                print(f"      建议:")
+                for line in s['suggestion'].split('\n'):
+                    print(f"        {line}")
+
+        if not priority_high and not priority_medium and not priority_low:
+            print("\n✅ 未发现明显的内存问题，继续保持！")
+
+    def print_large_byte_arrays(self):
+        """Print large byte[] analysis with holder chains"""
+        if not self.large_byte_arrays:
+            return
+
+        print(f"\n{'='*80}")
+        print("=== TOP 大 byte[] 分析 (谁持有了这些内存?) ===")
+        if self.app_package:
+            print(f"App 包名: {self.app_package}")
+        print(f"{'='*80}")
+
+        for i, item in enumerate(self.large_byte_arrays, 1):
+            size_kb = item['size'] / 1024
+            size_mb = item['size'] / 1024 / 1024
+
+            if size_mb >= 1:
+                size_str = f"{size_mb:.2f} MB"
+            else:
+                size_str = f"{size_kb:.2f} KB"
+
+            print(f"\n[{i}] byte[{item.get('length', '?')}] - {size_str}")
+            print(f"    推断用途: {item['usage']}")
+            print(f"    持有者链:")
+
+            chain = item['holder_chain']
+            for j, obj in enumerate(chain):
+                indent = "    " + "  " * j
+                class_name = obj.get('class_name', 'unknown')
+                markers = []
+                if obj.get('is_gc_root'):
+                    markers.append(f"GC Root: {obj.get('gc_root_type', 'UNKNOWN')}")
+                if obj.get('is_app_class'):
+                    markers.append("🔴 App")
+                elif obj.get('is_interesting'):
+                    markers.append("★ 业务对象")
+
+                marker_str = f" [{', '.join(markers)}]" if markers else ""
+                if j == 0:
+                    print(f"{indent}└─ {class_name}{marker_str}")
+                else:
+                    print(f"{indent}└─ 被持有于: {class_name}{marker_str}")
+
+    def print_large_strings(self):
+        """Print large String analysis with content preview"""
+        if not self.large_strings:
+            return
+
+        print(f"\n{'='*80}")
+        print("=== TOP 大 String 分析 (实际内容是什么?) ===")
+        print(f"{'='*80}")
+
+        for i, item in enumerate(self.large_strings, 1):
+            size_kb = item['size'] / 1024
+            content = item.get('content', '')
+
+            # Truncate and escape content for display
+            if content:
+                # Escape special characters
+                display_content = content.replace('\n', '\\n').replace('\r', '\\r').replace('\t', '\\t')
+                if len(display_content) > 100:
+                    display_content = display_content[:100] + '...'
+            else:
+                display_content = '<无法解码>'
+
+            print(f"\n[{i}] String - {size_kb:.2f} KB")
+            print(f"    内容: \"{display_content}\"")
+
+            # Show holder chain (simplified)
+            chain = item['holder_chain']
+            if len(chain) > 1:
+                # Find the most interesting holder
+                for obj in chain[1:]:  # Skip the String itself
+                    class_name = obj.get('class_name', 'unknown')
+                    if class_name != 'java.lang.String':
+                        print(f"    持有者: {class_name}")
+                        break
+
+    def print_large_int_arrays(self):
+        """Print large int[]/long[] analysis with holder chains"""
+        if not self.large_int_arrays and not self.large_long_arrays:
+            return
+
+        print(f"\n{'='*80}")
+        print("=== TOP 大 int[]/long[] 分析 ===")
+        print(f"{'='*80}")
+
+        # Combine and sort
+        all_arrays = []
+        for item in self.large_int_arrays:
+            item['type'] = 'int'
+            all_arrays.append(item)
+        for item in self.large_long_arrays:
+            item['type'] = 'long'
+            all_arrays.append(item)
+
+        all_arrays.sort(key=lambda x: x['size'], reverse=True)
+
+        for i, item in enumerate(all_arrays[:20], 1):
+            size_kb = item['size'] / 1024
+            array_type = item['type']
+
+            print(f"\n[{i}] {array_type}[] - {size_kb:.2f} KB")
+
+            # Show holder chain
+            chain = item['holder_chain']
+            print(f"    持有者链:")
+            for j, obj in enumerate(chain[:5]):  # Limit depth
+                indent = "    " + "  " * j
+                class_name = obj.get('class_name', 'unknown')
+                markers = []
+                if obj.get('is_gc_root'):
+                    markers.append(f"GC Root")
+                if obj.get('is_interesting'):
+                    markers.append("★")
+
+                marker_str = f" {markers}" if markers else ""
+                print(f"{indent}└─ {class_name}{marker_str}")
+
+    def print_bitmap_analysis(self, top_n=10):
+        """Print enhanced Bitmap analysis results"""
+        if not self.bitmap_info:
+            print("\n=== Bitmap 分析 ===")
+            print("未检测到 Bitmap 对象")
+            return
+
+        total_bitmap_mem = sum(info['estimated_size'] for info in self.bitmap_info.values())
+
+        print(f"\n{'='*80}")
+        print("=== Bitmap 深度分析 ===")
+        print(f"{'='*80}")
+        print(f"Bitmap 总数: {len(self.bitmap_info)}")
+        print(f"Bitmap 总内存: {total_bitmap_mem/1024/1024:.2f} MB (Native 内存，不计入 Java Heap)")
+
+        # Print top bitmaps
+        print(f"\n--- TOP {top_n} 最大 Bitmap ---")
 
         sorted_bitmaps = sorted(self.bitmap_info.items(),
                                key=lambda x: x[1]['estimated_size'], reverse=True)
 
-        for obj_id, info in sorted_bitmaps[:top_n]:
+        for i, (obj_id, info) in enumerate(sorted_bitmaps[:top_n], 1):
             size_str = f"{info['width']}x{info['height']}"
-            mem_str = f"{info['estimated_size']/1024/1024:.2f} MB"
-            print(f"{size_str:<20} {mem_str:<15} 0x{obj_id:x}")
+            mem_mb = info['estimated_size'] / 1024 / 1024
+            density = info.get('density', 0)
+            is_mutable = info.get('is_mutable', False)
+            is_recycled = info.get('is_recycled', False)
+
+            # Status flags
+            flags = []
+            if is_mutable:
+                flags.append("可变")
+            if is_recycled:
+                flags.append("⚠️ 已回收")
+            flag_str = f" [{', '.join(flags)}]" if flags else ""
+
+            print(f"\n[{i}] {size_str} - {mem_mb:.2f} MB{flag_str}")
+            if density > 0:
+                print(f"    密度: {density} dpi")
+
+            # Show holder chain
+            chain = info.get('holder_chain', [])
+            if chain and len(chain) > 1:
+                print(f"    持有者:")
+                for j, obj in enumerate(chain[1:4]):  # Skip bitmap itself, show up to 3
+                    class_name = obj.get('class_name', 'unknown')
+                    markers = []
+                    if obj.get('is_app_class'):
+                        markers.append("🔴 App")
+                    marker_str = f" {markers}" if markers else ""
+                    print(f"      └─ {class_name}{marker_str}")
+
+        # Print duplicate bitmaps
+        if hasattr(self, 'duplicate_bitmaps') and self.duplicate_bitmaps:
+            print(f"\n--- 可能重复的 Bitmap（相同尺寸）---")
+            print("提示: 相同尺寸的 Bitmap 可能是重复加载，考虑使用缓存")
+
+            for dup in self.duplicate_bitmaps[:5]:
+                width, height = dup['size']
+                count = dup['count']
+                wasted_mb = dup['total_wasted'] / 1024 / 1024
+                print(f"  {width}x{height}: {count} 个实例, 可能浪费 {wasted_mb:.2f} MB")
 
     def print_collection_analysis(self, top_n=10):
-        """Print collection analysis results"""
-        if not hasattr(self, 'collection_analysis') or not self.collection_analysis:
+        """Print enhanced collection analysis results"""
+        has_data = (hasattr(self, 'collection_analysis') and self.collection_analysis) or \
+                   (hasattr(self, 'empty_collections') and self.empty_collections) or \
+                   (hasattr(self, 'large_collections') and self.large_collections)
+
+        if not has_data:
             return
 
-        print(f"\n=== 集合类容量分析 TOP {top_n} ===")
-        print(f"{'类名':<35} {'大小':<10} {'容量':<10} {'利用率':<10} {'浪费槽位'}")
-        print("-" * 80)
+        print(f"\n{'='*80}")
+        print("=== 集合类深度分析 ===")
+        print(f"{'='*80}")
 
-        for item in self.collection_analysis[:top_n]:
-            print(f"{item['class_name']:<35} {item['size']:<10} {item['capacity']:<10} "
-                  f"{item['utilization']*100:.1f}%     {item['wasted_slots']}")
+        # Empty collections
+        if hasattr(self, 'empty_collections') and self.empty_collections:
+            total_empty = sum(count for _, count in self.empty_collections)
+            print(f"\n--- 空集合统计 (共 {total_empty} 个) ---")
+            print("提示: 空集合占用内存但不存储数据，考虑延迟初始化或使用 Collections.emptyXxx()")
+            for name, count in self.empty_collections[:5]:
+                short_name = name.split('.')[-1]
+                print(f"  {short_name}: {count} 个空实例")
+
+        # Large collections
+        if hasattr(self, 'large_collections') and self.large_collections:
+            print(f"\n--- 超大集合 TOP {min(top_n, len(self.large_collections))} (>1000 元素) ---")
+            print("提示: 超大集合可能是缓存或数据累积，检查是否需要清理")
+            for i, item in enumerate(self.large_collections[:top_n], 1):
+                short_name = item['class_name'].split('.')[-1]
+                print(f"\n[{i}] {short_name}: {item['size']:,} 个元素")
+
+                chain = item.get('holder_chain', [])
+                if chain and len(chain) > 1:
+                    print(f"    持有者:")
+                    for obj in chain[1:3]:
+                        class_name = obj.get('class_name', 'unknown')
+                        markers = []
+                        if obj.get('is_app_class'):
+                            markers.append("🔴 App")
+                        marker_str = f" {markers}" if markers else ""
+                        print(f"      └─ {class_name}{marker_str}")
+
+        # Over-allocated collections
+        if hasattr(self, 'collection_analysis') and self.collection_analysis:
+            print(f"\n--- 容量过度分配 TOP {min(top_n, len(self.collection_analysis))} ---")
+            print("提示: 初始容量过大会浪费内存，考虑使用合适的初始容量")
+            print(f"{'类名':<30} {'实际大小':<10} {'容量':<10} {'利用率':<10} {'浪费'}")
+            print("-" * 70)
+
+            for item in self.collection_analysis[:top_n]:
+                short_name = item['class_name'].split('.')[-1]
+                print(f"{short_name:<30} {item['size']:<10} {item['capacity']:<10} "
+                      f"{item['utilization']*100:.1f}%     {item['wasted_slots']}")
 
     # ==================== Output Methods ====================
 
@@ -1276,6 +2502,104 @@ class HprofParser:
             avg_size = self.string_stats['size'] / self.string_stats['count']
             print(f"平均字符串大小: {avg_size:.2f} bytes")
 
+    def export_large_byte_arrays(self, f):
+        """Export large byte[] analysis to file"""
+        if not self.large_byte_arrays:
+            return
+
+        f.write("=" * 80 + "\n")
+        f.write("TOP 大 byte[] 分析 (谁持有了这些内存?)\n")
+        f.write("=" * 80 + "\n\n")
+
+        for i, item in enumerate(self.large_byte_arrays, 1):
+            size_kb = item['size'] / 1024
+            size_mb = item['size'] / 1024 / 1024
+            size_str = f"{size_mb:.2f} MB" if size_mb >= 1 else f"{size_kb:.2f} KB"
+
+            f.write(f"[{i}] byte[] - {size_str}\n")
+            f.write(f"    推断用途: {item['usage']}\n")
+            f.write(f"    持有者链:\n")
+
+            for j, obj in enumerate(item['holder_chain']):
+                indent = "    " + "  " * j
+                class_name = obj.get('class_name', 'unknown')
+                markers = []
+                if obj.get('is_gc_root'):
+                    markers.append(f"GC Root: {obj.get('gc_root_type', 'UNKNOWN')}")
+                if obj.get('is_interesting'):
+                    markers.append("★ 业务对象")
+                marker_str = f" [{', '.join(markers)}]" if markers else ""
+                f.write(f"{indent}└─ {class_name}{marker_str}\n")
+            f.write("\n")
+
+    def export_large_strings(self, f):
+        """Export large String analysis to file"""
+        if not self.large_strings:
+            return
+
+        f.write("=" * 80 + "\n")
+        f.write("TOP 大 String 分析 (实际内容是什么?)\n")
+        f.write("=" * 80 + "\n\n")
+
+        for i, item in enumerate(self.large_strings, 1):
+            size_kb = item['size'] / 1024
+            content = item.get('content', '')
+
+            if content:
+                display_content = content.replace('\n', '\\n').replace('\r', '\\r').replace('\t', '\\t')
+                if len(display_content) > 200:
+                    display_content = display_content[:200] + '...'
+            else:
+                display_content = '<无法解码>'
+
+            f.write(f"[{i}] String - {size_kb:.2f} KB\n")
+            f.write(f"    内容: \"{display_content}\"\n")
+
+            chain = item['holder_chain']
+            if len(chain) > 1:
+                for obj in chain[1:]:
+                    class_name = obj.get('class_name', 'unknown')
+                    if class_name != 'java.lang.String':
+                        f.write(f"    持有者: {class_name}\n")
+                        break
+            f.write("\n")
+
+    def export_large_int_arrays(self, f):
+        """Export large int[]/long[] analysis to file"""
+        if not self.large_int_arrays and not self.large_long_arrays:
+            return
+
+        f.write("=" * 80 + "\n")
+        f.write("TOP 大 int[]/long[] 分析\n")
+        f.write("=" * 80 + "\n\n")
+
+        all_arrays = []
+        for item in self.large_int_arrays:
+            item['type'] = 'int'
+            all_arrays.append(item)
+        for item in self.large_long_arrays:
+            item['type'] = 'long'
+            all_arrays.append(item)
+
+        all_arrays.sort(key=lambda x: x['size'], reverse=True)
+
+        for i, item in enumerate(all_arrays[:20], 1):
+            size_kb = item['size'] / 1024
+            f.write(f"[{i}] {item['type']}[] - {size_kb:.2f} KB\n")
+            f.write(f"    持有者链:\n")
+
+            for j, obj in enumerate(item['holder_chain'][:5]):
+                indent = "    " + "  " * j
+                class_name = obj.get('class_name', 'unknown')
+                markers = []
+                if obj.get('is_gc_root'):
+                    markers.append("GC Root")
+                if obj.get('is_interesting'):
+                    markers.append("★")
+                marker_str = f" {markers}" if markers else ""
+                f.write(f"{indent}└─ {class_name}{marker_str}\n")
+            f.write("\n")
+
     def export_analysis(self, output_file, deep_analysis=True):
         """Export analysis results to file"""
         with open(output_file, 'w', encoding='utf-8') as f:
@@ -1303,8 +2627,13 @@ class HprofParser:
             f.write(f"总内存使用: {(self.total_instance_size + self.total_array_size) / 1024 / 1024:.2f} MB\n\n")
 
             if deep_analysis:
+                # Phase 6: Deep Insight Analysis (most valuable for developers)
+                self.export_large_byte_arrays(f)
+                self.export_large_strings(f)
+                self.export_large_int_arrays(f)
+
                 # Dominator Tree Top
-                f.write("TOP 30 Retained Size:\n")
+                f.write("\nTOP 30 Retained Size:\n")
                 f.write("-" * 40 + "\n")
                 f.write(f"{'类名':<50} {'Shallow(KB)':<12} {'Retained(MB)':<12}\n")
 
@@ -1403,6 +2732,504 @@ class HprofParser:
                 avg_size_kb = stats['size'] / stats['count'] / 1024 if stats['count'] > 0 else 0
                 f.write(f"{array_type:<20} {stats['count']:<12,} {size_mb:.2f} MB\n")
 
+    def export_markdown(self, output_file, deep_analysis=True):
+        """Export analysis results to Markdown format with collapsible sections"""
+        with open(output_file, 'w', encoding='utf-8') as f:
+            f.write("# Android HPROF 深度内存分析报告\n\n")
+            f.write(f"**分析时间**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}  \n")
+            f.write(f"**HPROF文件**: `{os.path.basename(self.filename)}`\n\n")
+
+            # App Package Info
+            if self.app_package:
+                f.write(f"**App 包名**: `{self.app_package}`\n\n")
+
+            f.write("---\n\n")
+
+            # Table of Contents
+            f.write("## 目录\n\n")
+            f.write("- [内存概览](#内存概览)\n")
+            f.write("- [优化建议](#优化建议)\n")
+            if deep_analysis:
+                f.write("- [大对象分析](#大对象分析)\n")
+                f.write("  - [TOP 大 byte[]](#top-大-byte)\n")
+                f.write("  - [TOP 大 String](#top-大-string)\n")
+                f.write("  - [Bitmap 分析](#bitmap-分析)\n")
+                f.write("- [集合类分析](#集合类分析)\n")
+                f.write("- [LruCache 分析](#lrucache-分析)\n")
+                f.write("- [内存泄漏嫌疑](#内存泄漏嫌疑)\n")
+            f.write("- [包统计](#包统计)\n")
+            f.write("- [类统计](#类统计)\n\n")
+
+            f.write("---\n\n")
+
+            # Memory Overview
+            f.write("## 内存概览\n\n")
+            total_memory = (self.total_instance_size + self.total_array_size) / 1024 / 1024
+            f.write(f"| 指标 | 值 |\n")
+            f.write(f"|------|----|\n")
+            f.write(f"| 总内存使用 | **{total_memory:.2f} MB** |\n")
+            f.write(f"| 实例数 | {self.total_instances:,} |\n")
+            f.write(f"| 实例大小 | {self.total_instance_size / 1024 / 1024:.2f} MB |\n")
+            f.write(f"| 数组数 | {self.total_arrays:,} |\n")
+            f.write(f"| 数组大小 | {self.total_array_size / 1024 / 1024:.2f} MB |\n")
+            f.write(f"| GC Roots | {len(self.gc_roots):,} |\n\n")
+
+            # GC Root Statistics (collapsible)
+            f.write("<details>\n<summary>GC Root 类型分布</summary>\n\n")
+            f.write("| 类型 | 数量 |\n")
+            f.write("|------|------|\n")
+            for root_type, obj_ids in sorted(self.gc_root_types.items(),
+                                             key=lambda x: len(x[1]), reverse=True):
+                type_name = self.GC_ROOT_NAMES.get(root_type, f'UNKNOWN_{root_type}')
+                f.write(f"| {type_name} | {len(obj_ids):,} |\n")
+            f.write("\n</details>\n\n")
+
+            f.write("---\n\n")
+
+            # Optimization Suggestions
+            f.write("## 优化建议\n\n")
+            self._write_markdown_suggestions(f)
+
+            if deep_analysis:
+                f.write("---\n\n")
+
+                # Large Objects Analysis
+                f.write("## 大对象分析\n\n")
+
+                # Large byte[]
+                f.write("### TOP 大 byte[]\n\n")
+                if hasattr(self, 'large_byte_arrays') and self.large_byte_arrays:
+                    for i, item in enumerate(self.large_byte_arrays[:10], 1):
+                        size = item['size']
+                        usage = item.get('usage', '未知')
+                        holder_chain = item.get('holder_chain', [])
+                        f.write(f"**[{i}]** `byte[]` - **{size/1024:.2f} KB**\n")
+                        f.write(f"- 推断用途: {usage}\n")
+                        if holder_chain:
+                            f.write("- 持有者链:\n")
+                            for j, info in enumerate(holder_chain[:5]):
+                                indent = "  " * (j + 1)
+                                class_name = info.get('class_name', 'unknown')
+                                marker = ""
+                                if info.get('is_gc_root'):
+                                    marker = f" `[GC Root: {info.get('gc_root_type', 'UNKNOWN')}]`"
+                                elif info.get('is_app_class'):
+                                    marker = " ⭐"
+                                f.write(f"{indent}- `{class_name}`{marker}\n")
+                        f.write("\n")
+                else:
+                    f.write("*未检测到大 byte[]*\n\n")
+
+                # Large String
+                f.write("### TOP 大 String\n\n")
+                if hasattr(self, 'large_strings') and self.large_strings:
+                    for i, item in enumerate(self.large_strings[:10], 1):
+                        size = item['size']
+                        content = item.get('content', '')
+                        display_content = content[:100].replace('\n', '\\n').replace('|', '\\|') if content else "<无法解码>"
+                        f.write(f"**[{i}]** String - **{size/1024:.2f} KB**\n")
+                        f.write(f"```\n{display_content}...\n```\n\n")
+                else:
+                    f.write("*未检测到大 String*\n\n")
+
+                # Bitmap Analysis
+                f.write("### Bitmap 分析\n\n")
+                if self.bitmap_info:
+                    f.write("| # | 尺寸 | 内存估算 | Config |\n")
+                    f.write("|---|------|----------|--------|\n")
+                    sorted_bitmaps = sorted(self.bitmap_info.items(),
+                                           key=lambda x: x[1]['estimated_size'], reverse=True)
+                    for i, (obj_id, info) in enumerate(sorted_bitmaps[:15], 1):
+                        size_str = f"{info['width']}x{info['height']}"
+                        mem_mb = info['estimated_size']/1024/1024
+                        config = info.get('config', 'ARGB_8888')
+                        f.write(f"| {i} | {size_str} | {mem_mb:.2f} MB | {config} |\n")
+                    f.write("\n")
+
+                    # Duplicate bitmaps
+                    if hasattr(self, 'duplicate_bitmaps') and self.duplicate_bitmaps:
+                        f.write("<details>\n<summary>重复 Bitmap 检测</summary>\n\n")
+                        for dup in self.duplicate_bitmaps[:10]:
+                            f.write(f"- **{dup['dimensions']}**: {dup['count']} 个相同尺寸，浪费 {dup['total_wasted']/1024:.1f} KB\n")
+                        f.write("\n</details>\n\n")
+                else:
+                    f.write("*未检测到 Bitmap 对象*\n\n")
+
+                f.write("---\n\n")
+
+                # Collection Analysis
+                f.write("## 集合类分析\n\n")
+
+                # Empty collections
+                if hasattr(self, 'empty_collections') and self.empty_collections:
+                    total_empty = sum(count for _, count in self.empty_collections)
+                    f.write(f"### 空集合统计 (共 {total_empty} 个)\n\n")
+                    f.write("| 类型 | 数量 |\n")
+                    f.write("|------|------|\n")
+                    for name, count in self.empty_collections[:10]:
+                        short_name = name.split('.')[-1]
+                        f.write(f"| {short_name} | {count} |\n")
+                    f.write("\n")
+
+                # Large collections
+                if hasattr(self, 'large_collections') and self.large_collections:
+                    f.write(f"### 超大集合 (>1000 元素，共 {len(self.large_collections)} 个)\n\n")
+                    f.write("<details>\n<summary>展开查看</summary>\n\n")
+                    f.write("| 类型 | 元素数 |\n")
+                    f.write("|------|--------|\n")
+                    for item in self.large_collections[:20]:
+                        short_name = item['class_name'].split('.')[-1]
+                        f.write(f"| {short_name} | {item['size']:,} |\n")
+                    f.write("\n</details>\n\n")
+
+                f.write("---\n\n")
+
+                # LruCache Analysis
+                f.write("## LruCache 分析\n\n")
+                if hasattr(self, 'lru_cache_analysis') and self.lru_cache_analysis:
+                    f.write("| 类名 | 当前/最大 | 利用率 | 命中率 |\n")
+                    f.write("|------|-----------|--------|--------|\n")
+                    for cache in self.lru_cache_analysis[:10]:
+                        short_name = cache['class_name'].split('.')[-1]
+                        util = f"{cache['utilization']*100:.0f}%"
+                        hit = f"{cache['hit_rate']*100:.0f}%" if cache['hitCount'] + cache['missCount'] > 0 else "N/A"
+                        f.write(f"| {short_name} | {cache['size']:,}/{cache['maxSize']:,} | {util} | {hit} |\n")
+                    f.write("\n")
+                else:
+                    f.write("*未检测到 LruCache 实例*\n\n")
+
+                f.write("---\n\n")
+
+                # Memory Leak Suspects
+                f.write("## 内存泄漏嫌疑\n\n")
+                if self.leak_suspects:
+                    f.write(f"检测到 **{len(self.leak_suspects)}** 个可疑对象\n\n")
+                    f.write("<details>\n<summary>展开查看详情</summary>\n\n")
+                    for i, suspect in enumerate(self.leak_suspects[:15], 1):
+                        f.write(f"### [{i}] {suspect['type']}\n\n")
+                        f.write(f"{suspect['description']}\n")
+                        if 'retained_size' in suspect:
+                            f.write(f"- Retained Size: {suspect['retained_size']/1024/1024:.2f} MB\n")
+                        f.write("\n")
+                    f.write("</details>\n\n")
+                else:
+                    f.write("*未检测到明显的内存泄漏*\n\n")
+
+            f.write("---\n\n")
+
+            # Package Statistics
+            f.write("## 包统计\n\n")
+            f.write("<details>\n<summary>TOP 20 内存占用包</summary>\n\n")
+            f.write("| 包名 | 实例数 | 大小 |\n")
+            f.write("|------|--------|------|\n")
+            sorted_packages = sorted(self.package_stats.items(),
+                                   key=lambda x: x[1]['size'], reverse=True)
+            for package, stats in sorted_packages[:20]:
+                size_mb = stats['size'] / 1024 / 1024
+                f.write(f"| {package} | {stats['count']:,} | {size_mb:.2f} MB |\n")
+            f.write("\n</details>\n\n")
+
+            # Class Statistics
+            f.write("## 类统计\n\n")
+            f.write("<details>\n<summary>TOP 30 内存占用类</summary>\n\n")
+            f.write("| 类名 | 实例数 | 大小 |\n")
+            f.write("|------|--------|------|\n")
+            sorted_classes = sorted(self.class_stats.items(),
+                                  key=lambda x: x[1]['size'], reverse=True)
+            for class_name, stats in sorted_classes[:30]:
+                size_mb = stats['size'] / 1024 / 1024
+                short_name = class_name if len(class_name) < 50 else "..." + class_name[-47:]
+                f.write(f"| `{short_name}` | {stats['count']:,} | {size_mb:.2f} MB |\n")
+            f.write("\n</details>\n\n")
+
+            f.write("---\n\n")
+            f.write("*报告由 Android-App-Memory-Analysis 工具生成*\n")
+
+    def _write_markdown_suggestions(self, f):
+        """Write optimization suggestions in markdown format"""
+        priority_high = []
+        priority_medium = []
+        priority_low = []
+
+        # Check for memory leaks
+        if hasattr(self, 'suspicious_holdings'):
+            leaked = [h for h in self.suspicious_holdings if h['type'] == 'LEAKED_COMPONENT']
+            if leaked:
+                priority_high.append({
+                    'issue': '检测到可能的内存泄漏',
+                    'detail': f'{len(leaked)} 个 Activity/Fragment 被静态字段持有',
+                    'suggestion': ['检查是否有 static 变量持有 Activity/Fragment 引用',
+                                   '使用 WeakReference 替代强引用',
+                                   '在 onDestroy() 中清理引用']
+                })
+
+        # Check for large bitmaps
+        if self.bitmap_info:
+            large_bitmaps = [b for b in self.bitmap_info.values() if b['estimated_size'] > 1024*1024]
+            if large_bitmaps:
+                total_mb = sum(b['estimated_size'] for b in large_bitmaps) / 1024 / 1024
+                priority_medium.append({
+                    'issue': '大尺寸 Bitmap',
+                    'detail': f'{len(large_bitmaps)} 个 Bitmap 超过 1MB，共占用 {total_mb:.1f} MB',
+                    'suggestion': ['使用 inSampleSize 降低图片分辨率',
+                                   '使用 RGB_565 替代 ARGB_8888（节省 50% 内存）',
+                                   '及时调用 recycle() 释放不用的 Bitmap']
+                })
+
+        # Check for empty collections
+        if hasattr(self, 'empty_collections') and self.empty_collections:
+            total_empty = sum(count for _, count in self.empty_collections)
+            if total_empty > 100:
+                priority_low.append({
+                    'issue': '大量空集合',
+                    'detail': f'{total_empty} 个空集合对象',
+                    'suggestion': ['使用 Collections.emptyList()/emptyMap() 替代 new ArrayList()',
+                                   '延迟初始化：需要时再创建集合']
+                })
+
+        # Check for large collections
+        if hasattr(self, 'large_collections') and self.large_collections:
+            priority_medium.append({
+                'issue': '超大集合',
+                'detail': f'{len(self.large_collections)} 个集合超过 1000 个元素',
+                'suggestion': ['检查是否需要保存这么多数据',
+                               '考虑分页加载或使用数据库',
+                               '定期清理不需要的数据']
+            })
+
+        # Check for LruCache issues
+        if hasattr(self, 'lru_cache_analysis') and self.lru_cache_analysis:
+            low_hit = [c for c in self.lru_cache_analysis if c['hit_rate'] < 0.5 and (c['hitCount'] + c['missCount']) > 10]
+            if low_hit:
+                priority_medium.append({
+                    'issue': 'LruCache 命中率低',
+                    'detail': f'{len(low_hit)} 个缓存命中率低于 50%',
+                    'suggestion': ['增加缓存容量 (maxSize)',
+                                   '优化缓存键策略',
+                                   '预加载常用数据']
+                })
+
+        # Write suggestions
+        if priority_high:
+            f.write("### 🔴 高优先级 (需立即处理)\n\n")
+            for s in priority_high:
+                f.write(f"**{s['issue']}**\n\n")
+                f.write(f"> {s['detail']}\n\n")
+                f.write("建议:\n")
+                for sug in s['suggestion']:
+                    f.write(f"- {sug}\n")
+                f.write("\n")
+
+        if priority_medium:
+            f.write("### 🟡 中优先级 (建议优化)\n\n")
+            for s in priority_medium:
+                f.write(f"**{s['issue']}**\n\n")
+                f.write(f"> {s['detail']}\n\n")
+                f.write("建议:\n")
+                for sug in s['suggestion']:
+                    f.write(f"- {sug}\n")
+                f.write("\n")
+
+        if priority_low:
+            f.write("### 🟢 低优先级 (可选优化)\n\n")
+            for s in priority_low:
+                f.write(f"**{s['issue']}**\n\n")
+                f.write(f"> {s['detail']}\n\n")
+                f.write("建议:\n")
+                for sug in s['suggestion']:
+                    f.write(f"- {sug}\n")
+                f.write("\n")
+
+        if not priority_high and not priority_medium and not priority_low:
+            f.write("*未发现明显的内存优化点*\n\n")
+
+    # ==================== HPROF Comparison ====================
+
+    @staticmethod
+    def compare(file1, file2, output_file=None, markdown=False):
+        """Compare two HPROF files and show differences"""
+        print(f"正在解析第一个 HPROF 文件: {file1}")
+        parser1 = HprofParser(file1)
+        parser1.parse(simple_mode=True, deep_analysis=True)
+
+        print(f"\n正在解析第二个 HPROF 文件: {file2}")
+        parser2 = HprofParser(file2)
+        parser2.parse(simple_mode=True, deep_analysis=True)
+
+        print("\n" + "="*80)
+        print("=== HPROF 内存对比分析 ===")
+        print("="*80)
+
+        # Compare overall statistics
+        mem1 = (parser1.total_instance_size + parser1.total_array_size) / 1024 / 1024
+        mem2 = (parser2.total_instance_size + parser2.total_array_size) / 1024 / 1024
+        mem_diff = mem2 - mem1
+        mem_pct = (mem_diff / mem1 * 100) if mem1 > 0 else 0
+
+        print(f"\n--- 内存概览对比 ---")
+        print(f"{'指标':<20} {'文件1':<15} {'文件2':<15} {'变化':<15}")
+        print("-" * 65)
+        print(f"{'总内存':<20} {mem1:.2f} MB{'':<5} {mem2:.2f} MB{'':<5} {mem_diff:+.2f} MB ({mem_pct:+.1f}%)")
+
+        inst1 = parser1.total_instances
+        inst2 = parser2.total_instances
+        inst_diff = inst2 - inst1
+        print(f"{'实例数':<20} {inst1:,}{'':<5} {inst2:,}{'':<5} {inst_diff:+,}")
+
+        arr1 = parser1.total_arrays
+        arr2 = parser2.total_arrays
+        arr_diff = arr2 - arr1
+        print(f"{'数组数':<20} {arr1:,}{'':<5} {arr2:,}{'':<5} {arr_diff:+,}")
+
+        # Compare top classes by size change
+        print(f"\n--- 类内存变化 TOP 20 (按变化量排序) ---")
+        print(f"{'类名':<50} {'文件1(MB)':<12} {'文件2(MB)':<12} {'变化(MB)':<12}")
+        print("-" * 86)
+
+        all_classes = set(parser1.class_stats.keys()) | set(parser2.class_stats.keys())
+        class_changes = []
+        for class_name in all_classes:
+            stats1 = parser1.class_stats.get(class_name, {'count': 0, 'size': 0})
+            stats2 = parser2.class_stats.get(class_name, {'count': 0, 'size': 0})
+            size_diff = stats2['size'] - stats1['size']
+            count_diff = stats2['count'] - stats1['count']
+            if abs(size_diff) > 1024:  # Only show > 1KB changes
+                class_changes.append({
+                    'name': class_name,
+                    'size1': stats1['size'],
+                    'size2': stats2['size'],
+                    'count1': stats1['count'],
+                    'count2': stats2['count'],
+                    'size_diff': size_diff,
+                    'count_diff': count_diff
+                })
+
+        # Sort by absolute size change
+        class_changes.sort(key=lambda x: abs(x['size_diff']), reverse=True)
+
+        for item in class_changes[:20]:
+            name = item['name'][:48] if len(item['name']) > 48 else item['name']
+            s1 = item['size1'] / 1024 / 1024
+            s2 = item['size2'] / 1024 / 1024
+            diff = item['size_diff'] / 1024 / 1024
+            marker = "📈" if diff > 0 else "📉"
+            print(f"{name:<50} {s1:<12.2f} {s2:<12.2f} {marker} {diff:+.2f}")
+
+        # Compare packages
+        print(f"\n--- 包内存变化 TOP 10 ---")
+        print(f"{'包名':<40} {'文件1(MB)':<12} {'文件2(MB)':<12} {'变化(MB)':<12}")
+        print("-" * 76)
+
+        all_packages = set(parser1.package_stats.keys()) | set(parser2.package_stats.keys())
+        pkg_changes = []
+        for pkg_name in all_packages:
+            stats1 = parser1.package_stats.get(pkg_name, {'count': 0, 'size': 0})
+            stats2 = parser2.package_stats.get(pkg_name, {'count': 0, 'size': 0})
+            size_diff = stats2['size'] - stats1['size']
+            if abs(size_diff) > 10240:  # Only show > 10KB changes
+                pkg_changes.append({
+                    'name': pkg_name,
+                    'size1': stats1['size'],
+                    'size2': stats2['size'],
+                    'size_diff': size_diff
+                })
+
+        pkg_changes.sort(key=lambda x: abs(x['size_diff']), reverse=True)
+
+        for item in pkg_changes[:10]:
+            name = item['name'][:38] if len(item['name']) > 38 else item['name']
+            s1 = item['size1'] / 1024 / 1024
+            s2 = item['size2'] / 1024 / 1024
+            diff = item['size_diff'] / 1024 / 1024
+            marker = "📈" if diff > 0 else "📉"
+            print(f"{name:<40} {s1:<12.2f} {s2:<12.2f} {marker} {diff:+.2f}")
+
+        # Compare new leak suspects
+        print(f"\n--- 新增泄漏嫌疑 ---")
+        suspects1 = {(s['type'], s['class_name']) for s in parser1.leak_suspects if 'class_name' in s}
+        suspects2 = {(s['type'], s['class_name']) for s in parser2.leak_suspects if 'class_name' in s}
+        new_suspects = suspects2 - suspects1
+
+        if new_suspects:
+            print(f"⚠️  检测到 {len(new_suspects)} 个新的泄漏嫌疑:")
+            for type_name, class_name in list(new_suspects)[:10]:
+                print(f"  [{type_name}] {class_name}")
+        else:
+            print("✅ 未检测到新的泄漏嫌疑")
+
+        # Summary
+        print(f"\n--- 分析总结 ---")
+        if mem_diff > 0:
+            print(f"⚠️  内存增长 {mem_diff:.2f} MB ({mem_pct:.1f}%)")
+            if class_changes and class_changes[0]['size_diff'] > 0:
+                top = class_changes[0]
+                print(f"   最大增长: {top['name']} (+{top['size_diff']/1024/1024:.2f} MB)")
+        elif mem_diff < 0:
+            print(f"✅ 内存减少 {abs(mem_diff):.2f} MB ({abs(mem_pct):.1f}%)")
+        else:
+            print("💡 内存使用基本持平")
+
+        # Export comparison report
+        if output_file:
+            HprofParser._export_comparison(parser1, parser2, class_changes, pkg_changes,
+                                          new_suspects, output_file, markdown)
+            print(f"\n对比报告已导出到: {output_file}")
+
+    @staticmethod
+    def _export_comparison(parser1, parser2, class_changes, pkg_changes, new_suspects, output_file, markdown=False):
+        """Export comparison results to file"""
+        with open(output_file, 'w', encoding='utf-8') as f:
+            if markdown:
+                f.write("# HPROF 内存对比分析报告\n\n")
+                f.write(f"**文件1**: `{os.path.basename(parser1.filename)}`  \n")
+                f.write(f"**文件2**: `{os.path.basename(parser2.filename)}`  \n")
+                f.write(f"**分析时间**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+
+                mem1 = (parser1.total_instance_size + parser1.total_array_size) / 1024 / 1024
+                mem2 = (parser2.total_instance_size + parser2.total_array_size) / 1024 / 1024
+                mem_diff = mem2 - mem1
+
+                f.write("## 内存概览\n\n")
+                f.write("| 指标 | 文件1 | 文件2 | 变化 |\n")
+                f.write("|------|-------|-------|------|\n")
+                f.write(f"| 总内存 | {mem1:.2f} MB | {mem2:.2f} MB | {mem_diff:+.2f} MB |\n")
+                f.write(f"| 实例数 | {parser1.total_instances:,} | {parser2.total_instances:,} | {parser2.total_instances - parser1.total_instances:+,} |\n\n")
+
+                f.write("## 类内存变化 TOP 20\n\n")
+                f.write("| 类名 | 文件1 | 文件2 | 变化 |\n")
+                f.write("|------|-------|-------|------|\n")
+                for item in class_changes[:20]:
+                    name = item['name'][-45:] if len(item['name']) > 45 else item['name']
+                    s1 = item['size1'] / 1024 / 1024
+                    s2 = item['size2'] / 1024 / 1024
+                    diff = item['size_diff'] / 1024 / 1024
+                    f.write(f"| `{name}` | {s1:.2f} MB | {s2:.2f} MB | {diff:+.2f} MB |\n")
+
+                if new_suspects:
+                    f.write("\n## 新增泄漏嫌疑\n\n")
+                    for type_name, class_name in list(new_suspects)[:10]:
+                        f.write(f"- **[{type_name}]** `{class_name}`\n")
+            else:
+                f.write("HPROF 内存对比分析报告\n")
+                f.write("=" * 60 + "\n")
+                f.write(f"文件1: {parser1.filename}\n")
+                f.write(f"文件2: {parser2.filename}\n")
+                f.write(f"分析时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+
+                mem1 = (parser1.total_instance_size + parser1.total_array_size) / 1024 / 1024
+                mem2 = (parser2.total_instance_size + parser2.total_array_size) / 1024 / 1024
+                mem_diff = mem2 - mem1
+
+                f.write("内存概览:\n")
+                f.write(f"  文件1 总内存: {mem1:.2f} MB\n")
+                f.write(f"  文件2 总内存: {mem2:.2f} MB\n")
+                f.write(f"  变化: {mem_diff:+.2f} MB\n\n")
+
+                f.write("类内存变化 TOP 20:\n")
+                for item in class_changes[:20]:
+                    diff = item['size_diff'] / 1024 / 1024
+                    f.write(f"  {item['name']}: {diff:+.2f} MB\n")
+
     # ==================== Utility Methods ====================
 
     def openHprof(self, file):
@@ -1421,6 +3248,69 @@ class HprofParser:
         self.hprof.seek(length, 1)
 
 
+    def parse_basic(self):
+        """
+        Parse HPROF file without printing or deep analysis.
+        Used for quick summary extraction in panorama analyzer.
+        Returns True on success, False on failure.
+        """
+        try:
+            self.openHprof(self.filename)
+            self.readHead()
+            self.readRecords()
+            return True
+        except Exception as e:
+            print(f"解析HPROF文件失败: {e}")
+            return False
+        finally:
+            if self.hprof:
+                self.hprof.close()
+
+    def get_summary(self, top_n=10):
+        """
+        Get a summary of HPROF analysis for panorama integration.
+        Call parse_basic() first before calling this method.
+
+        Returns a dict with:
+        - total_instances: int
+        - total_memory_mb: float
+        - top_classes: list of (class_name, count, size_mb)
+        - bitmap_count: int
+        - bitmap_size_mb: float
+        """
+        total_memory_bytes = self.total_instance_size + self.total_array_size
+
+        # Get top N classes by size
+        sorted_classes = sorted(
+            self.class_stats.items(),
+            key=lambda x: x[1]['size'],
+            reverse=True
+        )[:top_n]
+
+        top_classes = [
+            {
+                'name': class_name,
+                'count': stats['count'],
+                'size_mb': round(stats['size'] / 1024 / 1024, 2)
+            }
+            for class_name, stats in sorted_classes
+        ]
+
+        # Bitmap count from class_stats
+        bitmap_stats = self.class_stats.get('android.graphics.Bitmap', {'count': 0, 'size': 0})
+
+        return {
+            'total_instances': self.total_instances,
+            'total_arrays': self.total_arrays,
+            'total_memory_mb': round(total_memory_bytes / 1024 / 1024, 2),
+            'instance_size_mb': round(self.total_instance_size / 1024 / 1024, 2),
+            'array_size_mb': round(self.total_array_size / 1024 / 1024, 2),
+            'top_classes': top_classes,
+            'bitmap_count': bitmap_stats['count'],
+            'bitmap_size_mb': round(bitmap_stats['size'] / 1024 / 1024, 2),
+        }
+
+
 if __name__ == '__main__':
     arg_parser = argparse.ArgumentParser(description="Android HPROF 深度内存分析工具")
     arg_parser.add_argument('-f', '--file', required=True, help="HPROF文件路径")
@@ -1429,7 +3319,15 @@ if __name__ == '__main__':
     arg_parser.add_argument('-m', '--min-size', type=float, default=0.1, help="最小显示大小(MB) (默认0.1)")
     arg_parser.add_argument('-s', '--simple', action='store_true', help="简单输出模式")
     arg_parser.add_argument('--no-deep', action='store_true', help="禁用深度分析(更快但功能较少)")
+    arg_parser.add_argument('--markdown', action='store_true', help="输出 Markdown 格式报告")
+    arg_parser.add_argument('--compare', metavar='FILE2', help="与另一个 HPROF 文件对比分析")
     args = arg_parser.parse_args()
 
-    parser = HprofParser(args.file)
-    parser.parse(args.simple, args.top, args.min_size, args.output, deep_analysis=not args.no_deep)
+    if args.compare:
+        # Comparison mode
+        HprofParser.compare(args.file, args.compare, args.output, args.markdown)
+    else:
+        # Normal analysis mode
+        parser = HprofParser(args.file)
+        parser.parse(args.simple, args.top, args.min_size, args.output,
+                     deep_analysis=not args.no_deep, markdown=args.markdown)

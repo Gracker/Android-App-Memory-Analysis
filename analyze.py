@@ -7,15 +7,23 @@ import sys
 TOOLS_DIR = os.path.join(os.path.dirname(__file__), 'tools')
 HPROF_PARSER = os.path.join(TOOLS_DIR, 'hprof_parser.py')
 SMAPS_PARSER = os.path.join(TOOLS_DIR, 'smaps_parser.py')
+COMBINED_ANALYZER = os.path.join(TOOLS_DIR, 'combined_analyzer.py')
+LIVE_DUMPER = os.path.join(TOOLS_DIR, 'live_dumper.py')
+MEMINFO_PARSER = os.path.join(TOOLS_DIR, 'meminfo_parser.py')
+GFXINFO_PARSER = os.path.join(TOOLS_DIR, 'gfxinfo_parser.py')
+PANORAMA_ANALYZER = os.path.join(TOOLS_DIR, 'panorama_analyzer.py')
+DIFF_ANALYZER = os.path.join(TOOLS_DIR, 'diff_analyzer.py')
 
-def analyze_hprof(file_path):
+def analyze_hprof(file_path, extra_args=None):
     """Calls the hprof parser script."""
     if not os.path.exists(file_path):
         print(f"Error: HPROF file not found at '{file_path}'")
         sys.exit(1)
-    
+
     print(f"--- Analyzing HPROF file: {file_path} ---")
     command = [sys.executable, HPROF_PARSER, '-f', file_path]
+    if extra_args:
+        command.extend(extra_args)
     subprocess.run(command, check=True)
 
 def analyze_smaps(file_path):
@@ -23,38 +31,271 @@ def analyze_smaps(file_path):
     if not os.path.exists(file_path):
         print(f"Error: smaps file not found at '{file_path}'")
         sys.exit(1)
-        
+
     print(f"--- Analyzing smaps file: {file_path} ---")
     command = [sys.executable, SMAPS_PARSER, '-f', file_path]
     subprocess.run(command, check=True)
 
+def analyze_combined(hprof_file, smaps_file, markdown=False, output=None):
+    """Calls the combined analyzer for HPROF + smaps analysis."""
+    if not os.path.exists(hprof_file):
+        print(f"Error: HPROF file not found at '{hprof_file}'")
+        sys.exit(1)
+    if not os.path.exists(smaps_file):
+        print(f"Error: smaps file not found at '{smaps_file}'")
+        sys.exit(1)
+
+    print(f"--- Combined Analysis: HPROF + smaps ---")
+    command = [sys.executable, COMBINED_ANALYZER, '-H', hprof_file, '-S', smaps_file]
+    if markdown:
+        command.append('--markdown')
+    if output:
+        command.extend(['-o', output])
+    subprocess.run(command, check=True)
+
+
+def live_dump(package=None, list_apps=False, output_dir='.', skip_hprof=False, analyze=True):
+    """Live dump memory data from connected device."""
+    command = [sys.executable, LIVE_DUMPER]
+
+    if list_apps:
+        command.append('--list')
+        subprocess.run(command, check=True)
+        return None
+
+    if not package:
+        print("Error: Please specify a package name with --package")
+        sys.exit(1)
+
+    command.extend(['--package', package, '-o', output_dir])
+    if skip_hprof:
+        command.append('--skip-hprof')
+
+    result = subprocess.run(command, capture_output=True, text=True)
+    print(result.stdout)
+    if result.stderr:
+        print(result.stderr, file=sys.stderr)
+
+    if result.returncode != 0:
+        print("Live dump failed")
+        sys.exit(1)
+
+    # 查找生成的目录
+    import glob
+    pattern = os.path.join(output_dir, f"{package}_*")
+    dirs = sorted(glob.glob(pattern), reverse=True)
+    if dirs:
+        dump_dir = dirs[0]
+        print(f"\n数据已保存到: {dump_dir}")
+
+        if analyze:
+            # 使用全景分析器进行深度分析
+            subprocess.run([sys.executable, PANORAMA_ANALYZER, '-d', dump_dir])
+
+        return dump_dir
+    return None
+
+
+def analyze_meminfo(file_path):
+    """Analyze meminfo file."""
+    if not os.path.exists(file_path):
+        print(f"Error: meminfo file not found at '{file_path}'")
+        sys.exit(1)
+    subprocess.run([sys.executable, MEMINFO_PARSER, file_path], check=True)
+
+
+def analyze_gfxinfo(file_path):
+    """Analyze gfxinfo file."""
+    if not os.path.exists(file_path):
+        print(f"Error: gfxinfo file not found at '{file_path}'")
+        sys.exit(1)
+    subprocess.run([sys.executable, GFXINFO_PARSER, file_path], check=True)
+
+
+def analyze_panorama(dump_dir=None, meminfo=None, gfxinfo=None, hprof=None, smaps=None,
+                     output_json=False, output_markdown=False, output_file=None):
+    """Full panorama analysis with multiple data sources."""
+    command = [sys.executable, PANORAMA_ANALYZER]
+
+    if dump_dir:
+        command.extend(['-d', dump_dir])
+    else:
+        if meminfo:
+            command.extend(['-m', meminfo])
+        if gfxinfo:
+            command.extend(['-g', gfxinfo])
+        if hprof:
+            command.extend(['-H', hprof])
+        if smaps:
+            command.extend(['-S', smaps])
+
+    if output_json:
+        command.append('--json')
+    if output_markdown:
+        command.append('--markdown')
+    if output_file:
+        command.extend(['-o', output_file])
+
+    subprocess.run(command, check=True)
+
+
+def analyze_diff(before_dir=None, after_dir=None, before_meminfo=None, after_meminfo=None,
+                 threshold=20.0, output_json=False, output_file=None):
+    """Compare two memory dumps."""
+    command = [sys.executable, DIFF_ANALYZER]
+
+    if before_dir:
+        command.extend(['-b', before_dir])
+    if after_dir:
+        command.extend(['-a', after_dir])
+    if before_meminfo:
+        command.extend(['--before-meminfo', before_meminfo])
+    if after_meminfo:
+        command.extend(['--after-meminfo', after_meminfo])
+    if threshold != 20.0:
+        command.extend(['--threshold', str(threshold)])
+    if output_json:
+        command.append('--json')
+    if output_file:
+        command.extend(['-o', output_file])
+
+    subprocess.run(command, check=True)
+
+
 def main():
     """Main function to parse arguments and dispatch commands."""
     parser = argparse.ArgumentParser(
-        description="A unified script for Android memory analysis.",
-        epilog="Examples:\n"
-               "  python3 analyze.py hprof demo/hprof_sample/heapdump-20250921-122155.hprof\n"
-               "  python3 analyze.py smaps demo/smaps_sample/2056_smaps_file.txt",
+        description="Android 内存分析统一工具",
+        epilog="""示例:
+  # 从手机一键 dump 并分析
+  python3 analyze.py live --list                          # 列出运行中的应用
+  python3 analyze.py live --package com.example.app       # dump 并分析
+  python3 analyze.py live --package com.example.app --skip-hprof  # 快速模式
+
+  # 分析本地文件
+  python3 analyze.py hprof demo/hprof_sample/heapdump.hprof
+  python3 analyze.py smaps demo/smaps_sample/smaps
+  python3 analyze.py meminfo dump/meminfo.txt
+  python3 analyze.py gfxinfo dump/gfxinfo.txt
+
+  # 全景分析（多数据源关联）
+  python3 analyze.py panorama -d /tmp/com.example.app_20231225_120000
+  python3 analyze.py panorama -m meminfo.txt -g gfxinfo.txt
+
+  # 内存对比分析
+  python3 analyze.py diff -b ./dump_before -a ./dump_after
+  python3 analyze.py diff --before-meminfo m1.txt --after-meminfo m2.txt
+
+  # 传统联合分析
+  python3 analyze.py combined -H demo/hprof.hprof -S demo/smaps.txt
+""",
         formatter_class=argparse.RawTextHelpFormatter
     )
-    
-    subparsers = parser.add_subparsers(dest='command', required=True, help='Available commands')
-    
+
+    subparsers = parser.add_subparsers(dest='command', required=True, help='可用命令')
+
+    # Live dump command
+    live_parser = subparsers.add_parser('live', help='从手机实时 dump 并分析内存数据')
+    live_parser.add_argument('-l', '--list', action='store_true', help='列出运行中的应用')
+    live_parser.add_argument('-p', '--package', type=str, help='目标应用包名')
+    live_parser.add_argument('-o', '--output', type=str, default='.', help='输出目录')
+    live_parser.add_argument('--skip-hprof', action='store_true', help='跳过 hprof dump（更快）')
+    live_parser.add_argument('--dump-only', action='store_true', help='只 dump 不分析')
+
     # HPROF command
-    hprof_parser = subparsers.add_parser('hprof', help='Analyze a .hprof file.')
-    hprof_parser.add_argument('file', type=str, help='Path to the .hprof file')
-    
+    hprof_parser = subparsers.add_parser('hprof', help='分析 .hprof 文件 (Java 堆)')
+    hprof_parser.add_argument('file', type=str, help='HPROF 文件路径')
+    hprof_parser.add_argument('--markdown', action='store_true', help='输出 Markdown 格式')
+    hprof_parser.add_argument('--compare', metavar='FILE2', help='与另一个 HPROF 文件对比')
+
     # SMAPS command
-    smaps_parser = subparsers.add_parser('smaps', help='Analyze a smaps file.')
-    smaps_parser.add_argument('file', type=str, help='Path to the smaps file')
-    
+    smaps_parser_cmd = subparsers.add_parser('smaps', help='分析 smaps 文件 (Native 内存)')
+    smaps_parser_cmd.add_argument('file', type=str, help='smaps 文件路径')
+
+    # Meminfo command
+    meminfo_parser_cmd = subparsers.add_parser('meminfo', help='分析 dumpsys meminfo 输出')
+    meminfo_parser_cmd.add_argument('file', type=str, help='meminfo 文件路径')
+
+    # Gfxinfo command
+    gfxinfo_parser_cmd = subparsers.add_parser('gfxinfo', help='分析 dumpsys gfxinfo 输出')
+    gfxinfo_parser_cmd.add_argument('file', type=str, help='gfxinfo 文件路径')
+
+    # Panorama command (multi-source deep analysis)
+    panorama_parser = subparsers.add_parser('panorama', help='全景分析（多数据源深度关联）')
+    panorama_parser.add_argument('-d', '--dump-dir', help='dump 目录（自动查找文件）')
+    panorama_parser.add_argument('-m', '--meminfo', help='meminfo 文件路径')
+    panorama_parser.add_argument('-g', '--gfxinfo', help='gfxinfo 文件路径')
+    panorama_parser.add_argument('-H', '--hprof', help='HPROF 文件路径')
+    panorama_parser.add_argument('-S', '--smaps', help='smaps 文件路径')
+    panorama_parser.add_argument('--json', action='store_true', help='输出 JSON 格式')
+    panorama_parser.add_argument('--markdown', '-md', action='store_true', help='输出 Markdown 格式')
+    panorama_parser.add_argument('-o', '--output', help='输出文件路径')
+
+    # Diff command
+    diff_parser = subparsers.add_parser('diff', help='内存对比分析（比较两次 dump）')
+    diff_parser.add_argument('-b', '--before', help='前一次 dump 目录')
+    diff_parser.add_argument('-a', '--after', help='后一次 dump 目录')
+    diff_parser.add_argument('--before-meminfo', help='前一次 meminfo 文件')
+    diff_parser.add_argument('--after-meminfo', help='后一次 meminfo 文件')
+    diff_parser.add_argument('--threshold', type=float, default=20.0,
+                             help='警告阈值（增长百分比，默认 20%%）')
+    diff_parser.add_argument('--json', action='store_true', help='输出 JSON 格式')
+    diff_parser.add_argument('-o', '--output', help='输出文件路径')
+
+    # Combined command
+    combined_parser = subparsers.add_parser('combined', help='HPROF + smaps 联合分析')
+    combined_parser.add_argument('-H', '--hprof', required=True, help='HPROF 文件路径')
+    combined_parser.add_argument('-S', '--smaps', required=True, help='smaps 文件路径')
+    combined_parser.add_argument('--markdown', action='store_true', help='输出 Markdown 格式')
+    combined_parser.add_argument('-o', '--output', help='输出文件路径')
+
     args = parser.parse_args()
-    
-    if args.command == 'hprof':
-        analyze_hprof(args.file)
+
+    if args.command == 'live':
+        live_dump(
+            package=args.package,
+            list_apps=args.list,
+            output_dir=args.output,
+            skip_hprof=args.skip_hprof,
+            analyze=not args.dump_only
+        )
+    elif args.command == 'hprof':
+        extra_args = []
+        if args.markdown:
+            extra_args.append('--markdown')
+        if args.compare:
+            extra_args.extend(['--compare', args.compare])
+        analyze_hprof(args.file, extra_args if extra_args else None)
     elif args.command == 'smaps':
         analyze_smaps(args.file)
-        
+    elif args.command == 'meminfo':
+        analyze_meminfo(args.file)
+    elif args.command == 'gfxinfo':
+        analyze_gfxinfo(args.file)
+    elif args.command == 'panorama':
+        analyze_panorama(
+            dump_dir=args.dump_dir,
+            meminfo=args.meminfo,
+            gfxinfo=args.gfxinfo,
+            hprof=args.hprof,
+            smaps=args.smaps,
+            output_json=args.json,
+            output_markdown=args.markdown,
+            output_file=args.output
+        )
+    elif args.command == 'diff':
+        analyze_diff(
+            before_dir=args.before,
+            after_dir=args.after,
+            before_meminfo=args.before_meminfo,
+            after_meminfo=args.after_meminfo,
+            threshold=args.threshold,
+            output_json=args.json,
+            output_file=args.output
+        )
+    elif args.command == 'combined':
+        analyze_combined(args.hprof, args.smaps, args.markdown, args.output)
+
     print("\n--- Analysis complete. ---")
 
 if __name__ == '__main__':
