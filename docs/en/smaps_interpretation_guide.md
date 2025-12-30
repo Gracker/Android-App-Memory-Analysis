@@ -16,10 +16,13 @@ adb shell "su -c 'cat /proc/<pid>/smaps'"
 adb shell "su -c 'cat /proc/<pid>/smaps'" > smaps_file.txt
 
 # Method 3: Use project tools
-python3 smaps_parser.py -p <pid>
-python3 smaps_parser.py -f smaps_file.txt
+python3 tools/smaps_parser.py -p <pid>
+python3 tools/smaps_parser.py -f smaps_file.txt
 
-# Method 4: Monitor real-time changes
+# Method 4: One-click dump (recommended)
+python3 analyze.py live --package <package>
+
+# Method 5: Monitor real-time changes
 watch -n 5 "adb shell 'su -c \"cat /proc/<pid>/smaps\" | tail -20'"
 ```
 

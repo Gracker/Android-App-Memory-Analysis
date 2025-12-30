@@ -244,7 +244,9 @@ diff showmap_1.txt showmap_2.txt
    # Check if Dalvik-related lines are growing
    grep "dalvik" showmap_output.txt
    # Further HPROF analysis
-   python3 hprof_dumper.py -pkg <package>
+   python3 tools/hprof_dumper.py -pkg <package>
+   # Or use one-click analysis
+   python3 analyze.py live --package <package>
    ```
 
 2. **Native memory leak**:

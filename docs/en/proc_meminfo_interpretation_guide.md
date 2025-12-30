@@ -188,7 +188,7 @@ Mapped:           234567 kB
   - Too large: Possible excessive file mappings or memory-mapped files
 - **Next Step Tools**:
   - Analyze process mappings: `cat /proc/<pid>/maps`
-  - Use SMAPS analysis: `python3 smaps_parser.py -p <pid>`
+  - Use SMAPS analysis: `python3 tools/smaps_parser.py -p <pid>`
 
 #### AnonPages (Anonymous Pages)
 ```
@@ -201,7 +201,8 @@ AnonPages:        345678 kB
   - Continuous growth: Possible memory leak
   - Sudden increase: Application allocated large amount of memory
 - **Next Step Tools**:
-  - HPROF analysis for Java heap: `python3 hprof_dumper.py`
+  - HPROF analysis for Java heap: `python3 tools/hprof_dumper.py`
+  - One-click analysis: `python3 analyze.py live --package <package>`
   - Analyze Native memory: `dumpsys meminfo <package> -d`
 
 ### Memory Reclaim Related
@@ -256,7 +257,7 @@ adb shell "dumpsys meminfo"
 adb shell "dumpsys meminfo <package_name>"
 
 # 3. Get HPROF analysis
-python3 hprof_dumper.py -pkg <package_name>
+python3 tools/hprof_dumper.py -pkg <package_name>
 ```
 
 ### 2. Memory Leak Detection
@@ -285,9 +286,9 @@ done
 # 2. Application memory tracking
 adb shell "am start -a android.intent.action.MAIN -c android.intent.category.LAUNCHER <package_name>"
 # Wait for application startup
-python3 hprof_dumper.py -pkg <package_name> -o before/
+python3 tools/hprof_dumper.py -pkg <package_name> -o before/
 # Perform operations
-python3 hprof_dumper.py -pkg <package_name> -o after/
+python3 tools/hprof_dumper.py -pkg <package_name> -o after/
 ```
 
 ### 3. Cache Efficiency Analysis

@@ -191,6 +191,76 @@ class LiveDumper:
             return True
         return False
 
+    def dump_zram_swap(self, output_path):
+        """
+        Dump zRAM/Swap 信息
+        
+        采集:
+        - /proc/swaps
+        - /sys/block/zram*/disksize
+        - /sys/block/zram*/mm_stat
+        - /sys/block/zram*/stat
+        """
+        lines = []
+        
+        # 采集 /proc/swaps
+        lines.append("===== /proc/swaps =====")
+        output, ret = self._adb_shell('cat /proc/swaps')
+        if ret == 0:
+            lines.append(output.strip())
+        else:
+            lines.append("# 无法读取 /proc/swaps")
+        lines.append("")
+        
+        # 查找 zRAM 设备
+        output, ret = self._adb_shell('ls -d /sys/block/zram* 2>/dev/null')
+        if ret == 0 and output.strip():
+            zram_devices = [line.strip().split('/')[-1] for line in output.strip().split('\n') if 'zram' in line]
+            
+            for device in sorted(zram_devices):
+                lines.append(f"===== {device} =====")
+                
+                # disksize
+                ds_output, ds_ret = self._adb_shell(f'cat /sys/block/{device}/disksize')
+                if ds_ret == 0:
+                    lines.append(f"disksize: {ds_output.strip()}")
+                
+                # mm_stat (新版本内核)
+                mm_output, mm_ret = self._adb_shell(f'cat /sys/block/{device}/mm_stat 2>/dev/null')
+                if mm_ret == 0 and mm_output.strip():
+                    lines.append(f"mm_stat: {mm_output.strip()}")
+                else:
+                    # 旧版字段 (兼容)
+                    for field in ['orig_data_size', 'compr_data_size', 'mem_used_total']:
+                        f_output, f_ret = self._adb_shell(f'cat /sys/block/{device}/{field} 2>/dev/null')
+                        if f_ret == 0 and f_output.strip():
+                            lines.append(f"{field}: {f_output.strip()}")
+                
+                # stat (I/O 统计)
+                stat_output, stat_ret = self._adb_shell(f'cat /sys/block/{device}/stat 2>/dev/null')
+                if stat_ret == 0 and stat_output.strip():
+                    lines.append(f"stat: {stat_output.strip()}")
+                
+                lines.append("")
+        else:
+            lines.append("# 未检测到 zRAM 设备")
+        
+        # 写入文件
+        content = '\n'.join(lines)
+        with open(output_path, 'w', encoding='utf-8') as f:
+            f.write(content)
+        
+        return bool(content.strip())
+
+    def dump_proc_meminfo(self, output_path):
+        """Dump /proc/meminfo (系统内存信息)"""
+        output, ret = self._adb_shell('cat /proc/meminfo')
+        if ret == 0 and output.strip():
+            with open(output_path, 'w', encoding='utf-8') as f:
+                f.write(output)
+            return True
+        return False
+
     def dump_hprof(self, package_name, output_path, timeout=120):
         """Dump hprof (Java 堆)"""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -253,6 +323,8 @@ class LiveDumper:
             'meminfo': os.path.join(dump_dir, 'meminfo.txt'),
             'gfxinfo': os.path.join(dump_dir, 'gfxinfo.txt'),
             'hprof': os.path.join(dump_dir, 'heap.hprof'),
+            'proc_meminfo': os.path.join(dump_dir, 'proc_meminfo.txt'),
+            'zram_swap': os.path.join(dump_dir, 'zram_swap.txt'),
         }
 
         results = {}
@@ -274,27 +346,42 @@ class LiveDumper:
         else:
             print("  -> 失败")
 
-        print("\n[3/4] Dumping gfxinfo...")
+        print("\n[3/6] Dumping gfxinfo...")
         if self.dump_gfxinfo(package_name, files['gfxinfo']):
             results['gfxinfo'] = files['gfxinfo']
             print(f"  -> {os.path.basename(files['gfxinfo'])}")
         else:
             print("  -> 失败")
 
+        print("\n[4/6] Dumping /proc/meminfo (系统内存)...")
+        if self.dump_proc_meminfo(files['proc_meminfo']):
+            results['proc_meminfo'] = files['proc_meminfo']
+            print(f"  -> {os.path.basename(files['proc_meminfo'])}")
+        else:
+            print("  -> 失败")
+
+        print("\n[5/6] Dumping zRAM/Swap...")
+        if self.dump_zram_swap(files['zram_swap']):
+            results['zram_swap'] = files['zram_swap']
+            print(f"  -> {os.path.basename(files['zram_swap'])}")
+        else:
+            print("  -> 失败或无 zRAM")
+
         # hprof 最后 dump（耗时较长）
         if not skip_hprof:
-            print("\n[4/4] Dumping hprof (这可能需要较长时间)...")
+            print("\n[6/6] Dumping hprof (这可能需要较长时间)...")
             if self.dump_hprof(package_name, files['hprof']):
                 results['hprof'] = files['hprof']
                 print(f"  -> {os.path.basename(files['hprof'])}")
             else:
                 print("  -> 失败 (可能需要 debuggable 应用或 root 权限)")
         else:
-            print("\n[4/4] 跳过 hprof dump")
+            print("\n[6/6] 跳过 hprof dump")
 
         print("\n" + "=" * 50)
         print(f"采集完成! 文件保存在: {dump_dir}")
-        print(f"成功: {len(results)}/{4 if not skip_hprof else 3}")
+        total_items = 6 if not skip_hprof else 5
+        print(f"成功: {len(results)}/{total_items}")
 
         # 保存元信息
         meta_path = os.path.join(dump_dir, 'meta.txt')

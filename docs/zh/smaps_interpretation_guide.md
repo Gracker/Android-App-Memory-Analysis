@@ -16,8 +16,11 @@ adb shell "su -c 'cat /proc/<pid>/smaps'"
 adb shell "su -c 'cat /proc/<pid>/smaps'" > smaps_file.txt
 
 # 方法3: 使用本项目工具
-python3 smaps_parser.py -p <pid>
-python3 smaps_parser.py -f smaps_file.txt
+python3 tools/smaps_parser.py -p <pid>
+python3 tools/smaps_parser.py -f smaps_file.txt
+
+# 方法4: 一键 Dump（推荐）
+python3 analyze.py live --package <package>
 
 # 方法4: 监控实时变化
 watch -n 5 "adb shell 'su -c \"cat /proc/<pid>/smaps\" | tail -20'"
@@ -176,7 +179,10 @@ Pss:                2500 kB
   cat /proc/<pid>/smaps | awk '/Pss:/ {sum+=$2} END {print "Total PSS: " sum " kB"}'
   
   # 各类型内存 PSS 分布
-  python3 smaps_parser.py -p <pid>
+  python3 tools/smaps_parser.py -p <pid>
+  
+  # 或使用全景分析
+  python3 analyze.py panorama -S smaps.txt
   ```
 
 ### 共享内存状态
@@ -708,8 +714,11 @@ sleep 5
 grep -A 10 "dalvik" /proc/<pid>/smaps
 
 # 3. HPROF 深入分析
-python3 hprof_dumper.py -pkg <package>
-python3 hprof_parser.py -f <hprof_file>
+python3 tools/hprof_dumper.py -pkg <package>
+python3 tools/hprof_parser.py -f <hprof_file>
+
+# 或使用一键分析
+python3 analyze.py live --package <package>
 ```
 
 #### 下一步工具

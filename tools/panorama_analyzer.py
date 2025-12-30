@@ -30,6 +30,7 @@ from gfxinfo_parser import parse_gfxinfo_file, GfxinfoData
 from hprof_parser import HprofParser
 from proc_meminfo_parser import parse_proc_meminfo_file, ProcMeminfoData
 from dmabuf_parser import parse_dmabuf_file, DmaBufData
+from zram_parser import parse_zram_swap_file, ZramSwapData
 
 
 @dataclass
@@ -151,6 +152,30 @@ class DmaBufContext:
 
 
 @dataclass
+class ZramSwapContext:
+    """zRAM/Swap 分析结果"""
+    # Swap 统计
+    swap_total_mb: float = 0
+    swap_used_mb: float = 0
+    swap_used_percent: float = 0
+    swap_device_count: int = 0
+
+    # zRAM 统计
+    has_zram: bool = False
+    zram_disk_mb: float = 0
+    zram_orig_mb: float = 0
+    zram_compr_mb: float = 0
+    zram_mem_used_mb: float = 0
+    zram_compression_ratio: float = 0
+    zram_space_saving_percent: float = 0
+    zram_memory_saved_mb: float = 0
+    zram_device_count: int = 0
+
+    # 分析结论
+    zram_swap_notes: List[str] = field(default_factory=list)
+
+
+@dataclass
 class PanoramaResult:
     """全景分析结果"""
     package_name: str = ""
@@ -178,6 +203,9 @@ class PanoramaResult:
 
     # DMA-BUF 分析
     dmabuf_context: DmaBufContext = field(default_factory=DmaBufContext)
+
+    # zRAM/Swap 分析
+    zram_swap_context: ZramSwapContext = field(default_factory=ZramSwapContext)
 
     # UI 资源
     views_count: int = 0
@@ -241,13 +269,14 @@ class ThresholdViolation:
 class PanoramaAnalyzer:
     """全景分析器"""
 
-    def __init__(self, meminfo_file=None, gfxinfo_file=None, hprof_file=None, smaps_file=None, proc_meminfo_file=None, dmabuf_file=None, threshold_config=None):
+    def __init__(self, meminfo_file=None, gfxinfo_file=None, hprof_file=None, smaps_file=None, proc_meminfo_file=None, dmabuf_file=None, zram_swap_file=None, threshold_config=None):
         self.meminfo_file = meminfo_file
         self.gfxinfo_file = gfxinfo_file
         self.hprof_file = hprof_file
         self.smaps_file = smaps_file
         self.proc_meminfo_file = proc_meminfo_file
         self.dmabuf_file = dmabuf_file
+        self.zram_swap_file = zram_swap_file
         self.threshold_config = threshold_config
 
         self.meminfo_data: Optional[MeminfoData] = None
@@ -256,6 +285,7 @@ class PanoramaAnalyzer:
         self.smaps_data: Optional[Dict] = None
         self.proc_meminfo_data: Optional[ProcMeminfoData] = None
         self.dmabuf_data: Optional[DmaBufData] = None
+        self.zram_swap_data: Optional[ZramSwapData] = None
 
     def parse_all(self):
         """解析所有可用的数据文件"""
@@ -291,6 +321,14 @@ class PanoramaAnalyzer:
                 print(f"警告: DMA-BUF 解析失败: {e}")
                 self.dmabuf_data = None
 
+        # 解析 zRAM/Swap 文件
+        if self.zram_swap_file and os.path.exists(self.zram_swap_file):
+            try:
+                self.zram_swap_data = parse_zram_swap_file(self.zram_swap_file)
+            except Exception as e:
+                print(f"警告: zRAM/Swap 解析失败: {e}")
+                self.zram_swap_data = None
+
         # TODO: 集成 smaps 解析
 
     def analyze(self) -> PanoramaResult:
@@ -321,6 +359,9 @@ class PanoramaAnalyzer:
 
         # DMA-BUF 分析
         self._analyze_dmabuf(result)
+
+        # zRAM/Swap 分析
+        self._analyze_zram_swap(result)
 
         # UI 资源分析
         self._analyze_ui_resources(result)
@@ -566,13 +607,70 @@ class PanoramaAnalyzer:
                 f"主要占用: {', '.join(categories)}"
             )
 
-        # 与 Graphics 内存关联
-        if result.graphics_mb > 0 and dc.total_mb > 0:
-            # DMA-BUF 通常是 Graphics 内存的一部分
-            if dc.gpu_mb > result.graphics_mb * 0.5:
-                dc.dmabuf_notes.append(
-                    f"GPU DMA-BUF ({dc.gpu_mb:.1f} MB) 占 Graphics ({result.graphics_mb:.1f} MB) 的主要部分"
+            # 与 Graphics 内存关联
+            if result.graphics_mb > 0 and dc.total_mb > 0:
+                # DMA-BUF 通常是 Graphics 内存的一部分
+                if dc.gpu_mb > result.graphics_mb * 0.5:
+                    dc.dmabuf_notes.append(
+                        f"GPU DMA-BUF ({dc.gpu_mb:.1f} MB) 占 Graphics ({result.graphics_mb:.1f} MB) 的主要部分"
+                    )
+
+    def _analyze_zram_swap(self, result: PanoramaResult):
+        """zRAM/Swap 分析"""
+        if not self.zram_swap_data:
+            return
+
+        zs = result.zram_swap_context
+        data = self.zram_swap_data
+
+        # Swap 统计
+        zs.swap_total_mb = data.total_swap_mb
+        zs.swap_used_mb = data.used_swap_mb
+        zs.swap_used_percent = data.swap_used_percent
+        zs.swap_device_count = len(data.swap_devices)
+
+        # zRAM 统计
+        zs.has_zram = data.has_zram
+        if data.has_zram:
+            zs.zram_disk_mb = data.total_zram_disk_mb
+            zs.zram_orig_mb = data.total_zram_orig_mb
+            zs.zram_compr_mb = data.total_zram_compr_mb
+            zs.zram_mem_used_mb = data.total_zram_mem_used_mb
+            zs.zram_compression_ratio = data.overall_compression_ratio
+            zs.zram_space_saving_percent = data.overall_space_saving_percent
+            zs.zram_memory_saved_mb = data.memory_saved_mb
+            zs.zram_device_count = len(data.zram_devices)
+
+        # 分析结论
+        if zs.swap_total_mb > 0:
+            zs.zram_swap_notes.append(
+                f"Swap 使用: {zs.swap_used_mb:.1f} / {zs.swap_total_mb:.1f} MB ({zs.swap_used_percent:.1f}%)"
+            )
+
+        if zs.has_zram:
+            if zs.zram_compression_ratio > 0:
+                zs.zram_swap_notes.append(
+                    f"zRAM 压缩率: {zs.zram_compression_ratio:.2f}x (节省 {zs.zram_space_saving_percent:.1f}%)"
                 )
+            if zs.zram_memory_saved_mb > 100:
+                zs.zram_swap_notes.append(
+                    f"zRAM 节省内存: {zs.zram_memory_saved_mb:.1f} MB"
+                )
+
+        # 告警
+        if zs.swap_used_percent > 80:
+            zs.zram_swap_notes.append(
+                "⚠️ Swap 使用率较高 (>80%)，系统可能存在内存压力"
+            )
+        elif zs.swap_used_percent > 50:
+            zs.zram_swap_notes.append(
+                "⚠️ Swap 使用率中等 (>50%)，建议关注内存使用情况"
+            )
+
+        if zs.has_zram and zs.zram_compression_ratio > 0 and zs.zram_compression_ratio < 1.5:
+            zs.zram_swap_notes.append(
+                "⚠️ zRAM 压缩率较低 (<1.5x)，数据可能不太可压缩"
+            )
 
     def _analyze_ui_resources(self, result: PanoramaResult):
         """UI 资源分析"""
@@ -853,6 +951,27 @@ class PanoramaAnalyzer:
             for note in dc.dmabuf_notes:
                 print(f"  > {note}")
 
+        # zRAM/Swap 分析
+        zs = result.zram_swap_context
+        if zs.swap_total_mb > 0 or zs.has_zram:
+            print(f"\n{'─' * 40}")
+            print("[ zRAM/Swap 分析 ]")
+            print(f"{'─' * 40}")
+            if zs.swap_total_mb > 0:
+                print(f"Swap 总量:   {zs.swap_total_mb:>10.1f} MB ({zs.swap_device_count} 个设备)")
+                print(f"Swap 已用:   {zs.swap_used_mb:>10.1f} MB ({zs.swap_used_percent:.1f}%)")
+            if zs.has_zram:
+                print(f"zRAM 磁盘:   {zs.zram_disk_mb:>10.1f} MB ({zs.zram_device_count} 个设备)")
+                print(f"原始数据:    {zs.zram_orig_mb:>10.1f} MB")
+                print(f"压缩后数据:  {zs.zram_compr_mb:>10.1f} MB")
+                print(f"实际内存占用:{zs.zram_mem_used_mb:>10.1f} MB")
+                if zs.zram_compression_ratio > 0:
+                    print(f"压缩率:      {zs.zram_compression_ratio:>10.2f}x")
+                    print(f"节省空间:    {zs.zram_space_saving_percent:>10.1f}%")
+                    print(f"节省内存:    {zs.zram_memory_saved_mb:>10.1f} MB")
+            for note in zs.zram_swap_notes:
+                print(f"  > {note}")
+
         # Bitmap 关联分析
         bc = result.bitmap_correlation
         if bc.meminfo_count > 0:
@@ -1024,6 +1143,24 @@ class PanoramaAnalyzer:
                     'other': {'mb': round(result.dmabuf_context.other_mb, 2), 'count': result.dmabuf_context.other_count},
                 },
             } if result.dmabuf_context.total_mb > 0 else None,
+            'zram_swap': {
+                'swap': {
+                    'total_mb': round(result.zram_swap_context.swap_total_mb, 1),
+                    'used_mb': round(result.zram_swap_context.swap_used_mb, 1),
+                    'used_percent': round(result.zram_swap_context.swap_used_percent, 1),
+                    'device_count': result.zram_swap_context.swap_device_count,
+                },
+                'zram': {
+                    'disk_mb': round(result.zram_swap_context.zram_disk_mb, 1),
+                    'orig_mb': round(result.zram_swap_context.zram_orig_mb, 1),
+                    'compr_mb': round(result.zram_swap_context.zram_compr_mb, 1),
+                    'mem_used_mb': round(result.zram_swap_context.zram_mem_used_mb, 1),
+                    'compression_ratio': round(result.zram_swap_context.zram_compression_ratio, 2),
+                    'space_saving_percent': round(result.zram_swap_context.zram_space_saving_percent, 1),
+                    'memory_saved_mb': round(result.zram_swap_context.zram_memory_saved_mb, 1),
+                    'device_count': result.zram_swap_context.zram_device_count,
+                } if result.zram_swap_context.has_zram else None,
+            } if result.zram_swap_context.swap_total_mb > 0 or result.zram_swap_context.has_zram else None,
             'ui_resources': {
                 'views': result.views_count,
                 'activities': result.activities_count,
@@ -1107,6 +1244,41 @@ class PanoramaAnalyzer:
             if dc.other_count > 0:
                 lines.append(f"| 其他 | {dc.other_mb:.2f} MB | {dc.other_count} |")
             lines.append("")
+
+        # zRAM/Swap Analysis
+        zs = result.zram_swap_context
+        if zs.swap_total_mb > 0 or zs.has_zram:
+            lines.append("## zRAM/Swap 分析")
+            lines.append("")
+            if zs.swap_total_mb > 0:
+                swap_status = "🟡 中等" if zs.swap_used_percent > 50 else ("🔴 较高" if zs.swap_used_percent > 80 else "🟢 正常")
+                lines.append("### Swap 使用")
+                lines.append("")
+                lines.append("| 指标 | 数值 |")
+                lines.append("|------|------|")
+                lines.append(f"| Swap 总量 | {zs.swap_total_mb:.1f} MB |")
+                lines.append(f"| Swap 已用 | {zs.swap_used_mb:.1f} MB ({zs.swap_used_percent:.1f}%) |")
+                lines.append(f"| 状态 | {swap_status} |")
+                lines.append("")
+            if zs.has_zram:
+                lines.append("### zRAM 压缩")
+                lines.append("")
+                lines.append("| 指标 | 数值 |")
+                lines.append("|------|------|")
+                lines.append(f"| zRAM 磁盘大小 | {zs.zram_disk_mb:.1f} MB |")
+                lines.append(f"| 原始数据 | {zs.zram_orig_mb:.1f} MB |")
+                lines.append(f"| 压缩后数据 | {zs.zram_compr_mb:.1f} MB |")
+                lines.append(f"| 实际内存占用 | {zs.zram_mem_used_mb:.1f} MB |")
+                if zs.zram_compression_ratio > 0:
+                    lines.append(f"| 压缩率 | {zs.zram_compression_ratio:.2f}x |")
+                    lines.append(f"| 节省空间 | {zs.zram_space_saving_percent:.1f}% |")
+                    lines.append(f"| 节省内存 | {zs.zram_memory_saved_mb:.1f} MB |")
+                lines.append("")
+                if zs.zram_compression_ratio > 3:
+                    lines.append("> ✅ zRAM 压缩效果很好 (>3x)")
+                elif zs.zram_compression_ratio < 1.5 and zs.zram_compression_ratio > 0:
+                    lines.append("> ⚠️ zRAM 压缩率较低 (<1.5x)")
+                lines.append("")
 
         # Bitmap Analysis
         bc = result.bitmap_correlation
@@ -1243,6 +1415,7 @@ def main():
     parser.add_argument('-S', '--smaps', help='smaps 文件路径')
     parser.add_argument('-P', '--proc-meminfo', help='/proc/meminfo 文件路径')
     parser.add_argument('-D', '--dmabuf', help='DMA-BUF debug 文件路径')
+    parser.add_argument('-Z', '--zram-swap', help='zRAM/Swap 数据文件路径')
     parser.add_argument('-d', '--dump-dir', help='dump 目录（自动查找文件）')
     parser.add_argument('--json', action='store_true', help='输出 JSON 格式')
     parser.add_argument('--markdown', '-md', action='store_true', help='输出 Markdown 格式')
@@ -1279,6 +1452,7 @@ def main():
     smaps_file = args.smaps
     proc_meminfo_file = args.proc_meminfo
     dmabuf_file = args.dmabuf
+    zram_swap_file = args.zram_swap
 
     # 如果指定了 dump 目录，自动查找文件
     if args.dump_dir:
@@ -1292,6 +1466,7 @@ def main():
         smaps_file = smaps_file or os.path.join(args.dump_dir, 'smaps.txt')
         proc_meminfo_file = proc_meminfo_file or os.path.join(args.dump_dir, 'proc_meminfo.txt')
         dmabuf_file = dmabuf_file or os.path.join(args.dump_dir, 'dmabuf_debug.txt')
+        zram_swap_file = zram_swap_file or os.path.join(args.dump_dir, 'zram_swap.txt')
 
     if not meminfo_file and not gfxinfo_file:
         print("请至少提供 meminfo 或 gfxinfo 文件")
@@ -1326,6 +1501,7 @@ def main():
         smaps_file=smaps_file,
         proc_meminfo_file=proc_meminfo_file,
         dmabuf_file=dmabuf_file,
+        zram_swap_file=zram_swap_file,
         threshold_config=threshold_config
     )
 

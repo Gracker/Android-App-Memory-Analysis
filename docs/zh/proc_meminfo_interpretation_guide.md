@@ -188,7 +188,7 @@ Mapped:           234567 kB
   - 过大: 可能有大量文件映射或内存映射文件
 - **下一步工具**:
   - 分析进程映射: `cat /proc/<pid>/maps`
-  - 使用 SMAPS 分析: `python3 smaps_parser.py -p <pid>`
+  - 使用 SMAPS 分析: `python3 tools/smaps_parser.py -p <pid>`
 
 #### AnonPages (匿名页面)
 ```
@@ -201,7 +201,8 @@ AnonPages:        345678 kB
   - 持续增长: 可能有内存泄漏
   - 突然增大: 应用分配了大量内存
 - **下一步工具**:
-  - HPROF 分析 Java 堆: `python3 hprof_dumper.py`
+  - HPROF 分析 Java 堆: `python3 tools/hprof_dumper.py`
+  - 一键分析: `python3 analyze.py live --package <package>`
   - 分析 Native 内存: `dumpsys meminfo <package> -d`
 
 ### 内存回收相关
@@ -256,7 +257,7 @@ adb shell "dumpsys meminfo"
 adb shell "dumpsys meminfo <package_name>"
 
 # 3. 获取 HPROF 分析
-python3 hprof_dumper.py -pkg <package_name>
+python3 tools/hprof_dumper.py -pkg <package_name>
 ```
 
 ### 2. 内存泄漏检测
@@ -285,9 +286,9 @@ done
 # 2. 应用内存追踪
 adb shell "am start -a android.intent.action.MAIN -c android.intent.category.LAUNCHER <package_name>"
 # 等待应用启动
-python3 hprof_dumper.py -pkg <package_name> -o before/
+python3 tools/hprof_dumper.py -pkg <package_name> -o before/
 # 执行操作
-python3 hprof_dumper.py -pkg <package_name> -o after/
+python3 tools/hprof_dumper.py -pkg <package_name> -o after/
 ```
 
 ### 3. 缓存效率分析
@@ -345,12 +346,33 @@ echo 3 > /proc/sys/vm/drop_caches
 
 ---
 
+## 🛠️ 本项目工具集成
+
+本项目已经集成了 `/proc/meminfo` 的解析，在全景分析中会自动包含系统内存上下文：
+
+```bash
+# 一键 Dump 会自动采集 /proc/meminfo
+python3 analyze.py live --package <package>
+
+# 分析结果会在 "系统内存上下文" 部分显示：
+# - 系统总内存 / 可用内存
+# - 内存压力等级 (LOW/MEDIUM/HIGH/CRITICAL)
+# - Swap/zRAM 使用情况
+```
+
+也可以单独分析：
+
+```bash
+python3 tools/proc_meminfo_parser.py -f proc_meminfo.txt
+```
+
 ## 🔗 相关工具链接
 
 - **应用级分析**: [dumpsys meminfo 解释指南](./meminfo_interpretation_guide.md)
 - **进程级分析**: [showmap 解释指南](./showmap_interpretation_guide.md)
 - **详细映射分析**: [smaps 解释指南](./smaps_interpretation_guide.md)  
 - **解析结果理解**: [解析结果指南](./analysis_results_interpretation_guide.md)
+- **全景分析**: [全景分析指南](./panorama_guide.md)
 
 ---
 

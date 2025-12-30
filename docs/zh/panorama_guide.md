@@ -7,18 +7,24 @@
 1. **关联 Java 和 Native 内存**：例如，将 Java Bitmap 对象与其 Native 像素内存关联
 2. **追踪 Native 内存分配**：区分可追踪和未追踪的 Native 内存
 3. **整合 GPU/图形内存**：包括 GraphicBuffer 和 GPU 缓存
-4. **检测潜在问题**：自动发现内存异常并给出优化建议
+4. **系统内存上下文**：分析系统内存压力和 Swap/zRAM 使用情况
+5. **DMA-BUF 分析**：追踪 GPU、Camera、Display 等硬件缓冲区内存
+6. **检测潜在问题**：自动发现内存异常并给出优化建议
+7. **阈值告警**：支持自定义阈值，CI/CD 集成
 
 ## 数据源
 
 全景分析整合以下数据源：
 
-| 数据源 | 获取命令 | 关键信息 |
-|--------|----------|----------|
-| **meminfo** | `dumpsys meminfo <pkg>` | 内存汇总、Native Allocations（精确 Bitmap 统计） |
-| **gfxinfo** | `dumpsys gfxinfo <pkg>` | GPU 缓存、GraphicBuffer、帧率统计 |
-| **hprof** | `am dumpheap <pkg> <path>` | Java 堆对象、引用链 |
-| **smaps** | `cat /proc/<pid>/smaps` | 详细内存映射（需要 Root） |
+| 数据源 | 获取命令 | 关键信息 | 是否必需 |
+|--------|----------|----------|----------|
+| **meminfo** | `dumpsys meminfo <pkg>` | 内存汇总、Native Allocations（精确 Bitmap 统计） | 推荐 |
+| **gfxinfo** | `dumpsys gfxinfo <pkg>` | GPU 缓存、GraphicBuffer、帧率统计 | 推荐 |
+| **hprof** | `am dumpheap <pkg> <path>` | Java 堆对象、引用链 | 可选 |
+| **smaps** | `cat /proc/<pid>/smaps` | 详细内存映射（需要 Root） | 可选 |
+| **proc_meminfo** | `cat /proc/meminfo` | 系统内存状态、内存压力 | 可选 |
+| **dmabuf** | `cat /sys/kernel/debug/dma_buf/bufinfo` | DMA-BUF 硬件缓冲区（需要 Root） | 可选 |
+| **zram_swap** | `/proc/swaps` + `/sys/block/zram*/mm_stat` | zRAM 压缩、Swap 使用情况 | 可选 |
 
 ### 关键发现：Native Allocations
 
@@ -53,18 +59,67 @@ python3 analyze.py live --package com.example.app --skip-hprof
 python3 analyze.py live --package com.example.app --dump-only -o ./dumps
 ```
 
+**一键 Dump 会自动采集**：
+- `meminfo.txt` - dumpsys meminfo 输出
+- `gfxinfo.txt` - dumpsys gfxinfo 输出
+- `smaps.txt` - /proc/pid/smaps（需要 Root）
+- `proc_meminfo.txt` - /proc/meminfo 系统内存
+- `zram_swap.txt` - zRAM/Swap 信息
+- `heap.hprof` - Java 堆快照（可跳过）
+
 ### 分析已有数据
 
 ```bash
-# 分析 dump 目录
+# 分析 dump 目录（自动读取所有文件）
 python3 analyze.py panorama -d ./dumps/com.example.app_20231225_120000
 
 # 分析单独文件
 python3 analyze.py panorama -m meminfo.txt -g gfxinfo.txt
 
-# 完整分析（包括 hprof 和 smaps）
-python3 analyze.py panorama -m meminfo.txt -g gfxinfo.txt -H app.hprof -S smaps.txt
+# 完整分析（包括所有数据源）
+python3 analyze.py panorama -m meminfo.txt -g gfxinfo.txt -H app.hprof -S smaps.txt \
+    -P proc_meminfo.txt -D dmabuf_debug.txt -Z zram_swap.txt
 ```
+
+### 输出格式
+
+```bash
+# 默认终端输出
+python3 analyze.py panorama -d ./dump
+
+# 输出 JSON 格式（便于自动化处理）
+python3 analyze.py panorama -d ./dump --json -o result.json
+
+# 输出 Markdown 报告
+python3 analyze.py panorama -d ./dump --markdown -o report.md
+```
+
+### 阈值告警（CI/CD 集成）
+
+```bash
+# 设置内存阈值
+python3 tools/panorama_analyzer.py -d ./dump \
+    --threshold-pss 300 \
+    --threshold-java-heap 100 \
+    --threshold-native-heap 80 \
+    --threshold-views 500
+
+# Exit code: 0=正常, 1=WARNING, 2=ERROR
+```
+
+**可用的阈值参数**：
+| 参数 | 说明 | 单位 |
+|------|------|------|
+| `--threshold-pss` | Total PSS 阈值 | MB |
+| `--threshold-java-heap` | Java Heap 阈值 | MB |
+| `--threshold-native-heap` | Native Heap 阈值 | MB |
+| `--threshold-graphics` | Graphics 阈值 | MB |
+| `--threshold-native-untracked` | Native 未追踪比例阈值 | % |
+| `--threshold-janky` | 卡顿率阈值 | % |
+| `--threshold-views` | View 数量阈值 | 个 |
+| `--threshold-activities` | Activity 数量阈值 | 个 |
+| `--threshold-bitmaps` | Bitmap 数量阈值 | 个 |
+| `--threshold-bitmap-size` | Bitmap 总大小阈值 | MB |
 
 ## 报告解读
 
@@ -89,6 +144,69 @@ python3 analyze.py panorama -m meminfo.txt -g gfxinfo.txt -H app.hprof -S smaps.
 | **Graphics** | 图形相关内存 | Bitmap、GPU 资源 |
 | **Code** | 代码段内存 | DEX、SO 库 |
 | **Stack** | 线程栈内存 | 线程数量 |
+
+### 系统内存上下文
+
+```
+────────────────────────────────────────
+[ 系统内存上下文 ]
+────────────────────────────────────────
+系统总内存: 3579 MB (3.50 GB)
+系统可用:   2099 MB (58.6%)
+内存压力:   🟢 低 (LOW)
+Swap 使用:  256 / 2048 MB (12.5%)
+ION 内存:   169 MB
+```
+
+| 指标 | 说明 | 关注点 |
+|------|------|--------|
+| **系统总内存** | 设备物理内存总量 | 设备规格参考 |
+| **系统可用** | 当前可分配给应用的内存 | <20% 需要关注 |
+| **内存压力** | LOW/MEDIUM/HIGH/CRITICAL | HIGH 以上影响性能 |
+| **Swap 使用** | zRAM/Swap 使用情况 | 使用率高表示内存紧张 |
+| **ION 内存** | GPU/Camera 硬件内存 | 与 Graphics 相关 |
+
+### zRAM/Swap 分析
+
+```
+────────────────────────────────────────
+[ zRAM/Swap 分析 ]
+────────────────────────────────────────
+Swap 总量:       2048.0 MB (1 个设备)
+Swap 已用:        512.0 MB (25.0%)
+zRAM 磁盘:       2048.0 MB (1 个设备)
+原始数据:        1200.0 MB
+压缩后数据:       280.5 MB
+实际内存占用:     300.2 MB
+压缩率:            4.28x
+节省空间:          76.6%
+节省内存:         899.8 MB
+```
+
+| 指标 | 说明 | 关注点 |
+|------|------|--------|
+| **Swap 使用率** | Swap 空间已用比例 | >50% 需要关注，>80% 系统内存紧张 |
+| **压缩率** | 原始数据/压缩后数据 | >2x 为正常，<1.5x 数据不太可压缩 |
+| **节省内存** | 通过压缩实际节省的内存 | zRAM 的实际效益 |
+
+### DMA-BUF 分析
+
+```
+────────────────────────────────────────
+[ DMA-BUF 分析 ]
+────────────────────────────────────────
+总 DMA-BUF: 156.7 MB (89 buffers)
+  GPU 图形:   120.45 MB (56 buffers)
+  显示:        24.00 MB (12 buffers)
+  相机:         8.25 MB (15 buffers)
+  视频:         4.00 MB (6 buffers)
+```
+
+DMA-BUF 是 Linux 内核的跨设备内存共享机制，在 Android 中用于：
+- **GPU**: 纹理、渲染缓冲区
+- **Display**: SurfaceFlinger 合成缓冲区
+- **Camera**: 相机预览和拍照缓冲区
+- **Video**: 视频解码/编码缓冲区
 
 ### Bitmap 深度分析
 
@@ -292,8 +410,37 @@ A: 未追踪的 Native 内存是指在 meminfo 的 Native Allocations 中没有�
 
 如果这部分内存持续增长，可能存在 Native 内存泄漏。
 
+## 对比分析
+
+全景分析还支持两次 Dump 的对比分析，帮助发现内存增长问题：
+
+```bash
+# 对比两个 dump 目录
+python3 analyze.py diff -b ./dump_before -a ./dump_after
+
+# 或对比单独的 meminfo 文件
+python3 analyze.py diff --before-meminfo m1.txt --after-meminfo m2.txt
+```
+
+对比分析会显示：
+- 各类内存的增减变化
+- View/Activity 数量变化
+- 帧率变化
+- 高亮显示增长超过阈值的项目
+
+## 版本兼容性
+
+| Android 版本 | 支持状态 | 备注 |
+|--------------|----------|------|
+| Android 4.0-7.x | ✅ 完全支持 | 部分数据源可能不可用 |
+| Android 8.0-10 | ✅ 完全支持 | - |
+| Android 11-13 | ✅ 完全支持 | Scudo 分配器 |
+| Android 14+ | ✅ 完全支持 | 支持 16KB 页面 |
+
 ## 参考资料
 
 - [Android Memory Management](https://developer.android.com/topic/performance/memory)
 - [dumpsys meminfo 源码分析](https://cs.android.com/android/platform/superproject/+/master:frameworks/base/core/jni/android_os_Debug.cpp)
 - [Bitmap 内存管理](https://developer.android.com/topic/performance/graphics)
+- [DMA-BUF 文档](https://www.kernel.org/doc/html/latest/driver-api/dma-buf.html)
+- [zRAM 文档](https://www.kernel.org/doc/html/latest/admin-guide/blockdev/zram.html)

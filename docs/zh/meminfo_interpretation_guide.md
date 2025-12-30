@@ -213,14 +213,17 @@ heap_utilization = Heap Alloc / Heap Size * 100%
 
 #### 下一步工具
 ```bash
-# 1. HPROF 分析 Java 对象
-python3 hprof_dumper.py -pkg <package>
-python3 hprof_parser.py -f <hprof_file>
+# 1. 一键全景分析（推荐）
+python3 analyze.py live --package <package>
 
-# 2. GC 监控
+# 2. HPROF 分析 Java 对象
+python3 tools/hprof_dumper.py -pkg <package>
+python3 tools/hprof_parser.py -f <hprof_file>
+
+# 3. GC 监控
 adb shell "dumpsys gfxinfo <package>"
 
-# 3. 内存泄漏检测
+# 4. 内存泄漏检测
 # - LeakCanary 自动检测
 # - MAT (Memory Analyzer Tool) 分析
 ```
@@ -792,10 +795,12 @@ echo "详细报告: $OUTPUT"
 - **详细映射分析**: [smaps 解释指南](./smaps_interpretation_guide.md)
 - **解析结果理解**: [分析结果指南](./analysis_results_interpretation_guide.md)
 
-### Android 内存工具
-- **HPROF 分析**: `python3 hprof_dumper.py` / `python3 hprof_parser.py`
-- **SMAPS 解析**: `python3 smaps_parser.py`
-- **综合分析**: `python3 memory_analyzer.py`
+### 本项目工具
+- **一键分析**: `python3 analyze.py live --package <package>`
+- **全景分析**: `python3 analyze.py panorama -d ./dump`
+- **HPROF 分析**: `python3 tools/hprof_dumper.py` / `python3 tools/hprof_parser.py`
+- **SMAPS 解析**: `python3 tools/smaps_parser.py`
+- **Meminfo 解析**: `python3 tools/meminfo_parser.py -f meminfo.txt`
 
 ### 官方工具
 - **Android Studio Profiler**: 实时内存监控

@@ -244,7 +244,9 @@ diff showmap_1.txt showmap_2.txt
    # 检查 Dalvik 相关行是否增长
    grep "dalvik" showmap_output.txt
    # 进一步 HPROF 分析
-   python3 hprof_dumper.py -pkg <package>
+   python3 tools/hprof_dumper.py -pkg <package>
+   # 或使用一键分析
+   python3 analyze.py live --package <package>
    ```
 
 2. **Native 内存泄漏**:

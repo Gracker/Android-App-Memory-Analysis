@@ -10,18 +10,34 @@ This guide provides detailed explanations of Android memory analysis tool output
 
 ### 1. SMAPS Parsing Results (`smaps_parser.py`)
 ```bash
-python3 smaps_parser.py -p <pid>
-python3 smaps_parser.py -f <smaps_file>
+python3 tools/smaps_parser.py -p <pid>
+python3 tools/smaps_parser.py -f <smaps_file>
 ```
 
 ### 2. HPROF Analysis Results (`hprof_parser.py`)
 ```bash
-python3 hprof_parser.py -f <hprof_file>
+python3 tools/hprof_parser.py -f <hprof_file>
 ```
 
-### 3. Comprehensive Analysis Results (`memory_analyzer.py`)
+### 3. Panorama Analysis Results (`panorama_analyzer.py`)
 ```bash
-python3 memory_analyzer.py --hprof <hprof> --smaps <smaps>
+# Analyze dump directory
+python3 tools/panorama_analyzer.py -d ./dump
+
+# Analyze individual files
+python3 tools/panorama_analyzer.py -m meminfo.txt -g gfxinfo.txt
+
+# JSON output
+python3 tools/panorama_analyzer.py -d ./dump --json -o result.json
+```
+
+### 4. Using Entry Script (`analyze.py`)
+```bash
+# One-click dump and analyze
+python3 analyze.py live --package com.example.app
+
+# Analyze existing data
+python3 analyze.py panorama -d ./dump
 ```
 
 ---
@@ -1034,7 +1050,17 @@ for (int i = 0; i < 1000; i++) {
 #### Android-Specific Tools
 - **LeakCanary**: [Automatic Memory Leak Detection](https://square.github.io/leakcanary/)
 - **Android Studio Profiler**: [Official Performance Analysis](https://developer.android.com/studio/profile)
-- **DDMS**: [Dalvik Debug Monitor](https://developer.android.com/tools/debugging/ddms)
+- **Perfetto**: [Modern Tracing Tool](https://perfetto.dev/)
+
+### This Project's Tools
+- **analyze.py**: Entry script, supports live dump and panorama analysis
+- **panorama_analyzer.py**: Core panorama analysis
+- **hprof_parser.py**: HPROF file parsing
+- **smaps_parser.py**: SMAPS file parsing
+- **meminfo_parser.py**: dumpsys meminfo parsing
+- **gfxinfo_parser.py**: dumpsys gfxinfo parsing
+- **zram_parser.py**: zRAM/Swap analysis
+- **diff_analyzer.py**: Diff analysis
 
 ### Online Resources
 - **Android Memory Management**: [Official Documentation](https://developer.android.com/topic/performance/memory)
@@ -1049,10 +1075,13 @@ for (int i = 0; i < 1000; i++) {
 
 #### 1. Basic Analysis
 ```bash
-# Get basic data
-python3 smaps_parser.py -p <pid>
-python3 hprof_dumper.py -pkg <package>
-python3 hprof_parser.py -f <hprof_file>
+# One-click dump (recommended)
+python3 analyze.py live --package <package>
+
+# Or manually get data
+python3 tools/smaps_parser.py -p <pid>
+python3 tools/hprof_dumper.py -pkg <package>
+python3 tools/hprof_parser.py -f <hprof_file>
 ```
 
 #### 2. Problem Identification

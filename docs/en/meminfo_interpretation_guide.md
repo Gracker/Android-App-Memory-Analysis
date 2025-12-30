@@ -485,9 +485,12 @@ Graphics: 61692 kB (58.5% of total)
 - **Analysis Results**: [Results Interpretation Guide](./analysis_results_interpretation_guide.md)
 
 ### Android Memory Tools
+### This Project's Tools
+- **One-click Analysis**: `python3 analyze.py live --package <package>`
+- **Panorama Analysis**: `python3 analyze.py panorama -d ./dump`
 - **HPROF Analysis**: `python3 tools/hprof_dumper.py` / `python3 tools/hprof_parser.py`
 - **SMAPS Parsing**: `python3 tools/smaps_parser.py`
-- **Comprehensive Analysis**: `python3 tools/memory_analyzer.py`
+- **Meminfo Parsing**: `python3 tools/meminfo_parser.py -f meminfo.txt`
 
 ### Official Tools
 - **Android Studio Profiler**: Real-time memory monitoring

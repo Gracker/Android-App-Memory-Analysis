@@ -191,23 +191,43 @@ python3 tools/perfetto_helper.py analyze trace.perfetto -i
 
 ## Phase 5: 高级分析功能 ⚡ 部分可实现
 
-### 5.1 zRAM/Swap 分析 ✅ 可实现
+### 5.1 zRAM/Swap 分析 ✅ 已完成
 
 **目标**: 解析 zRAM 压缩统计
 
 **Action Items**:
-- [ ] 在 live_dumper 中采集 `/proc/swaps`、`/sys/block/zram*/mm_stat`
-- [ ] 解析 zRAM 统计: 原始大小、压缩大小、压缩率
-- [ ] 在全景报告中添加 "Swap/zRAM 分析" 部分
+- [x] 创建 `tools/zram_parser.py` 解析 zRAM/Swap 数据
+- [x] 在 live_dumper 中采集 `/proc/swaps`、`/sys/block/zram*/mm_stat`
+- [x] 解析 zRAM 统计: 原始大小、压缩大小、压缩率
+- [x] 在全景报告中添加 "zRAM/Swap 分析" 部分
+- [x] 支持 JSON 和 Markdown 输出
 
-**预期输出**:
+**用法**:
+```bash
+# 单独分析
+python3 tools/zram_parser.py -f zram_swap.txt
+
+# 集成到全景分析 (从 dump 目录自动读取)
+python3 tools/panorama_analyzer.py -d ./dump
+
+# 或指定文件
+python3 tools/panorama_analyzer.py -m meminfo.txt -Z zram_swap.txt
 ```
-💾 Swap/zRAM 分析:
-------------------------------
-  zRAM 大小: 2 GB
-  已使用: 512 MB
-  原始数据: 1.2 GB
-  压缩率: 42.7%
+
+**输出示例**:
+```
+────────────────────────────────────────
+[ zRAM/Swap 分析 ]
+────────────────────────────────────────
+Swap 总量:       2048.0 MB (1 个设备)
+Swap 已用:        512.0 MB (25.0%)
+zRAM 磁盘:       2048.0 MB (1 个设备)
+原始数据:        1200.0 MB
+压缩后数据:       280.5 MB
+实际内存占用:     300.2 MB
+压缩率:            4.28x
+节省空间:          76.6%
+节省内存:         899.8 MB
 ```
 
 ---
@@ -284,7 +304,7 @@ python3 tools/panorama_analyzer.py -d ./dump --threshold-pss 300 --threshold-vie
 | P3 | 3.1 Perfetto 配置 | 中 | 中 | ✅ 已完成 |
 | P3 | 3.2 Perfetto 启停 | 中 | 中 | ✅ 已完成 |
 | P3 | 3.3 Trace 解析 | 中 | 中 | ✅ 已完成 |
-| P4 | 5.1 zRAM 分析 | 低 | 低 | 待实现 |
+| P4 | 5.1 zRAM 分析 | 低 | 低 | ✅ 已完成 |
 
 ---
 
@@ -296,6 +316,7 @@ python3 tools/panorama_analyzer.py -d ./dump --threshold-pss 300 --threshold-vie
 - [x] **hprof-conv**: HPROF 格式转换
 - [x] **perfetto**: 系统级追踪 (位于 `tools/perfetto-mac-arm64/`)
 - [x] **trace_processor_shell**: Perfetto trace 解析 (位于 `tools/perfetto-mac-arm64/`)
+- [x] **zram_parser.py**: zRAM/Swap 数据解析器
 
 ---
 
