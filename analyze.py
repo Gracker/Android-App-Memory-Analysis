@@ -8,11 +8,15 @@ TOOLS_DIR = os.path.join(os.path.dirname(__file__), 'tools')
 HPROF_PARSER = os.path.join(TOOLS_DIR, 'hprof_parser.py')
 SMAPS_PARSER = os.path.join(TOOLS_DIR, 'smaps_parser.py')
 COMBINED_ANALYZER = os.path.join(TOOLS_DIR, 'combined_analyzer.py')
+MEMORY_ANALYZER = os.path.join(TOOLS_DIR, 'memory_analyzer.py')
 LIVE_DUMPER = os.path.join(TOOLS_DIR, 'live_dumper.py')
 MEMINFO_PARSER = os.path.join(TOOLS_DIR, 'meminfo_parser.py')
 GFXINFO_PARSER = os.path.join(TOOLS_DIR, 'gfxinfo_parser.py')
 PANORAMA_ANALYZER = os.path.join(TOOLS_DIR, 'panorama_analyzer.py')
 DIFF_ANALYZER = os.path.join(TOOLS_DIR, 'diff_analyzer.py')
+DEMO_HPROF = os.path.join(os.path.dirname(__file__), 'demo', 'hprof_sample', 'heapdump-20250921-122155.hprof')
+DEMO_SMAPS = os.path.join(os.path.dirname(__file__), 'demo', 'smaps_sample', 'smaps')
+DEMO_MEMINFO = os.path.join(os.path.dirname(__file__), 'demo', 'smaps_sample', 'meminfo.txt')
 
 def analyze_hprof(file_path, extra_args=None):
     """Calls the hprof parser script."""
@@ -36,8 +40,8 @@ def analyze_smaps(file_path):
     command = [sys.executable, SMAPS_PARSER, '-f', file_path]
     subprocess.run(command, check=True)
 
-def analyze_combined(hprof_file, smaps_file, markdown=False, output=None):
-    """Calls the combined analyzer for HPROF + smaps analysis."""
+def analyze_combined_legacy(hprof_file, smaps_file, markdown=False, output=None):
+    """Calls the legacy combined analyzer for HPROF + smaps analysis."""
     if not os.path.exists(hprof_file):
         print(f"Error: HPROF file not found at '{hprof_file}'")
         sys.exit(1)
@@ -51,6 +55,49 @@ def analyze_combined(hprof_file, smaps_file, markdown=False, output=None):
         command.append('--markdown')
     if output:
         command.extend(['-o', output])
+    subprocess.run(command, check=True)
+
+
+def analyze_combined_modern(hprof_file=None, smaps_file=None, meminfo_file=None, pid=None,
+                            output=None, json_output=None, demo=False):
+    """Calls the enhanced combined analyzer (memory_analyzer.py)."""
+    if demo:
+        if pid:
+            print("Error: --demo cannot be used together with -p/--pid")
+            sys.exit(1)
+        hprof_file = hprof_file or DEMO_HPROF
+        smaps_file = smaps_file or DEMO_SMAPS
+        meminfo_file = meminfo_file or DEMO_MEMINFO
+        print("--- Using bundled demo dataset ---")
+
+    if hprof_file and not os.path.exists(hprof_file):
+        print(f"Error: HPROF file not found at '{hprof_file}'")
+        sys.exit(1)
+    if smaps_file and not os.path.exists(smaps_file):
+        print(f"Error: smaps file not found at '{smaps_file}'")
+        sys.exit(1)
+    if meminfo_file and not os.path.exists(meminfo_file):
+        print(f"Error: meminfo file not found at '{meminfo_file}'")
+        sys.exit(1)
+    if not hprof_file and not smaps_file and not pid:
+        print("Error: enhanced combined mode requires at least one of --hprof, --smaps, or -p/--pid")
+        sys.exit(1)
+
+    print("--- Enhanced Combined Analysis (meminfo-aware) ---")
+    command = [sys.executable, MEMORY_ANALYZER]
+    if hprof_file:
+        command.extend(['--hprof', hprof_file])
+    if smaps_file:
+        command.extend(['--smaps', smaps_file])
+    if meminfo_file:
+        command.extend(['--meminfo', meminfo_file])
+    if pid:
+        command.extend(['-p', str(pid)])
+    if output:
+        command.extend(['-o', output])
+    if json_output:
+        command.extend(['--json-output', json_output])
+
     subprocess.run(command, check=True)
 
 
@@ -188,6 +235,10 @@ def main():
 
   # 传统联合分析
   python3 analyze.py combined -H demo/hprof.hprof -S demo/smaps.txt
+
+  # 增强联合分析（支持 meminfo/mtrack）
+  python3 analyze.py combined --hprof demo/hprof_sample/heapdump-20250921-122155.hprof --smaps demo/smaps_sample/smaps --meminfo demo/smaps_sample/meminfo.txt --json-output report.json
+  python3 analyze.py combined --demo --json-output demo_report.json
 """,
         formatter_class=argparse.RawTextHelpFormatter
     )
@@ -243,10 +294,18 @@ def main():
     diff_parser.add_argument('-o', '--output', help='输出文件路径')
 
     # Combined command
-    combined_parser = subparsers.add_parser('combined', help='HPROF + smaps 联合分析')
-    combined_parser.add_argument('-H', '--hprof', required=True, help='HPROF 文件路径')
-    combined_parser.add_argument('-S', '--smaps', required=True, help='smaps 文件路径')
-    combined_parser.add_argument('--markdown', action='store_true', help='输出 Markdown 格式')
+    combined_parser = subparsers.add_parser(
+        'combined',
+        help='联合分析（传统 HPROF+smaps，或增强模式支持 meminfo/pid/demo）'
+    )
+    combined_parser.add_argument('-H', '--hprof', help='HPROF 文件路径')
+    combined_parser.add_argument('-S', '--smaps', help='smaps 文件路径')
+    combined_parser.add_argument('-m', '--meminfo', help='meminfo 文件路径（增强模式）')
+    combined_parser.add_argument('-p', '--pid', help='进程 PID（增强模式，自动抓取 smaps/meminfo）')
+    combined_parser.add_argument('--demo', action='store_true', help='使用内置 demo 数据（增强模式）')
+    combined_parser.add_argument('--json-output', help='JSON 输出文件（增强模式）')
+    combined_parser.add_argument('--modern', action='store_true', help='强制使用增强模式')
+    combined_parser.add_argument('--markdown', action='store_true', help='输出 Markdown 格式（传统模式）')
     combined_parser.add_argument('-o', '--output', help='输出文件路径')
 
     args = parser.parse_args()
@@ -294,7 +353,27 @@ def main():
             output_file=args.output
         )
     elif args.command == 'combined':
-        analyze_combined(args.hprof, args.smaps, args.markdown, args.output)
+        use_modern_mode = bool(
+            args.modern or args.meminfo or args.pid or args.json_output or args.demo
+        )
+        if use_modern_mode:
+            if args.markdown:
+                print("Warning: --markdown is ignored in enhanced combined mode")
+            analyze_combined_modern(
+                hprof_file=args.hprof,
+                smaps_file=args.smaps,
+                meminfo_file=args.meminfo,
+                pid=args.pid,
+                output=args.output,
+                json_output=args.json_output,
+                demo=args.demo,
+            )
+        else:
+            if not args.hprof or not args.smaps:
+                print("Error: legacy combined mode requires both -H/--hprof and -S/--smaps")
+                print("Hint: add --modern or provide --meminfo/--pid/--demo to use enhanced mode")
+                sys.exit(1)
+            analyze_combined_legacy(args.hprof, args.smaps, args.markdown, args.output)
 
     print("\n--- Analysis complete. ---")
 

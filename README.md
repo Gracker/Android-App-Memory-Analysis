@@ -86,7 +86,17 @@ python3 analyze.py gfxinfo dump/gfxinfo.txt
 
 # Traditional combined analysis (HPROF + smaps)
 python3 analyze.py combined -H demo/hprof.hprof -S demo/smaps.txt
+
+# Enhanced combined analysis (meminfo-aware, mtrack included)
+python3 analyze.py combined --modern --hprof demo/hprof_sample/heapdump-20250921-122155.hprof --smaps demo/smaps_sample/smaps --meminfo demo/smaps_sample/meminfo.txt --json-output report.json
+
+# One-command demo shortcut (built-in hprof+smaps+meminfo)
+python3 analyze.py combined --demo --json-output demo_report.json
 ```
+
+Notes:
+- `combined` defaults to legacy mode (`combined_analyzer.py`) unless `--modern`, `--meminfo`, `--pid`, `--json-output`, or `--demo` is provided.
+- In modern mode with `-p/--pid`, the tool auto-collects `smaps` and tries to collect `dumpsys meminfo -d`.
 
 ## What Gets Analyzed?
 
@@ -150,6 +160,7 @@ Android-App-Memory-Analysis/
 │   ├── gfxinfo_parser.py   # dumpsys gfxinfo parser
 │   ├── panorama_analyzer.py # Multi-source correlation analyzer
 │   ├── combined_analyzer.py # HPROF + smaps combined analyzer
+│   ├── memory_analyzer.py  # Enhanced combined analyzer with meminfo/mtrack correlation
 │   ├── live_dumper.py      # Live dump from device
 │   ├── hprof_dumper.py     # HPROF dump utility
 │   └── adb                 # ADB binary (optional)

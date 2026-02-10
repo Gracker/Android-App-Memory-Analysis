@@ -86,7 +86,17 @@ python3 analyze.py gfxinfo dump/gfxinfo.txt
 
 # 传统联合分析（HPROF + smaps）
 python3 analyze.py combined -H demo/hprof.hprof -S demo/smaps.txt
+
+# 增强联合分析（支持 meminfo 口径，包含 mtrack）
+python3 analyze.py combined --modern --hprof demo/hprof_sample/heapdump-20250921-122155.hprof --smaps demo/smaps_sample/smaps --meminfo demo/smaps_sample/meminfo.txt --json-output report.json
+
+# 一键运行内置 demo（自动使用 hprof+smaps+meminfo）
+python3 analyze.py combined --demo --json-output demo_report.json
 ```
+
+说明：
+- `combined` 默认是传统模式（`combined_analyzer.py`）；当提供 `--modern`、`--meminfo`、`--pid`、`--json-output` 或 `--demo` 时，自动切换增强模式。
+- 增强模式下使用 `-p/--pid` 会自动抓取 `smaps`，并尝试抓取 `dumpsys meminfo -d`。
 
 ## 分析内容
 
@@ -150,6 +160,7 @@ Android-App-Memory-Analysis/
 │   ├── gfxinfo_parser.py   # dumpsys gfxinfo 解析器
 │   ├── panorama_analyzer.py # 多数据源关联分析器
 │   ├── combined_analyzer.py # HPROF + smaps 联合分析器
+│   ├── memory_analyzer.py  # 增强联合分析器（meminfo/mtrack 关联）
 │   ├── live_dumper.py      # 设备实时 Dump
 │   ├── hprof_dumper.py     # HPROF Dump 工具
 │   └── adb                 # ADB 二进制文件（可选）
