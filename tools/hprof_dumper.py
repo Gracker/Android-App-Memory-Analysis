@@ -5,6 +5,7 @@
 
 import argparse
 import os
+import re
 import subprocess
 import sys
 import time
@@ -13,6 +14,39 @@ from datetime import datetime
 class HprofDumper:
     def __init__(self):
         self.adb_available = self._check_adb()
+
+    def _is_valid_package_name(self, package_name):
+        """校验包名，避免命令注入和非法输入"""
+        return bool(re.fullmatch(r"[A-Za-z0-9._:]+", package_name))
+
+    def _list_processes(self):
+        """获取进程列表，返回 (pid, process_name) 元组列表"""
+        result = subprocess.run(['adb', 'shell', 'ps'], capture_output=True, text=True)
+        if result.returncode != 0:
+            return []
+
+        lines = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+        if not lines:
+            return []
+
+        header = lines[0].split()
+        has_header = "PID" in header
+        start_index = 1 if has_header else 0
+        pid_index = header.index("PID") if has_header else 1
+        name_index = header.index("NAME") if has_header and "NAME" in header else -1
+
+        processes = []
+        for line in lines[start_index:]:
+            parts = line.split()
+            if len(parts) <= pid_index:
+                continue
+            pid_token = parts[pid_index]
+            if not pid_token.isdigit():
+                continue
+
+            process_name = parts[name_index] if name_index >= 0 and len(parts) > name_index else parts[-1]
+            processes.append((int(pid_token), process_name))
+        return processes
         
     def _check_adb(self):
         """检查ADB是否可用"""
@@ -27,28 +61,28 @@ class HprofDumper:
         """根据包名获取进程PID"""
         if not self.adb_available:
             return None
+        if not self._is_valid_package_name(package_name):
+            print(f"错误: 非法包名: {package_name}")
+            return None
             
         try:
-            # 首先检查应用是否正在运行
-            cmd = f'adb shell "ps | grep {package_name}"'
-            result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-            
-            if result.returncode != 0 or not result.stdout.strip():
+            processes = self._list_processes()
+            if not processes:
                 print(f"错误: 应用 {package_name} 未运行")
                 return None
-                
-            # 解析PID
-            lines = result.stdout.strip().split('\n')
-            for line in lines:
-                if package_name in line:
-                    parts = line.split()
-                    if len(parts) >= 2:
-                        try:
-                            pid = int(parts[1])
-                            print(f"找到应用 {package_name} PID: {pid}")
-                            return pid
-                        except ValueError:
-                            continue
+
+            # 优先精确匹配主进程，再匹配子进程
+            exact_match = [(pid, name) for pid, name in processes if name == package_name]
+            if exact_match:
+                pid = exact_match[0][0]
+                print(f"找到应用 {package_name} PID: {pid}")
+                return pid
+
+            child_match = [(pid, name) for pid, name in processes if name.startswith(f"{package_name}:")]
+            if child_match:
+                pid = child_match[0][0]
+                print(f"找到应用子进程 {child_match[0][1]} PID: {pid}")
+                return pid
             
             print(f"错误: 无法解析 {package_name} 的PID")
             return None
@@ -69,6 +103,7 @@ class HprofDumper:
         if not self.adb_available:
             print("错误: ADB不可用")
             return None
+        os.makedirs(output_dir, exist_ok=True)
             
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         if package_name:
@@ -84,12 +119,12 @@ class HprofDumper:
         try:
             # 使用am dumpheap命令dump hprof
             if package_name:
-                dump_cmd = f'adb shell "am dumpheap {package_name} {device_path}"'
+                dump_cmd = ['adb', 'shell', 'am', 'dumpheap', package_name, device_path]
             else:
-                dump_cmd = f'adb shell "am dumpheap {pid} {device_path}"'
+                dump_cmd = ['adb', 'shell', 'am', 'dumpheap', str(pid), device_path]
                 
-            print(f"执行命令: {dump_cmd}")
-            result = subprocess.run(dump_cmd, shell=True, capture_output=True, text=True)
+            print(f"执行命令: {' '.join(dump_cmd)}")
+            result = subprocess.run(dump_cmd, capture_output=True, text=True)
             
             if result.returncode != 0:
                 print(f"dump命令执行失败: {result.stderr}")
@@ -100,8 +135,8 @@ class HprofDumper:
             time.sleep(3)
             
             # 检查文件是否存在
-            check_cmd = f'adb shell "ls -la {device_path}"'
-            check_result = subprocess.run(check_cmd, shell=True, capture_output=True, text=True)
+            check_cmd = ['adb', 'shell', 'ls', '-la', device_path]
+            check_result = subprocess.run(check_cmd, capture_output=True, text=True)
             
             if check_result.returncode != 0:
                 print("hprof文件生成失败")
@@ -110,17 +145,17 @@ class HprofDumper:
             print(f"hprof文件已生成: {device_path}")
             
             # 拉取文件到本地
-            pull_cmd = f'adb pull {device_path} {local_path}'
-            print(f"拉取文件到本地: {pull_cmd}")
-            pull_result = subprocess.run(pull_cmd, shell=True, capture_output=True, text=True)
+            pull_cmd = ['adb', 'pull', device_path, local_path]
+            print(f"拉取文件到本地: {' '.join(pull_cmd)}")
+            pull_result = subprocess.run(pull_cmd, capture_output=True, text=True)
             
             if pull_result.returncode != 0:
                 print(f"拉取文件失败: {pull_result.stderr}")
                 return None
             
             # 清理设备上的临时文件
-            cleanup_cmd = f'adb shell "rm {device_path}"'
-            subprocess.run(cleanup_cmd, shell=True, capture_output=True, text=True)
+            cleanup_cmd = ['adb', 'shell', 'rm', device_path]
+            subprocess.run(cleanup_cmd, capture_output=True, text=True)
             
             print(f"hprof文件已保存到: {local_path}")
             return local_path
@@ -136,11 +171,8 @@ class HprofDumper:
             return
             
         try:
-            # 获取正在运行的应用进程
-            cmd = 'adb shell "ps | grep -v \'\\[.*\\]\'"'
-            result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-            
-            if result.returncode != 0:
+            processes = self._list_processes()
+            if not processes:
                 print("获取进程列表失败")
                 return
                 
@@ -148,15 +180,10 @@ class HprofDumper:
             print("PID\t\t进程名")
             print("-" * 50)
             
-            lines = result.stdout.strip().split('\n')
-            for line in lines[1:]:  # 跳过标题行
-                parts = line.split()
-                if len(parts) >= 9:
-                    pid = parts[1]
-                    process_name = parts[8]
-                    # 过滤系统进程，只显示应用进程
-                    if '.' in process_name and not process_name.startswith('/'):
-                        print(f"{pid}\t\t{process_name}")
+            for pid, process_name in processes:
+                # 过滤系统进程，只显示应用进程
+                if '.' in process_name and not process_name.startswith('/'):
+                    print(f"{pid}\t\t{process_name}")
                         
         except Exception as e:
             print(f"列出进程时出错: {e}")

@@ -169,6 +169,16 @@ for i in range(type_length):
     pss_type_list.append({})
     swap_type_list.append({})
 
+def reset_parse_state():
+    """
+    Reset module-level statistics so repeated parse runs are deterministic.
+    """
+    pssSum_count[:] = [0] * type_length
+    pss_count[:] = [0] * type_length
+    swapPss_count[:] = [0] * type_length
+    pss_type_list[:] = [{} for _ in range(type_length)]
+    swap_type_list[:] = [{} for _ in range(type_length)]
+
 def help():
     """
     Enhanced argument parser with comprehensive Android version support
@@ -444,6 +454,7 @@ def parse_smaps(filename):
     Universal smaps parser with enhanced error handling and Android version compatibility
     """
     try:
+        reset_parse_state()
         with open(filename, 'r', encoding='utf-8', errors='ignore') as file:
             print(f"正在解析smaps文件，支持全版本Android...")
             print(f"Parsing smaps file with universal Android version support...")
