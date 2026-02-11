@@ -198,6 +198,12 @@ class HprofParser:
 
     # ==================== Phase 1: Enhanced Data Collection ====================
 
+    def get_type_info(self, type_id):
+        """Return (size, type_name) for HPROF field types."""
+        if type_id == self.TYPE_OBJECT:
+            return self.size_of_identifier, 'object'
+        return self.BASIC_TYPES.get(type_id, (0, 'unknown'))
+
     def parse(self, simple_mode=False, top_n=20, min_size_mb=0.1, output_file=None, deep_analysis=True, markdown=False):
         """Main parsing method with optional deep analysis"""
         try:
@@ -557,7 +563,7 @@ class HprofParser:
         for _ in range(count):
             idx = self.readInt(2)
             type_id = self.readInt(1)
-            size, _ = self.BASIC_TYPES.get(type_id, (0, ''))
+            size, _ = self.get_type_info(type_id)
             if size > 0:
                 value = self.read(size)
                 constants.append((idx, type_id, value))
@@ -570,9 +576,10 @@ class HprofParser:
         for _ in range(count):
             name_id = self.readId()
             type_id = self.readInt(1)
-            size, _ = self.BASIC_TYPES.get(type_id, (0, ''))
+            size, _ = self.get_type_info(type_id)
             if size > 0:
-                value = self.read(size)
+                raw_value = self.read(size)
+                value = int.from_bytes(raw_value, byteorder='big') if type_id == self.TYPE_OBJECT else raw_value
                 static_fields.append({
                     'name_id': name_id,
                     'type': type_id,
@@ -599,7 +606,8 @@ class HprofParser:
         current_class_id = class_id
         while current_class_id != 0 and current_class_id in self.class_fields:
             class_info = self.class_fields[current_class_id]
-            fields = class_info.get('instance_fields', []) + fields
+            # Android/Java HPROF instance dump stores fields in subclass->superclass order.
+            fields.extend(class_info.get('instance_fields', []))
             current_class_id = class_info.get('super_class_id', 0)
         return fields
 
@@ -748,7 +756,11 @@ class HprofParser:
         for class_id, class_info in self.class_fields.items():
             for field in class_info.get('static_fields', []):
                 if field['type'] == self.TYPE_OBJECT:
-                    ref_id = int.from_bytes(field['value'], byteorder='big')
+                    raw_ref = field.get('value', 0)
+                    if isinstance(raw_ref, bytes):
+                        ref_id = int.from_bytes(raw_ref, byteorder='big')
+                    else:
+                        ref_id = int(raw_ref) if raw_ref else 0
                     if ref_id != 0:
                         self.outgoing_refs[class_id].add(ref_id)
                         self.incoming_refs[ref_id].add(class_id)
@@ -761,7 +773,7 @@ class HprofParser:
 
         for field in fields:
             type_id = field['type']
-            size, _ = self.BASIC_TYPES.get(type_id, (0, ''))
+            size, _ = self.get_type_info(type_id)
             if size == 0:
                 continue
 
@@ -818,9 +830,12 @@ class HprofParser:
         """Compute dominator tree using simplified algorithm (Phase 3.1, 3.2)"""
         # Create a virtual super root that connects all GC roots
         SUPER_ROOT = -1
+        self.dominators.clear()
+        self.dominated_by.clear()
 
         # Find all reachable objects from GC roots
         reachable = set()
+        reachable_order = []
         queue = deque(self.gc_roots.keys())
 
         while queue:
@@ -828,6 +843,7 @@ class HprofParser:
             if obj_id in reachable:
                 continue
             reachable.add(obj_id)
+            reachable_order.append(obj_id)
             for ref in self.outgoing_refs.get(obj_id, []):
                 if ref not in reachable:
                     queue.append(ref)
@@ -835,6 +851,11 @@ class HprofParser:
         # For GC roots, the dominator is the super root
         for root_id in self.gc_roots:
             self.dominators[root_id] = SUPER_ROOT
+
+        # For very large graphs, use a fast approximation to avoid quadratic blow-ups.
+        if len(reachable_order) > 300000:
+            self.compute_dominator_tree_fast(reachable_order, reachable, SUPER_ROOT)
+            return
 
         # Simple dominator calculation for non-root objects
         # For each reachable object, find common dominator of all incoming refs
@@ -846,7 +867,7 @@ class HprofParser:
             changed = False
             iterations += 1
 
-            for obj_id in reachable:
+            for obj_id in reachable_order:
                 if obj_id in self.gc_roots:
                     continue
 
@@ -871,6 +892,44 @@ class HprofParser:
         # Build dominated_by map
         for obj_id, dom_id in self.dominators.items():
             if dom_id != SUPER_ROOT:
+                self.dominated_by[dom_id].add(obj_id)
+
+    def compute_dominator_tree_fast(self, reachable_order, reachable, super_root):
+        """Fast dominator approximation for very large heaps."""
+        for obj_id in reachable_order:
+            if obj_id in self.gc_roots:
+                continue
+
+            dom = None
+            incoming_refs = self.incoming_refs.get(obj_id, [])
+
+            # Prefer direct GC-root predecessors.
+            for ref in incoming_refs:
+                if ref in self.gc_roots:
+                    dom = ref
+                    break
+
+            # Then prefer already-resolved predecessors (stable, acyclic in traversal order).
+            if dom is None:
+                for ref in incoming_refs:
+                    if ref in self.dominators:
+                        dom = ref
+                        break
+
+            # Fallback to first reachable predecessor.
+            if dom is None:
+                for ref in incoming_refs:
+                    if ref in reachable:
+                        dom = ref
+                        break
+
+            if dom is None:
+                dom = super_root
+
+            self.dominators[obj_id] = dom
+
+        for obj_id, dom_id in self.dominators.items():
+            if dom_id != super_root:
                 self.dominated_by[dom_id].add(obj_id)
 
     def find_common_dominator(self, a, b):
@@ -1084,7 +1143,7 @@ class HprofParser:
         offset = 0
         for i, field in enumerate(bitmap_fields):
             type_id = field['type']
-            size, _ = self.BASIC_TYPES.get(type_id, (0, ''))
+            size, _ = self.get_type_info(type_id)
             if size == 0:
                 continue
             name_id = field.get('name_id')
@@ -1644,7 +1703,7 @@ class HprofParser:
             offset = 0
             for field in fields:
                 type_id = field['type']
-                field_size, _ = self.BASIC_TYPES.get(type_id, (0, ''))
+                field_size, _ = self.get_type_info(type_id)
                 if field_size == 0:
                     continue
                 name_id = field.get('name_id')
@@ -1738,14 +1797,21 @@ class HprofParser:
             if class_id in self.class_fields:
                 static_fields = self.class_fields[class_id].get('static_fields', [])
                 for field in static_fields:
+                    if field.get('type') != self.TYPE_OBJECT:
+                        continue
+                    field_name = self.strings.get(field.get('name_id'), 'unknown')
+                    # Ignore compiler/runtime synthetic class-loader holders to reduce noise.
+                    if '$class$' in field_name:
+                        continue
                     field_value = field.get('value')
-                    if not field_value or field_value == 0:
+                    if isinstance(field_value, bytes):
+                        field_value = int.from_bytes(field_value, byteorder='big')
+                    if not field_value:
                         continue
 
                     # Check if this static field points to a large object
                     retained = self.retained_sizes.get(field_value, 0)
                     if retained > 100 * 1024:  # > 100KB
-                        field_name = self.strings.get(field.get('name_id'), 'unknown')
                         self.suspicious_holdings.append({
                             'type': 'STATIC_FIELD',
                             'class_name': class_name,
@@ -1766,6 +1832,8 @@ class HprofParser:
             if class_id in self.class_fields:
                 static_fields = self.class_fields[class_id].get('static_fields', [])
                 for field in static_fields:
+                    if field.get('type') != self.TYPE_OBJECT:
+                        continue
                     field_name_id = field.get('name_id')
                     if not field_name_id:
                         continue
@@ -1775,7 +1843,9 @@ class HprofParser:
 
                     if is_singleton:
                         field_value = field.get('value')
-                        if field_value and field_value != 0:
+                        if isinstance(field_value, bytes):
+                            field_value = int.from_bytes(field_value, byteorder='big')
+                        if field_value:
                             retained = self.retained_sizes.get(field_value, 0)
                             if retained > 500 * 1024:  # > 500KB for singleton
                                 self.suspicious_holdings.append({
@@ -1837,7 +1907,7 @@ class HprofParser:
             offset = 0
             for field in fields:
                 type_id = field['type']
-                field_size, _ = self.BASIC_TYPES.get(type_id, (0, ''))
+                field_size, _ = self.get_type_info(type_id)
                 if field_size == 0:
                     continue
                 name_id = field.get('name_id')
@@ -2003,9 +2073,18 @@ class HprofParser:
                 print(f"    位置: {item['class_name']}.{item['field_name']}")
 
         if static:
-            print(f"\n--- 静态字段持有大对象 ({len(static)} 个) ---")
+            unique_static = []
+            seen_obj_ids = set()
+            for item in static:
+                oid = item.get('object_id')
+                if oid in seen_obj_ids:
+                    continue
+                seen_obj_ids.add(oid)
+                unique_static.append(item)
+
+            print(f"\n--- 静态字段持有大对象 ({len(static)} 个字段, {len(unique_static)} 个对象) ---")
             print("提示: 静态字段生命周期与进程相同，持有大对象会导致内存无法释放")
-            for item in static[:top_n]:
+            for item in unique_static[:top_n]:
                 print(f"  {item['class_name']}.{item['field_name']}")
                 print(f"    Retained: {item['retained_size']/1024/1024:.2f} MB")
 
@@ -2088,10 +2167,17 @@ class HprofParser:
         if hasattr(self, 'suspicious_holdings'):
             static = [h for h in self.suspicious_holdings if h['type'] == 'STATIC_FIELD']
             if static:
-                total_mb = sum(h['retained_size'] for h in static) / 1024 / 1024
+                unique_static = {}
+                for item in static:
+                    oid = item.get('object_id')
+                    retained = item.get('retained_size', 0)
+                    if oid not in unique_static or retained > unique_static[oid]:
+                        unique_static[oid] = retained
+
+                total_mb = sum(unique_static.values()) / 1024 / 1024
                 priority_medium.append({
                     'issue': '静态字段持有大量数据',
-                    'detail': f'{len(static)} 个静态字段共持有 {total_mb:.1f} MB',
+                    'detail': f'{len(static)} 个静态字段（{len(unique_static)} 个对象）共持有 {total_mb:.1f} MB',
                     'suggestion': '1. 评估是否需要静态持有\n'
                                   '2. 考虑使用软引用 SoftReference\n'
                                   '3. 在内存紧张时主动释放'
