@@ -892,28 +892,48 @@ class HprofParser:
 
     def calculate_retained_sizes(self):
         """Calculate retained size for each object (Phase 3.3)"""
-        # Post-order traversal of dominator tree
-        visited = set()
+        # Use iterative post-order traversal to avoid Python recursion limits on large HPROF files.
+        self.retained_sizes.clear()
+        # 0 = unvisited, 1 = visiting, 2 = done
+        state = {}
 
-        def compute_retained(obj_id):
-            if obj_id in visited:
-                return self.retained_sizes.get(obj_id, 0)
-            visited.add(obj_id)
+        for start_id in self.shallow_sizes:
+            if state.get(start_id, 0) == 2:
+                continue
 
-            # Start with shallow size
-            retained = self.shallow_sizes.get(obj_id, 0)
+            # (object_id, phase), phase: 0=enter, 1=exit
+            stack = [(start_id, 0)]
 
-            # Add retained sizes of all dominated objects
-            for dominated_id in self.dominated_by.get(obj_id, []):
-                retained += compute_retained(dominated_id)
+            while stack:
+                obj_id, phase = stack.pop()
+                obj_state = state.get(obj_id, 0)
 
-            self.retained_sizes[obj_id] = retained
-            return retained
+                if phase == 0:
+                    if obj_state == 2:
+                        continue
+                    if obj_state == 1:
+                        # Back edge/cycle guard (should not happen in a valid dominator tree).
+                        continue
 
-        # Compute for all objects
-        for obj_id in self.shallow_sizes:
-            if obj_id not in visited:
-                compute_retained(obj_id)
+                    state[obj_id] = 1
+                    stack.append((obj_id, 1))
+
+                    for dominated_id in self.dominated_by.get(obj_id, []):
+                        if dominated_id == obj_id:
+                            continue
+                        child_state = state.get(dominated_id, 0)
+                        if child_state == 0:
+                            stack.append((dominated_id, 0))
+                else:
+                    # All children are already processed.
+                    retained = self.shallow_sizes.get(obj_id, 0)
+                    for dominated_id in self.dominated_by.get(obj_id, []):
+                        if dominated_id == obj_id:
+                            continue
+                        retained += self.retained_sizes.get(dominated_id, 0)
+
+                    self.retained_sizes[obj_id] = retained
+                    state[obj_id] = 2
 
     # ==================== Phase 4: Memory Leak Detection ====================
 
