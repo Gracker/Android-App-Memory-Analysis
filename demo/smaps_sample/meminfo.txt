@@ -1,0 +1,67 @@
+Applications Memory Usage (in Kilobytes):
+Uptime: 277763066 Realtime: 766707569
+
+** MEMINFO in pid 20602 [com.androidperformance.memorylab] **
+                   Pss  Private  Private  SwapPss      Rss     Heap     Heap     Heap
+                 Total    Dirty    Clean    Dirty    Total     Size    Alloc     Free
+                ------   ------   ------   ------   ------   ------   ------   ------
+  Native Heap    80860    80824        4       25    82336   139028   129931     4490
+  Dalvik Heap    59439    59420        4       69    60072   495081   298473   196608
+ Dalvik Other    16620     4208        0        0    29248                           
+        Stack     2072     2072        0        0     2080                           
+       Ashmem      526      452        0        0     1076                           
+      Gfx dev     1908     1908        0        0     1912                           
+    Other dev      460      332       60        0     1140                           
+     .so mmap     3554      332     1152        1    23808                           
+    .jar mmap     7989        0     3444        0    31724                           
+    .apk mmap    17940     1064    12328        0    25016                           
+    .ttf mmap      447        0      400        0      612                           
+    .dex mmap    10437    10272       32        0    11248                           
+    .oat mmap       48        0       16        0      652                           
+    .art mmap    11082     9172     1124       66    24732                           
+   Other mmap      497        4      360        0     1132                           
+   EGL mtrack    54432    54432        0        0    54432                           
+    GL mtrack      832      832        0        0      832                           
+      Unknown    68485    68464        0        1    69244                           
+        TOTAL   337790   293788    18924      162   421296   634109   428404   201098
+ 
+ Dalvik Details
+        .Heap    48404    48404        0        0    48404                           
+         .LOS    10460    10460        0       15    10480                           
+      .Zygote      543      524        4       54     1156                           
+   .NonMoving       32       32        0        0       32                           
+ .LinearAlloc     1968     1968        0        0     2144                           
+          .GC      964      964        0        0     1004                           
+      .AppJIT    13676     1264        0        0    26088                           
+ .IndirectRef       12       12        0        0       12                           
+   .Boot vdex       83        0        0        0      844                           
+     .App dex    10312    10272       20        0    10332                           
+    .App vdex       42        0       12        0       72                           
+    .Boot art    11082     9172     1124       66    24732                           
+ 
+ App Summary
+                       Pss(KB)                        Rss(KB)
+                        ------                         ------
+           Java Heap:    69716                          84804
+         Native Heap:    80824                          82336
+                Code:    30304                         119148
+               Stack:     2072                           2080
+            Graphics:    57172                          57176
+       Private Other:    72624
+              System:    25078
+             Unknown:                                   75752
+ 
+           TOTAL PSS:   337790            TOTAL RSS:   421296       TOTAL SWAP PSS:      162
+ 
+ Objects
+               Views:      779         ViewRootImpl:        1
+         AppContexts:        7           Activities:        1
+              Assets:       19        AssetManagers:        0
+       Local Binders:       44        Proxy Binders:      106
+       Parcel memory:       43         Parcel count:       67
+    Death Recipients:        5             WebViews:        4
+ 
+ SQL
+         MEMORY_USED:        0
+  PAGECACHE_OVERFLOW:        0          MALLOC_SIZE:        0
+ 

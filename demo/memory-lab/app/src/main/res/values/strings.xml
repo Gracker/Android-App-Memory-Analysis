@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Memory Lab Demo</string>
+    <string name="status_title">Memory Scenario Status</string>
+</resources>

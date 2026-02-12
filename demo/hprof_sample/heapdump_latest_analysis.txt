@@ -1,0 +1,735 @@
+Android HPROF 深度内存分析报告
+============================================================
+
+分析时间: 2026-02-12 11:29:54
+HPROF文件: demo/memory-lab/captures/latest/heap.hprof
+
+GC Root 统计:
+----------------------------------------
+VM_INTERNAL               302,326
+INTERNED_STRING           58,315
+STICKY_CLASS              28,920
+JAVA_FRAME                975
+JNI_GLOBAL                593
+THREAD_OBJ                80
+NATIVE_STACK              51
+JNI_LOCAL                 8
+
+总计 GC Root: 305,028
+
+总体内存统计:
+----------------------------------------
+总实例数: 308,537
+实例总大小: 7.92 MB
+总数组数: 238,869
+数组总大小: 290.17 MB
+总内存使用: 298.09 MB
+
+================================================================================
+TOP 大 byte[] 分析 (谁持有了这些内存?)
+================================================================================
+
+[1] byte[] - 512.02 KB
+    推断用途: 缓冲区
+    持有者链:
+    └─ byte[] [★ 业务对象]
+      └─ java.nio.DirectByteBuffer [★ 业务对象]
+        └─ java.lang.Object[][]
+          └─ java.util.ArrayList
+            └─ com.androidperformance.memorylab.LeakySingletons (class) [★ 业务对象]
+              └─ java.lang.Object[][]
+                └─ java.lang.DexCache [★ 业务对象]
+                  └─ com.androidperformance.memorylab.MemoryScenarioController$1 (class) [★ 业务对象]
+                    └─ com.androidperformance.memorylab.MemoryScenarioController$1 [★ 业务对象]
+                      └─ java.lang.Object[][]
+
+[2] byte[] - 512.02 KB
+    推断用途: 缓冲区
+    持有者链:
+    └─ byte[] [★ 业务对象]
+      └─ java.nio.DirectByteBuffer [★ 业务对象]
+        └─ java.lang.Object[][]
+          └─ java.util.ArrayList
+            └─ com.androidperformance.memorylab.LeakySingletons (class) [★ 业务对象]
+              └─ java.lang.Object[][]
+                └─ java.lang.DexCache [★ 业务对象]
+                  └─ com.androidperformance.memorylab.MemoryScenarioController$1 (class) [★ 业务对象]
+                    └─ com.androidperformance.memorylab.MemoryScenarioController$1 [★ 业务对象]
+                      └─ java.lang.Object[][]
+
+[3] byte[] - 512.02 KB
+    推断用途: 缓冲区
+    持有者链:
+    └─ byte[] [★ 业务对象]
+      └─ java.nio.DirectByteBuffer [★ 业务对象]
+        └─ java.lang.Object[][]
+          └─ java.util.ArrayList
+            └─ com.androidperformance.memorylab.LeakySingletons (class) [★ 业务对象]
+              └─ java.lang.Object[][]
+                └─ java.lang.DexCache [★ 业务对象]
+                  └─ com.androidperformance.memorylab.MemoryScenarioController$1 (class) [★ 业务对象]
+                    └─ com.androidperformance.memorylab.MemoryScenarioController$1 [★ 业务对象]
+                      └─ java.lang.Object[][]
+
+[4] byte[] - 512.02 KB
+    推断用途: 缓冲区
+    持有者链:
+    └─ byte[] [★ 业务对象]
+      └─ java.nio.DirectByteBuffer [★ 业务对象]
+        └─ java.lang.Object[][]
+          └─ java.util.ArrayList
+            └─ com.androidperformance.memorylab.LeakySingletons (class) [★ 业务对象]
+              └─ java.lang.Object[][]
+                └─ java.lang.DexCache [★ 业务对象]
+                  └─ com.androidperformance.memorylab.MemoryScenarioController$1 (class) [★ 业务对象]
+                    └─ com.androidperformance.memorylab.MemoryScenarioController$1 [★ 业务对象]
+                      └─ java.lang.Object[][]
+
+[5] byte[] - 512.02 KB
+    推断用途: 缓冲区
+    持有者链:
+    └─ byte[] [★ 业务对象]
+      └─ java.nio.DirectByteBuffer [★ 业务对象]
+        └─ java.lang.Object[][]
+          └─ java.util.ArrayList
+            └─ com.androidperformance.memorylab.LeakySingletons (class) [★ 业务对象]
+              └─ java.lang.Object[][]
+                └─ java.lang.DexCache [★ 业务对象]
+                  └─ com.androidperformance.memorylab.MemoryScenarioController$1 (class) [★ 业务对象]
+                    └─ com.androidperformance.memorylab.MemoryScenarioController$1 [★ 业务对象]
+                      └─ java.lang.Object[][]
+
+[6] byte[] - 512.02 KB
+    推断用途: 缓冲区
+    持有者链:
+    └─ byte[] [★ 业务对象]
+      └─ java.nio.DirectByteBuffer [★ 业务对象]
+        └─ java.lang.Object[][]
+          └─ java.util.ArrayList
+            └─ com.androidperformance.memorylab.LeakySingletons (class) [★ 业务对象]
+              └─ java.lang.Object[][]
+                └─ java.lang.DexCache [★ 业务对象]
+                  └─ com.androidperformance.memorylab.MemoryScenarioController$1 (class) [★ 业务对象]
+                    └─ com.androidperformance.memorylab.MemoryScenarioController$1 [★ 业务对象]
+                      └─ java.lang.Object[][]
+
+[7] byte[] - 512.02 KB
+    推断用途: 缓冲区
+    持有者链:
+    └─ byte[] [★ 业务对象]
+      └─ java.nio.DirectByteBuffer [★ 业务对象]
+        └─ java.lang.Object[][]
+          └─ java.util.ArrayList
+            └─ com.androidperformance.memorylab.LeakySingletons (class) [★ 业务对象]
+              └─ java.lang.Object[][]
+                └─ java.lang.DexCache [★ 业务对象]
+                  └─ com.androidperformance.memorylab.MemoryScenarioController$1 (class) [★ 业务对象]
+                    └─ com.androidperformance.memorylab.MemoryScenarioController$1 [★ 业务对象]
+                      └─ java.lang.Object[][]
+
+[8] byte[] - 512.02 KB
+    推断用途: 缓冲区
+    持有者链:
+    └─ byte[] [★ 业务对象]
+      └─ java.nio.DirectByteBuffer [★ 业务对象]
+        └─ java.lang.Object[][]
+          └─ java.util.ArrayList
+            └─ com.androidperformance.memorylab.LeakySingletons (class) [★ 业务对象]
+              └─ java.lang.Object[][]
+                └─ java.lang.DexCache [★ 业务对象]
+                  └─ com.androidperformance.memorylab.MemoryScenarioController$1 (class) [★ 业务对象]
+                    └─ com.androidperformance.memorylab.MemoryScenarioController$1 [★ 业务对象]
+                      └─ java.lang.Object[][]
+
+[9] byte[] - 512.02 KB
+    推断用途: 缓冲区
+    持有者链:
+    └─ byte[] [★ 业务对象]
+      └─ java.nio.DirectByteBuffer [★ 业务对象]
+        └─ java.lang.Object[][]
+          └─ java.util.ArrayList
+            └─ com.androidperformance.memorylab.LeakySingletons (class) [★ 业务对象]
+              └─ java.lang.Object[][]
+                └─ java.lang.DexCache [★ 业务对象]
+                  └─ com.androidperformance.memorylab.MemoryScenarioController$1 (class) [★ 业务对象]
+                    └─ com.androidperformance.memorylab.MemoryScenarioController$1 [★ 业务对象]
+                      └─ java.lang.Object[][]
+
+[10] byte[] - 512.02 KB
+    推断用途: 缓冲区
+    持有者链:
+    └─ byte[] [★ 业务对象]
+      └─ java.nio.DirectByteBuffer [★ 业务对象]
+        └─ java.lang.Object[][]
+          └─ java.util.ArrayList
+            └─ com.androidperformance.memorylab.LeakySingletons (class) [★ 业务对象]
+              └─ java.lang.Object[][]
+                └─ java.lang.DexCache [★ 业务对象]
+                  └─ com.androidperformance.memorylab.MemoryScenarioController$1 (class) [★ 业务对象]
+                    └─ com.androidperformance.memorylab.MemoryScenarioController$1 [★ 业务对象]
+                      └─ java.lang.Object[][]
+
+[11] byte[] - 512.02 KB
+    推断用途: 缓冲区
+    持有者链:
+    └─ byte[] [★ 业务对象]
+      └─ java.nio.DirectByteBuffer [★ 业务对象]
+        └─ java.lang.Object[][]
+          └─ java.util.ArrayList
+            └─ com.androidperformance.memorylab.LeakySingletons (class) [★ 业务对象]
+              └─ java.lang.Object[][]
+                └─ java.lang.DexCache [★ 业务对象]
+                  └─ com.androidperformance.memorylab.MemoryScenarioController$1 (class) [★ 业务对象]
+                    └─ com.androidperformance.memorylab.MemoryScenarioController$1 [★ 业务对象]
+                      └─ java.lang.Object[][]
+
+[12] byte[] - 512.02 KB
+    推断用途: 缓冲区
+    持有者链:
+    └─ byte[] [★ 业务对象]
+      └─ java.nio.DirectByteBuffer [★ 业务对象]
+        └─ java.lang.Object[][]
+          └─ java.util.ArrayList
+            └─ com.androidperformance.memorylab.LeakySingletons (class) [★ 业务对象]
+              └─ java.lang.Object[][]
+                └─ java.lang.DexCache [★ 业务对象]
+                  └─ com.androidperformance.memorylab.MemoryScenarioController$1 (class) [★ 业务对象]
+                    └─ com.androidperformance.memorylab.MemoryScenarioController$1 [★ 业务对象]
+                      └─ java.lang.Object[][]
+
+[13] byte[] - 512.02 KB
+    推断用途: 缓冲区
+    持有者链:
+    └─ byte[] [★ 业务对象]
+      └─ java.nio.DirectByteBuffer [★ 业务对象]
+        └─ java.lang.Object[][]
+          └─ java.util.ArrayList
+            └─ com.androidperformance.memorylab.LeakySingletons (class) [★ 业务对象]
+              └─ java.lang.Object[][]
+                └─ java.lang.DexCache [★ 业务对象]
+                  └─ com.androidperformance.memorylab.MemoryScenarioController$1 (class) [★ 业务对象]
+                    └─ com.androidperformance.memorylab.MemoryScenarioController$1 [★ 业务对象]
+                      └─ java.lang.Object[][]
+
+[14] byte[] - 512.02 KB
+    推断用途: 缓冲区
+    持有者链:
+    └─ byte[] [★ 业务对象]
+      └─ java.nio.DirectByteBuffer [★ 业务对象]
+        └─ java.lang.Object[][]
+          └─ java.util.ArrayList
+            └─ com.androidperformance.memorylab.LeakySingletons (class) [★ 业务对象]
+              └─ java.lang.Object[][]
+                └─ java.lang.DexCache [★ 业务对象]
+                  └─ com.androidperformance.memorylab.MemoryScenarioController$1 (class) [★ 业务对象]
+                    └─ com.androidperformance.memorylab.MemoryScenarioController$1 [★ 业务对象]
+                      └─ java.lang.Object[][]
+
+[15] byte[] - 512.02 KB
+    推断用途: 缓冲区
+    持有者链:
+    └─ byte[] [★ 业务对象]
+      └─ java.nio.DirectByteBuffer [★ 业务对象]
+        └─ java.lang.Object[][]
+          └─ java.util.ArrayList
+            └─ com.androidperformance.memorylab.LeakySingletons (class) [★ 业务对象]
+              └─ java.lang.Object[][]
+                └─ java.lang.DexCache [★ 业务对象]
+                  └─ com.androidperformance.memorylab.MemoryScenarioController$1 (class) [★ 业务对象]
+                    └─ com.androidperformance.memorylab.MemoryScenarioController$1 [★ 业务对象]
+                      └─ java.lang.Object[][]
+
+[16] byte[] - 512.02 KB
+    推断用途: 缓冲区
+    持有者链:
+    └─ byte[] [★ 业务对象]
+      └─ java.nio.DirectByteBuffer [★ 业务对象]
+        └─ java.lang.Object[][]
+          └─ java.util.ArrayList
+            └─ com.androidperformance.memorylab.LeakySingletons (class) [★ 业务对象]
+              └─ java.lang.Object[][]
+                └─ java.lang.DexCache [★ 业务对象]
+                  └─ com.androidperformance.memorylab.MemoryScenarioController$1 (class) [★ 业务对象]
+                    └─ com.androidperformance.memorylab.MemoryScenarioController$1 [★ 业务对象]
+                      └─ java.lang.Object[][]
+
+[17] byte[] - 512.02 KB
+    推断用途: 缓冲区
+    持有者链:
+    └─ byte[] [★ 业务对象]
+      └─ java.nio.DirectByteBuffer [★ 业务对象]
+        └─ java.lang.Object[][]
+          └─ java.util.ArrayList
+            └─ com.androidperformance.memorylab.LeakySingletons (class) [★ 业务对象]
+              └─ java.lang.Object[][]
+                └─ java.lang.DexCache [★ 业务对象]
+                  └─ com.androidperformance.memorylab.MemoryScenarioController$1 (class) [★ 业务对象]
+                    └─ com.androidperformance.memorylab.MemoryScenarioController$1 [★ 业务对象]
+                      └─ java.lang.Object[][]
+
+[18] byte[] - 512.02 KB
+    推断用途: 缓冲区
+    持有者链:
+    └─ byte[] [★ 业务对象]
+      └─ java.nio.DirectByteBuffer [★ 业务对象]
+        └─ java.lang.Object[][]
+          └─ java.util.ArrayList
+            └─ com.androidperformance.memorylab.LeakySingletons (class) [★ 业务对象]
+              └─ java.lang.Object[][]
+                └─ java.lang.DexCache [★ 业务对象]
+                  └─ com.androidperformance.memorylab.MemoryScenarioController$1 (class) [★ 业务对象]
+                    └─ com.androidperformance.memorylab.MemoryScenarioController$1 [★ 业务对象]
+                      └─ java.lang.Object[][]
+
+[19] byte[] - 512.02 KB
+    推断用途: 缓冲区
+    持有者链:
+    └─ byte[] [★ 业务对象]
+      └─ java.nio.DirectByteBuffer [★ 业务对象]
+        └─ java.lang.Object[][]
+          └─ java.util.ArrayList
+            └─ com.androidperformance.memorylab.LeakySingletons (class) [★ 业务对象]
+              └─ java.lang.Object[][]
+                └─ java.lang.DexCache [★ 业务对象]
+                  └─ com.androidperformance.memorylab.MemoryScenarioController$1 (class) [★ 业务对象]
+                    └─ com.androidperformance.memorylab.MemoryScenarioController$1 [★ 业务对象]
+                      └─ java.lang.Object[][]
+
+[20] byte[] - 512.02 KB
+    推断用途: 缓冲区
+    持有者链:
+    └─ byte[] [★ 业务对象]
+      └─ java.nio.DirectByteBuffer [★ 业务对象]
+        └─ java.lang.Object[][]
+          └─ java.util.ArrayList
+            └─ com.androidperformance.memorylab.LeakySingletons (class) [★ 业务对象]
+              └─ java.lang.Object[][]
+                └─ java.lang.DexCache [★ 业务对象]
+                  └─ com.androidperformance.memorylab.MemoryScenarioController$1 (class) [★ 业务对象]
+                    └─ com.androidperformance.memorylab.MemoryScenarioController$1 [★ 业务对象]
+                      └─ java.lang.Object[][]
+
+================================================================================
+TOP 大 String 分析 (实际内容是什么?)
+================================================================================
+
+[1] String - 46.41 KB
+    内容: "Alpha Alphabetic N No F False Y Yes T True NR Not_Reordered OV Overlay HANR Han_Reading NK Nukta KV Kana_Voicing VR Virama CCC10 CCC10 CCC11 CCC11 CCC12 CCC12 CCC13 CCC13 CCC14 CCC14 CC..."
+
+[2] String - 32.09 KB
+    内容: "No acceptable SA proposal in the request"
+
+[3] String - 26.32 KB
+    内容: "￿￿虰䓜虰䓀虰䓞؀ƀ؂Ƃ؄ƅ؆Ɔ؈Ȁ،ȅ؎эؐƉؒ㵄ؔƋؘΚ؞ЀآЄن㵁ي㰀虐Ȉ؎㰄ن㰈虢㰌؂Ȍ؄Ȑ؎ȔؘȘ虎Ə؎㰔ؘȜن㰘َ㰠ٚ㰤虢㰜؀Ɛ؂ƒ؄ƕ؆㵸؈ȥ،Ȩ؎ȬؐƖؒ㵴ؘȴ؞ЈآЌن㵱َёِȰٚ㰰虠㰴蘎㰼؂Ϩ؄ȸ؈㱀،ȼ؎ɀؘό虎Ʉ؄Ɉ؎㱄ؐ㱌ؘмن㱈َ㱐虜㱔؀Ƙ؂ƚ؄Ɯ؆ɐ؈ɔ،ɘ؎ɠؐƟؒ㶐ؘΞ؞АآДن㶔ِɜ虠㱘蘄ɨ؂㱠ؘϐن㱤َɬ虢㱨؂ɲؘɺن㱭َɶٚ㱸虢㱴؂㱼؎㲀虆㲄؀ϰ؂ʆ؆Ƣ؎㲈..."
+
+[4] String - 23.90 KB
+    内容: "(((?:\b|$|^)(?:(?:(?i:http|https|rtsp|ftp)://(?:(?:[a-zA-Z0-9\$\-\_\.\+\!\*\'\(\)\,\;\?\&\=]|(?:\%[a-fA-F0-9]{2})){1,64}(?:\:(?:[a-zA-Z0-9\$\-\_\.\+\!\*\'\(\)\,\;\?\&\=]|(?:\%[a-fA-F0-9]{2})){1,25})?\..."
+
+[5] String - 21.96 KB
+    内容: "((?:\b|$|^)(?<!:\/\/)((?:(?:(?:(?:[a-zA-Z0-9[ -퟿豈-﷏ﷰ-￯𐀀-🿽𠀀-𯿽𰀀-𿿽񀀀-񏿽񐀀-񟿽񠀀-񯿽񰀀-񿿽򀀀-򏿽򐀀-򟿽򠀀-򯿽򰀀-򿿽󀀀-󏿽󐀀-󟿽󡀀-󯿽&&[^ [ - ]   　]]](?:[a-zA-Z0-9[ -퟿豈-﷏ﷰ-￯𐀀-🿽𠀀-𯿽𰀀-𿿽񀀀-񏿽񐀀-񟿽񠀀-񯿽񰀀-񿿽򀀀-򏿽򐀀-򟿽򠀀-򯿽򰀀-򿿽󀀀-󏿽󐀀-󟿽󡀀-󯿽&&[^ [ - ]   　]]_\-]{0..."
+
+[6] String - 21.59 KB
+    内容: "￿￿虰䓜虰䓀虰䓞؀ǀ؂ǂ؄ǅ؆ǆ؈Ȃ،ȇ؎яؐǉؒ㵆ؔǋؘΜ؞ЂآІن㵃ي㰂虐Ȋ؎㰆ن㰊虢㰎؂Ȏ؄Ȓ؎ȖؘȚ虎Ǐ؎㰖ؘȞن㰚َ㰢ٚ㰦虢㰞؀ǐ؂ǒ؄Ǖ؆㵺؈ȧ،Ȫ؎Ȯؐǖؒ㵶ؘȶ؞ЊآЎن㵳َѓِȲٚ㰲虠㰶蘎㰾؂Ϫ؄Ⱥ؈㱂،Ⱦ؎ɂؘώ虎Ɇ؄Ɋ؎㱆ؐ㱎ؘоن㱊َ㱒ٜ㱖虢㴬؀ǘ؂ǚ؄ǜ؆ɒ؈ɖ،ɚؐǟؒ㶒ؘΠ؞ВآЖن㶖ِɞ虠㱚؄ɪ蘘Ϡ؂㱢ؘϒن㱦َɮ虢㱪؂ɴؘɼن㱯َɸٚ㱺虢㱶؂㱾؎㲂虆㲆؀ϲ؂ʈ؆Ǣ..."
+
+[7] String - 21.52 KB
+    内容: "(?:(?:(?:[a-zA-Z0-9[ -퟿豈-﷏ﷰ-￯𐀀-🿽𠀀-𯿽𰀀-𿿽񀀀-񏿽񐀀-񟿽񠀀-񯿽񰀀-񿿽򀀀-򏿽򐀀-򟿽򠀀-򯿽򰀀-򿿽󀀀-󏿽󐀀-󟿽󡀀-󯿽&&[^ [ - ]   　]]](?:[a-zA-Z0-9[ -퟿豈-﷏ﷰ-￯𐀀-🿽𠀀-𯿽𰀀-𿿽񀀀-񏿽񐀀-񟿽񠀀-񯿽񰀀-񿿽򀀀-򏿽򐀀-򟿽򠀀-򯿽򰀀-򿿽󀀀-󏿽󐀀-󟿽󡀀-󯿽&&[^ [ - ]   　]]_\-]{0,61}[a-zA-Z0-9[ -퟿豈-﷏ﷰ-￯𐀀..."
+
+[8] String - 21.24 KB
+    内容: "￿￿虰䓜虰䓀虰䓞؀ǀ؂ǂ؄ǅ؆ǆ؈Ȃ،ȇ؎яؐǉؒ㵆ؔǋؘΜ؞ЂآІن㵃ي㰂虐Ȋ؎㰆ن㰊虢㰎؂Ȏ؄Ȓ؎ȖؘȚ虎Ǐ؎㰖ؘȞن㰚َ㰢ٚ㰦虢㰞؀ǐ؂ǒ؄Ǖ؆㵺؈ȧ،Ȫ؎Ȯؐǖؒ㵶ؘȶ؞ЊآЎن㵳َѓِȲٚ㰲虠㰶蘎㰾؂Ϫ؄Ⱥ؈㱂،Ⱦ؎ɂؘώ虎Ɇ؄Ɋ؎㱆ؐ㱎ؘоن㱊َ㱒ٜ㱖虢㴬؀ǘ؂ǚ؄ǜ؆ɒ؈ɖ،ɚؐǟؒ㶒ؘΠ؞ВآЖن㶖ِɞ虠㱚؄ɪ蘘Ϡ؂㱢ؘϒن㱦َɮ虢㱪؂ɴؘɼن㱯َɸٚ㱺虢㱶؂㱾؎㲂虆㲆؀ϲ؂ʈ؆Ǣ..."
+
+[9] String - 21.08 KB
+    内容: "(?:(?:[a-zA-Z0-9[ -퟿豈-﷏ﷰ-￯𐀀-🿽𠀀-𯿽𰀀-𿿽񀀀-񏿽񐀀-񟿽񠀀-񯿽񰀀-񿿽򀀀-򏿽򐀀-򟿽򠀀-򯿽򰀀-򿿽󀀀-󏿽󐀀-󟿽󡀀-󯿽&&[^ [ - ]   　]]](?:[a-zA-Z0-9[ -퟿豈-﷏ﷰ-￯𐀀-🿽𠀀-𯿽𰀀-𿿽񀀀-񏿽񐀀-񟿽񠀀-񯿽񰀀-񿿽򀀀-򏿽򐀀-򟿽򠀀-򯿽򰀀-򿿽󀀀-󏿽󐀀-󟿽󡀀-󯿽&&[^ [ - ]   　]]_\-]{0,61}[a-zA-Z0-9[ -퟿豈-﷏ﷰ-￯𐀀-🿽𠀀..."
+
+[10] String - 20.39 KB
+    内容: "(?:(?:(?:aaa|aarp|abb|abbott|abbvie|abc|able|abogado|abudhabi|academy|accenture|accountant|accountants|aco|actor|ads|adult|aeg|aero|aetna|afl|africa|agakhan|agency|aig|airbus|airforce|airtel|akdn|alib..."
+
+[11] String - 20.35 KB
+    内容: "(?:(?:aaa|aarp|abb|abbott|abbvie|abc|able|abogado|abudhabi|academy|accenture|accountant|accountants|aco|actor|ads|adult|aeg|aero|aetna|afl|africa|agakhan|agency|aig|airbus|airforce|airtel|akdn|alibaba..."
+
+[12] String - 15.14 KB
+    内容: "￿￿虰䓜虰䓀虰䓞؀ƀ؂Ƃ؄ƅ؆Ɔ؈Ȁ،ȅ؎эؐƉؒ㵄ؔƋؘΚ؞ЀآЄن㵁ي㰀虐Ȉ؎㰄ن㰈虢㰌؂Ȍ؄Ȑ؎ȔؘȘ虎Ə؎㰔ؘȜن㰘َ㰠ٚ㰤虢㰜؀Ɛ؂ƒ؄ƕ؆㵸؈ȥ،Ȩ؎ȬؐƖؒ㵴ؘȴ؞ЈآЌن㵱َёِȰٚ㰰虠㰴蘎㰼؂Ϩ؄ȸ؈㱀،ȼ؎ɀؘό虎Ʉ؄Ɉ؎㱄ؐ㱌ؘмن㱈َ㱐虜㱔؀Ƙ؂ƚ؄Ɯ؆ɐ؈ɔ،ɘ؎ɠؐƟؒ㶐ؘΞ؞АآДن㶔ِɜ虠㱘蘄ɨ؂㱠ؘϐن㱤َɬ虢㱨؂ɲؘɺن㱭َɶٚ㱸虢㱴؂㱼؎㲀虆㲄؀ϰ؂ʆ؆Ƣ؎㲈..."
+
+[13] String - 8.61 KB
+    内容: "चԅL￿ﮔׂl￿ﮔׂ慆֛0̆￿慎֠慆ԅ0̆￿慎ԅ昚ԅٓ￿昈ԅٔ￿昊ԅٕ￿昒ԅ曠ԅ0ٔ￿昐ԅ曰ԅ0ٔ￿昖ԅ楼ԅা￿榀ԅৗ￿概ԅ汾ԅା￿沂ԅୖ￿沀ԅୗ￿沄ԅ洚ԅ0ௗ￿洞ԅ浚ԅா￿浠ԅௗ￿浤ԅ浜ԅ0ா￿浢ԅ溈ԅ0ౖ￿溌ԅ潸ԅ0ೕ￿潺ԅ澈ԅೂೕ￿澊ԅೖ￿澌ԅ翰澎ԅೕ￿澐ԅ澎ԅ0ೕ￿澐ԅ炊ԅാ￿炐ԅൗ￿炔ԅ炌ԅ0ാ￿炒ԅ熒ԅ්￿熔ԅාෟ￿熜ԅ翰熘ԅ්￿熚ԅ熘ԅ0්￿熚ԅ牺ԅ-ธQร*ษ..."
+
+[14] String - 7.39 KB
+    内容: "!!!?$⃠'''B'D'P'T'Y'n(())+̂+̃+̇+̊+̣+̰+₂-.-̇-̈-̓-̣.,..///̄2,2.2̵2日2月2点3,3.3̦3日3月3点4,4.4·4日4月4点5,5.5日5月5点6,6.6日6月6点7,7.7日7月7点8,8.8日8月8点9,9.9日9月9点:→<<<·===̂=̆=̇=̊=ͫ=⃰><>>>·?!??AAAEAOARAUAVAYC'C̦C⃠C⃫DZDzDŽ..."
+
+[15] String - 3.76 KB
+    内容: "uniform vec2 in_origin;\nuniform vec2 in_touch;\nuniform float in_progress;\nuniform float in_maxRadius;\nuniform vec2 in_resolutionScale;\nuniform vec2 in_noiseScale;\nuniform float in_hasMask;\nunif..."
+
+[16] String - 3.76 KB
+    内容: "ܬˀ́ɐwY\hf0!-93‍🫲耀耀耀耀3‍🫲耀耀耀耀3‍🫲耀耀耀耀3‍🫲耀耀耀耀3‍🫲耀耀耀耀‍\r0‍♀♂0️耀‍\r0‍♀♂0️耀‍\r0‍♀♂0️耀‍ŔDºõ0‍❤ظ❤űֱĀ耀耀r‍➡️耀1️‍\r1耀耀耀耀4‍🧑耀耀耀耀0‍❤׻❤ĴմÃ耀耀r‍➡️耀1️‍\r1耀耀耀耀4‍🧑..."
+
+[17] String - 3.29 KB
+    内容: "졐 İı䠐 ࡁkKࡁsſ屐 İıࡄKKࡄSſࠆμΜࡁåÅࣀ∠ssSSSsẞࡄÅÅ䠐칐ÇIıࡄIiİࢀ∠ʼnʼNʼNࠆsSࠉǆǅࠍǆǄǅࠌǄǅࠉǉǈࠍǉǇǈࠌǇǈࠉǌǋࠍǌǊǋࠌǊǋࢀ∠ǰJ̌J̌ࠉǳǲࠍǳǱǲࠌǱǲࠐ⨫ࠐ⨨ࠐ⨿ࠐ⨟ࠐ⨜ࠐ⨞ࠐꕏࠐꕋࠐꔨࠐꕄࠐ⧷ࠐꕁࠐ⧽ࠐ⧧ࠐꕃࠐꔪ᠐ꔕࠐꔒ栀㡆ιΙιࣀ㌰ΐΪ́Ϊ́ΐࡁβϐࡁεϵࡁθϑϴࡁιͅιࡁκϰࡁμ..."
+
+[18] String - 3.05 KB
+    内容: "00ì QÕÛ÷XçB<í×Ú`ZÝÃ0\r\t*H÷\r 010\tUUS10U\nCalifornia10U\rMountain View10U\nGoogle Inc.10UAndroid1-0+U$com_google_android_gms-rotation..."
+
+[19] String - 3.05 KB
+    内容: "00ì £²­×árÊkìÇ!?<D`/¯e0\r\t*H÷\r 010\tUUS10U\nCalifornia10U\rMountain View10U\nGoogle Inc.10UAndroid1-0+U$com_google_android_gms-rotation..."
+
+[20] String - 2.94 KB
+    内容: "0È0° ¢fú§pxb±··RìMV¿yÙ0\r\t*H÷\r 0t10\tUUS10U\nCalifornia10U\rMountain View10U\nGoogle Inc.10UAndroid10UAndroid0 \r240223201719Z20540..."
+
+================================================================================
+TOP 大 int[]/long[] 分析
+================================================================================
+
+[1] int[] - 468.39 KB
+    持有者链:
+    └─ int[] ['GC Root']
+
+[2] long[] - 54.47 KB
+    持有者链:
+    └─ long[] ['GC Root']
+
+[3] int[] - 29.30 KB
+    持有者链:
+    └─ int[] ['GC Root']
+
+[4] int[] - 24.66 KB
+    持有者链:
+    └─ int[] ['GC Root']
+
+[5] int[] - 23.99 KB
+    持有者链:
+    └─ int[] ['GC Root']
+
+[6] int[] - 23.73 KB
+    持有者链:
+    └─ int[] ['GC Root']
+
+[7] long[] - 15.76 KB
+    持有者链:
+    └─ long[] ['GC Root']
+
+[8] int[] - 14.81 KB
+    持有者链:
+    └─ int[] ['GC Root']
+
+[9] int[] - 12.12 KB
+    持有者链:
+    └─ int[] ['GC Root']
+
+[10] long[] - 11.26 KB
+    持有者链:
+    └─ long[] ['GC Root']
+
+[11] long[] - 10.90 KB
+    持有者链:
+    └─ long[] ['GC Root']
+
+[12] long[] - 10.86 KB
+    持有者链:
+    └─ long[] ['GC Root']
+
+[13] int[] - 10.44 KB
+    持有者链:
+    └─ int[] ['★']
+      └─ java.util.zip.ZipFile$Source
+        └─ java.util.HashMap$Node
+          └─ java.util.HashMap$Node ['GC Root']
+
+[14] int[] - 10.02 KB
+    持有者链:
+    └─ int[] ['GC Root']
+
+[15] long[] - 9.68 KB
+    持有者链:
+    └─ long[] ['GC Root']
+
+[16] long[] - 9.60 KB
+    持有者链:
+    └─ long[] ['GC Root']
+
+[17] long[] - 9.51 KB
+    持有者链:
+    └─ long[] ['GC Root']
+
+[18] long[] - 9.46 KB
+    持有者链:
+    └─ long[] ['★']
+      └─ androidx.appcompat.widget.AbsActionBarView (class) ['★']
+        └─ androidx.appcompat.widget.ActionBarContextView (class) ['★']
+          └─ java.lang.Object[][]
+            └─ dalvik.system.PathClassLoader
+
+[19] long[] - 9.44 KB
+    持有者链:
+    └─ long[] ['★']
+
+[20] long[] - 9.35 KB
+    持有者链:
+    └─ long[] ['GC Root']
+
+
+TOP 30 Retained Size:
+----------------------------------------
+类名                                                 Shallow(KB)  Retained(MB)
+java.lang.DexCache                                 0.12         275.96      
+java.lang.Object[][]                               0.51         275.96      
+unknown                                            0.00         275.94      
+java.util.ArrayList                                0.03         96.01       
+java.lang.Object[][]                               2.16         96.01       
+java.util.ArrayList                                0.03         61.91       
+java.lang.Object[][]                               1.44         61.91       
+java.util.ArrayList                                0.03         50.17       
+java.lang.Object[][]                               0.05         50.17       
+java.util.ArrayList                                0.03         40.01       
+java.lang.Object[][]                               0.44         40.01       
+com.androidperformance.memorylab.MemoryScenarioController$1 0.05         25.08       
+com.androidperformance.memorylab.MemoryScenarioController$1 0.05         25.08       
+java.util.LinkedHashMap                            0.06         25.08       
+java.util.LinkedHashMap                            0.06         25.08       
+java.util.HashMap$Node[][]                         8.01         24.96       
+java.util.HashMap$Node[][]                         8.01         24.49       
+java.util.ArrayList                                0.03         12.15       
+java.lang.Object[][]                               0.14         12.15       
+java.util.ArrayList                                0.03         8.00        
+java.lang.Object[][]                               0.10         8.00        
+java.util.ArrayList                                0.03         6.00        
+java.lang.Object[][]                               0.14         6.00        
+java.util.LinkedHashMap$Entry                      0.04         1.57        
+java.util.ArrayList                                0.03         1.56        
+java.lang.Object[][]                               3.23         1.56        
+java.util.LinkedHashMap$Entry                      0.04         1.44        
+java.util.LinkedHashMap$Entry                      0.04         1.41        
+java.util.LinkedHashMap$Entry                      0.04         1.41        
+java.util.LinkedHashMap$Entry                      0.04         1.41        
+
+内存泄漏嫌疑 (174 个):
+----------------------------------------
+
+[1] ACCUMULATION_POINT
+    java.lang.DexCache 持有 275.96MB 内存（2个对象）
+    Retained: 275.96 MB
+
+[2] ACCUMULATION_POINT
+    java.lang.Object[] 持有 275.96MB 内存（28个对象）
+    Retained: 275.96 MB
+
+[3] ACCUMULATION_POINT
+    java.util.ArrayList 持有 96.01MB 内存（1个对象）
+    Retained: 96.01 MB
+
+[4] ACCUMULATION_POINT
+    java.lang.Object[] 持有 96.01MB 内存（384个对象）
+    Retained: 96.01 MB
+
+[5] ACCUMULATION_POINT
+    java.util.ArrayList 持有 61.91MB 内存（1个对象）
+    Retained: 61.91 MB
+
+[6] ACCUMULATION_POINT
+    java.lang.Object[] 持有 61.91MB 内存（330个对象）
+    Retained: 61.91 MB
+
+[7] ACCUMULATION_POINT
+    java.util.ArrayList 持有 50.17MB 内存（1个对象）
+    Retained: 50.17 MB
+
+[8] ACCUMULATION_POINT
+    java.lang.Object[] 持有 50.17MB 内存（2个对象）
+    Retained: 50.17 MB
+
+[9] ACCUMULATION_POINT
+    java.util.ArrayList 持有 40.01MB 内存（1个对象）
+    Retained: 40.01 MB
+
+[10] ACCUMULATION_POINT
+    java.lang.Object[] 持有 40.01MB 内存（80个对象）
+    Retained: 40.01 MB
+
+[11] ACCUMULATION_POINT
+    com.androidperformance.memorylab.MemoryScenarioController$1 持有 25.08MB 内存（1个对象）
+    Retained: 25.08 MB
+
+[12] ACCUMULATION_POINT
+    com.androidperformance.memorylab.MemoryScenarioController$1 持有 25.08MB 内存（1个对象）
+    Retained: 25.08 MB
+
+[13] ACCUMULATION_POINT
+    java.util.LinkedHashMap 持有 25.08MB 内存（3个对象）
+    Retained: 25.08 MB
+
+[14] ACCUMULATION_POINT
+    java.util.LinkedHashMap 持有 25.08MB 内存（3个对象）
+    Retained: 25.08 MB
+
+[15] ACCUMULATION_POINT
+    java.util.HashMap$Node[] 持有 24.96MB 内存（73个对象）
+    Retained: 24.96 MB
+
+[16] ACCUMULATION_POINT
+    java.util.HashMap$Node[] 持有 24.49MB 内存（75个对象）
+    Retained: 24.49 MB
+
+[17] ACCUMULATION_POINT
+    java.util.ArrayList 持有 12.15MB 内存（1个对象）
+    Retained: 12.15 MB
+
+[18] ACCUMULATION_POINT
+    java.lang.Object[] 持有 12.15MB 内存（24个对象）
+    Retained: 12.15 MB
+
+[19] DUPLICATE_INSTANCE
+    检测到 24 个 com.androidperformance.memorylab.LeakyDemoFragment 实例（应该只有1个）
+    Retained: 12.15 MB
+
+[20] ACCUMULATION_POINT
+    java.util.ArrayList 持有 8.00MB 内存（1个对象）
+    Retained: 8.00 MB
+
+重复字符串 TOP 20:
+----------------------------------------
+'TextView' x751 = 11.72 KB wasted
+'com.android.org.conscrypt.OpenSSLKeyHolder|java.se' x34 = 10.12 KB wasted
+'com.android.org.conscrypt.OpenSSLRSAPrivateKey|jav' x18 = 5.61 KB wasted
+'Explicit termination method 'close' not called' x56 = 4.94 KB wasted
+'/system/app/NavBarHideOverlay/NavBarHideOverlay.ap' x36 = 3.49 KB wasted
+'dalvik.system.DelegateLastClassLoader' x49 = 3.47 KB wasted
+'/data/app/~~-fUShJYlodIhQPdCFx7u6Q==/com.androidpe' x18 = 3.42 KB wasted
+'feature-adaptive-playback' x64 = 3.08 KB wasted
+'supportedkeyclasses' x81 = 2.97 KB wasted
+'feature-detached-surface' x64 = 2.95 KB wasted
+'com.androidperformance.memorylab' x48 = 2.94 KB wasted
+'/data/app/~~-fUShJYlodIhQPdCFx7u6Q==/com.androidpe' x16 = 2.75 KB wasted
+'feature-multiple-frames' x62 = 2.74 KB wasted
+'/data/app/~~Q2Q_fSa6bL-uufm4S_y09g==/com.google.an' x12 = 2.71 KB wasted
+'/data/app/~~Q2Q_fSa6bL-uufm4S_y09g==/com.google.an' x12 = 2.69 KB wasted
+'/data/app/~~Q2Q_fSa6bL-uufm4S_y09g==/com.google.an' x12 = 2.64 KB wasted
+'/data/app/~~Q2Q_fSa6bL-uufm4S_y09g==/com.google.an' x12 = 2.64 KB wasted
+'/data/app/~~Q2Q_fSa6bL-uufm4S_y09g==/com.google.an' x12 = 2.60 KB wasted
+'/data/app/~~Q2Q_fSa6bL-uufm4S_y09g==/com.google.an' x12 = 2.60 KB wasted
+'/data/app/~~Q2Q_fSa6bL-uufm4S_y09g==/com.google.an' x12 = 2.56 KB wasted
+
+Bitmap 分析 TOP 20:
+----------------------------------------
+2112x1080            8.70 MB
+1091x724             3.01 MB
+968x544              2.01 MB
+820x544              1.70 MB
+820x544              1.70 MB
+820x544              1.70 MB
+820x544              1.70 MB
+820x544              1.70 MB
+820x544              1.70 MB
+820x544              1.70 MB
+820x544              1.70 MB
+820x544              1.70 MB
+820x544              1.70 MB
+820x544              1.70 MB
+820x544              1.70 MB
+820x544              1.70 MB
+820x544              1.70 MB
+820x544              1.70 MB
+820x544              1.70 MB
+820x544              1.70 MB
+
+集合类容量分析 TOP 20:
+----------------------------------------
+java.util.HashMap                   size=90 capacity=16384 utilization=0.5%
+java.util.HashMap                   size=90 capacity=16384 utilization=0.5%
+java.util.HashMap                   size=90 capacity=16384 utilization=0.5%
+java.util.HashMap                   size=90 capacity=16384 utilization=0.5%
+java.util.HashMap                   size=90 capacity=16384 utilization=0.5%
+java.util.HashMap                   size=90 capacity=16384 utilization=0.5%
+java.util.HashMap                   size=90 capacity=16384 utilization=0.5%
+java.util.HashMap                   size=90 capacity=16384 utilization=0.5%
+java.util.HashMap                   size=90 capacity=16384 utilization=0.5%
+java.util.HashMap                   size=90 capacity=16384 utilization=0.5%
+java.util.HashMap                   size=90 capacity=16384 utilization=0.5%
+java.util.HashMap                   size=90 capacity=16384 utilization=0.5%
+java.util.HashMap                   size=90 capacity=16384 utilization=0.5%
+java.util.HashMap                   size=90 capacity=16384 utilization=0.5%
+java.util.HashMap                   size=90 capacity=16384 utilization=0.5%
+java.util.HashMap                   size=90 capacity=16384 utilization=0.5%
+java.util.HashMap                   size=90 capacity=16384 utilization=0.5%
+java.util.HashMap                   size=90 capacity=16384 utilization=0.5%
+java.util.HashMap                   size=90 capacity=16384 utilization=0.5%
+java.util.HashMap                   size=90 capacity=16384 utilization=0.5%
+
+TOP 30 内存占用包:
+----------------------------------------
+java.lang                                          139,262    2.60 MB
+java.util                                          66,634     1.58 MB
+android.widget                                     1,633      0.90 MB
+android.icu.impl.locale                            9,531      0.24 MB
+android.graphics                                   5,823      0.23 MB
+sun.misc                                           6,456      0.22 MB
+android.icu.impl                                   8,043      0.20 MB
+java.util.concurrent                               5,964      0.15 MB
+androidx.emoji2.text                               8,294      0.14 MB
+android.util                                       7,122      0.14 MB
+android.view                                       2,838      0.14 MB
+libcore.util                                       6,563      0.12 MB
+android.text                                       875        0.11 MB
+android.hnmagiclayout                              781        0.10 MB
+android.icu.util                                   4,677      0.10 MB
+java.lang.ref                                      3,351      0.10 MB
+
+TOP 50 内存占用类:
+----------------------------------------
+java.util.HashMap$Node[][]                                   1,610        5.38 MB
+java.lang.String                                             130,259      2.48 MB
+java.lang.Object[][]                                         27,916       1.30 MB
+java.util.HashMap$Node                                       47,160       1.08 MB
+android.widget.TextView                                      750          0.86 MB
+sun.misc.Cleaner                                             6,454        0.22 MB
+android.icu.impl.locale.LSR                                  7,824        0.21 MB
+java.util.LinkedHashMap$Entry                                6,042        0.18 MB
+android.graphics.Paint                                       1,162        0.13 MB
+java.util.concurrent.ConcurrentHashMap$Node                  5,338        0.12 MB
+libcore.util.NativeAllocationRegistry$CleanerThunk           6,405        0.12 MB
+android.text.TextPaint                                       785          0.11 MB
+android.hnmagiclayout.HnMagicLayoutViewInfo                  779          0.10 MB
+android.util.SparseArray                                     4,586        0.09 MB
+android.view.View$ListenerInfo                               770          0.09 MB
+android.icu.impl.ICUResourceBundleReader$ResourceCache$Level 3,261        0.09 MB
+java.util.ArrayList                                          4,311        0.08 MB
+androidx.emoji2.text.TypefaceEmojiRasterizer                 3,835        0.07 MB
+java.util.HashMap                                            1,876        0.07 MB
+androidx.emoji2.text.MetadataRepo$Node                       4,451        0.07 MB
+java.lang.String[][]                                         1,415        0.06 MB
+java.lang.Integer                                            5,107        0.06 MB
+java.util.concurrent.ConcurrentHashMap$Node[][]              74           0.05 MB
+android.icu.util.CaseInsensitiveString                       2,653        0.05 MB
+java.lang.ref.FinalizerReference                             1,413        0.05 MB
+android.icu.impl.ICUResourceBundleReader$Table16             2,113        0.05 MB
+sun.util.locale.LocaleObjectCache$CacheEntry                 1,252        0.04 MB
+android.graphics.Rect                                        1,649        0.04 MB
+java.lang.ref.SoftReference                                  1,153        0.04 MB
+android.icu.impl.ICUResourceBundleReader$Table1632           1,375        0.03 MB
+android.icu.impl.locale.LSR[][]                              1            0.03 MB
+android.icu.util.ULocale                                     1,300        0.03 MB
+dalvik.system.ClassExt                                       486          0.03 MB
+android.graphics.RenderNode                                  795          0.03 MB
+android.graphics.text.MeasuredData                           1,530        0.02 MB
+android.widget.TextView$GlobalHandwritingHelper              765          0.02 MB
+sun.util.locale.BaseLocale$Key                               1,116        0.02 MB
+java.util.concurrent.ConcurrentHashMap                       337          0.02 MB
+java.util.Formatter$FormatSpecifierParser                    390          0.02 MB
+android.view.View$G2RoundCornerProp                          779          0.02 MB
+android.graphics.Matrix                                      1,157        0.02 MB
+java.util.TreeMap$TreeMapEntry                               625          0.02 MB
+android.icu.impl.locale.KeyTypeData$Type                     1,043        0.02 MB
+com.google.android.material.button.MaterialButton            13           0.02 MB
+android.hardware.camera2.impl.CameraMetadataNative$Key       396          0.02 MB
+android.icu.impl.DayPeriodRules$DayPeriod[][]                167          0.02 MB
+java.util.BitSet                                             915          0.01 MB
+java.security.Provider$ServiceKey                            763          0.01 MB
+java.security.Provider$Service                               281          0.01 MB
+android.util.Range                                           907          0.01 MB
+
+基本类型数组统计:
+----------------------------------------
+byte[]               164,342      279.01 MB
+int[]                14,666       1.77 MB
+long[]               20,654       1.63 MB
+char[]               4,644        0.76 MB
+short[]              72           0.02 MB
+float[]              318          0.01 MB
+boolean[]            110          0.01 MB
+double[]             30           0.00 MB

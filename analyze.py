@@ -1,7 +1,9 @@
 import argparse
+import gzip
 import os
 import subprocess
 import sys
+import tempfile
 
 # --- Configuration ---
 TOOLS_DIR = os.path.join(os.path.dirname(__file__), 'tools')
@@ -14,21 +16,72 @@ MEMINFO_PARSER = os.path.join(TOOLS_DIR, 'meminfo_parser.py')
 GFXINFO_PARSER = os.path.join(TOOLS_DIR, 'gfxinfo_parser.py')
 PANORAMA_ANALYZER = os.path.join(TOOLS_DIR, 'panorama_analyzer.py')
 DIFF_ANALYZER = os.path.join(TOOLS_DIR, 'diff_analyzer.py')
-DEMO_HPROF = os.path.join(os.path.dirname(__file__), 'demo', 'hprof_sample', 'heapdump-20250921-122155.hprof')
+DEMO_HPROF = os.path.join(os.path.dirname(__file__), 'demo', 'hprof_sample', 'heapdump_latest.hprof')
+DEMO_HPROF_GZ = os.path.join(os.path.dirname(__file__), 'demo', 'hprof_sample', 'heapdump_latest.hprof.gz')
 DEMO_SMAPS = os.path.join(os.path.dirname(__file__), 'demo', 'smaps_sample', 'smaps')
 DEMO_MEMINFO = os.path.join(os.path.dirname(__file__), 'demo', 'smaps_sample', 'meminfo.txt')
 
+
+def resolve_hprof_input(file_path):
+    if not file_path:
+        return None, None, None
+
+    if file_path.endswith('.gz'):
+        if not os.path.exists(file_path):
+            print(f"Error: HPROF package not found at '{file_path}'")
+            sys.exit(1)
+
+        fd, temp_path = tempfile.mkstemp(prefix='hprof_', suffix='.hprof')
+        os.close(fd)
+        try:
+            with gzip.open(file_path, 'rb') as source, open(temp_path, 'wb') as target:
+                while True:
+                    chunk = source.read(1024 * 1024)
+                    if not chunk:
+                        break
+                    if isinstance(chunk, str):
+                        chunk = chunk.encode('utf-8')
+                    target.write(chunk)
+        except OSError as error:
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+            print(f"Error: failed to extract HPROF package '{file_path}': {error}")
+            sys.exit(1)
+
+        print(f"--- Decompressed HPROF package: {file_path} ---")
+        sidecar = f"{os.path.splitext(os.path.basename(temp_path))[0]}_analysis.txt"
+        return temp_path, temp_path, sidecar
+
+    return file_path, None, None
+
+
+def cleanup_temp_hprof(temp_path, sidecar_path=None, remove_sidecar=False):
+    if remove_sidecar and sidecar_path and os.path.exists(sidecar_path):
+        os.remove(sidecar_path)
+    if temp_path and os.path.exists(temp_path):
+        os.remove(temp_path)
+
+
+def default_demo_hprof_path():
+    if os.path.exists(DEMO_HPROF_GZ):
+        return DEMO_HPROF_GZ
+    return DEMO_HPROF
+
 def analyze_hprof(file_path, extra_args=None):
     """Calls the hprof parser script."""
-    if not os.path.exists(file_path):
+    resolved_hprof, temp_hprof, temp_sidecar = resolve_hprof_input(file_path)
+    if not resolved_hprof or not os.path.exists(resolved_hprof):
         print(f"Error: HPROF file not found at '{file_path}'")
         sys.exit(1)
 
     print(f"--- Analyzing HPROF file: {file_path} ---")
-    command = [sys.executable, HPROF_PARSER, '-f', file_path]
+    command = [sys.executable, HPROF_PARSER, '-f', resolved_hprof]
     if extra_args:
         command.extend(extra_args)
-    subprocess.run(command, check=True)
+    try:
+        subprocess.run(command, check=True)
+    finally:
+        cleanup_temp_hprof(temp_hprof, temp_sidecar, remove_sidecar=False)
 
 def analyze_smaps(file_path):
     """Calls the smaps parser script."""
@@ -42,7 +95,8 @@ def analyze_smaps(file_path):
 
 def analyze_combined_legacy(hprof_file, smaps_file, markdown=False, output=None):
     """Calls the legacy combined analyzer for HPROF + smaps analysis."""
-    if not os.path.exists(hprof_file):
+    resolved_hprof, temp_hprof, temp_sidecar = resolve_hprof_input(hprof_file)
+    if not resolved_hprof or not os.path.exists(resolved_hprof):
         print(f"Error: HPROF file not found at '{hprof_file}'")
         sys.exit(1)
     if not os.path.exists(smaps_file):
@@ -50,12 +104,15 @@ def analyze_combined_legacy(hprof_file, smaps_file, markdown=False, output=None)
         sys.exit(1)
 
     print(f"--- Combined Analysis: HPROF + smaps ---")
-    command = [sys.executable, COMBINED_ANALYZER, '-H', hprof_file, '-S', smaps_file]
+    command = [sys.executable, COMBINED_ANALYZER, '-H', resolved_hprof, '-S', smaps_file]
     if markdown:
         command.append('--markdown')
     if output:
         command.extend(['-o', output])
-    subprocess.run(command, check=True)
+    try:
+        subprocess.run(command, check=True)
+    finally:
+        cleanup_temp_hprof(temp_hprof, temp_sidecar, remove_sidecar=True)
 
 
 def analyze_combined_modern(hprof_file=None, smaps_file=None, meminfo_file=None, pid=None,
@@ -65,12 +122,15 @@ def analyze_combined_modern(hprof_file=None, smaps_file=None, meminfo_file=None,
         if pid:
             print("Error: --demo cannot be used together with -p/--pid")
             sys.exit(1)
-        hprof_file = hprof_file or DEMO_HPROF
+        hprof_file = hprof_file or default_demo_hprof_path()
         smaps_file = smaps_file or DEMO_SMAPS
         meminfo_file = meminfo_file or DEMO_MEMINFO
         print("--- Using bundled demo dataset ---")
 
-    if hprof_file and not os.path.exists(hprof_file):
+    resolved_hprof, temp_hprof, temp_sidecar = (None, None, None)
+    if hprof_file:
+        resolved_hprof, temp_hprof, temp_sidecar = resolve_hprof_input(hprof_file)
+    if hprof_file and (not resolved_hprof or not os.path.exists(resolved_hprof)):
         print(f"Error: HPROF file not found at '{hprof_file}'")
         sys.exit(1)
     if smaps_file and not os.path.exists(smaps_file):
@@ -85,8 +145,8 @@ def analyze_combined_modern(hprof_file=None, smaps_file=None, meminfo_file=None,
 
     print("--- Enhanced Combined Analysis (meminfo-aware) ---")
     command = [sys.executable, MEMORY_ANALYZER]
-    if hprof_file:
-        command.extend(['--hprof', hprof_file])
+    if resolved_hprof:
+        command.extend(['--hprof', resolved_hprof])
     if smaps_file:
         command.extend(['--smaps', smaps_file])
     if meminfo_file:
@@ -98,7 +158,10 @@ def analyze_combined_modern(hprof_file=None, smaps_file=None, meminfo_file=None,
     if json_output:
         command.extend(['--json-output', json_output])
 
-    subprocess.run(command, check=True)
+    try:
+        subprocess.run(command, check=True)
+    finally:
+        cleanup_temp_hprof(temp_hprof, temp_sidecar, remove_sidecar=True)
 
 
 def live_dump(package=None, list_apps=False, output_dir='.', skip_hprof=False, analyze=True):
@@ -220,7 +283,7 @@ def main():
   python3 analyze.py live --package com.example.app --skip-hprof  # 快速模式
 
   # 分析本地文件
-  python3 analyze.py hprof demo/hprof_sample/heapdump.hprof
+  python3 analyze.py hprof demo/hprof_sample/heapdump_latest.hprof
   python3 analyze.py smaps demo/smaps_sample/smaps
   python3 analyze.py meminfo dump/meminfo.txt
   python3 analyze.py gfxinfo dump/gfxinfo.txt
@@ -237,7 +300,7 @@ def main():
   python3 analyze.py combined -H demo/hprof.hprof -S demo/smaps.txt
 
   # 增强联合分析（支持 meminfo/mtrack）
-  python3 analyze.py combined --hprof demo/hprof_sample/heapdump-20250921-122155.hprof --smaps demo/smaps_sample/smaps --meminfo demo/smaps_sample/meminfo.txt --json-output report.json
+  python3 analyze.py combined --hprof demo/hprof_sample/heapdump_latest.hprof --smaps demo/smaps_sample/smaps --meminfo demo/smaps_sample/meminfo.txt --json-output report.json
   python3 analyze.py combined --demo --json-output demo_report.json
 """,
         formatter_class=argparse.RawTextHelpFormatter

@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/status_title"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvStatus"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:background="#F3F4F6"
+                android:padding="12dp"
+                android:text="Ready"
+                android:textSize="13sp" />
+
+            <Button
+                android:id="@+id/btnRunAll"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="0) One-click trigger all scenarios" />
+
+            <Button
+                android:id="@+id/btnJavaLeak"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="1) Java leak + collections" />
+
+            <Button
+                android:id="@+id/btnBitmaps"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="2) Bitmap duplicates + large bitmap" />
+
+            <Button
+                android:id="@+id/btnDirectBuffer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="3) DirectByteBuffer native pressure" />
+
+            <Button
+                android:id="@+id/btnNativeMalloc"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="4) JNI malloc/mmap native pressure" />
+
+            <Button
+                android:id="@+id/btnAshmem"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="5) Ashmem pressure" />
+
+            <Button
+                android:id="@+id/btnThreads"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="6) Thread stack pressure" />
+
+            <Button
+                android:id="@+id/btnWebView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="7) WebView native pressure" />
+
+            <Button
+                android:id="@+id/btnDumpHprof"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="Dump HPROF to app files" />
+
+            <Button
+                android:id="@+id/btnClearJava"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text="Clear Java objects/bitmaps/buffers" />
+
+            <Button
+                android:id="@+id/btnClearNative"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="Free JNI native + ashmem" />
+
+            <Button
+                android:id="@+id/btnClearThreads"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="Stop extra threads" />
+
+            <Button
+                android:id="@+id/btnClearAll"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="Clear ALL scenarios" />
+
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>

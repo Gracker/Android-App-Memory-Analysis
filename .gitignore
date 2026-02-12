@@ -1,7 +1,6 @@
 # Analysis results (keep sample data tracked)
 # *.txt
 # *.json
-demo/cyberui_foreground_2026-02-10_17-07-29_824MB_pid_2257.hprof
 
 # macOS
 .DS_Store
@@ -12,6 +11,14 @@ __pycache__/
 
 # Build artifacts
 /output/
+
+# Android demo generated artifacts
+demo/memory-lab/.gradle/
+demo/memory-lab/**/build/
+demo/memory-lab/app/.cxx/
+demo/memory-lab/local.properties
+demo/memory-lab/captures/
+demo/hprof_sample/heapdump_latest.hprof
 
 # Temporary trace files
 *.perfetto

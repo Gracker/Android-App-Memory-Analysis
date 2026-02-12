@@ -73,7 +73,7 @@ python3 analyze.py panorama -m meminfo.txt -g gfxinfo.txt -H app.hprof -S smaps.
 
 ```bash
 # Analyze Java heap (HPROF)
-python3 analyze.py hprof demo/hprof_sample/heapdump.hprof
+python3 analyze.py hprof demo/hprof_sample/heapdump_latest.hprof
 
 # Analyze native memory (smaps)
 python3 analyze.py smaps demo/smaps_sample/smaps
@@ -85,10 +85,10 @@ python3 analyze.py meminfo dump/meminfo.txt
 python3 analyze.py gfxinfo dump/gfxinfo.txt
 
 # Traditional combined analysis (HPROF + smaps)
-python3 analyze.py combined -H demo/hprof.hprof -S demo/smaps.txt
+python3 analyze.py combined -H demo/hprof_sample/heapdump_latest.hprof -S demo/smaps_sample/smaps
 
 # Enhanced combined analysis (meminfo-aware, mtrack included)
-python3 analyze.py combined --modern --hprof demo/hprof_sample/heapdump-20250921-122155.hprof --smaps demo/smaps_sample/smaps --meminfo demo/smaps_sample/meminfo.txt --json-output report.json
+python3 analyze.py combined --modern --hprof demo/hprof_sample/heapdump_latest.hprof --smaps demo/smaps_sample/smaps --meminfo demo/smaps_sample/meminfo.txt --json-output report.json
 
 # One-command demo shortcut (built-in hprof+smaps+meminfo)
 python3 analyze.py combined --demo --json-output demo_report.json
@@ -97,6 +97,7 @@ python3 analyze.py combined --demo --json-output demo_report.json
 Notes:
 - `combined` defaults to legacy mode (`combined_analyzer.py`) unless `--modern`, `--meminfo`, `--pid`, `--json-output`, or `--demo` is provided.
 - In modern mode with `-p/--pid`, the tool auto-collects `smaps` and tries to collect `dumpsys meminfo -d`.
+- The bundled demo HPROF is committed as `heapdump_latest.hprof.gz` to avoid large-file push limits. Extract once before running `.hprof` sample commands: `gzip -dk demo/hprof_sample/heapdump_latest.hprof.gz`.
 
 ## What Gets Analyzed?
 
@@ -165,8 +166,9 @@ Android-App-Memory-Analysis/
 │   ├── hprof_dumper.py     # HPROF dump utility
 │   └── adb                 # ADB binary (optional)
 ├── demo/
-│   ├── hprof_sample/       # Sample HPROF files
-│   └── smaps_sample/       # Sample smaps files
+│   ├── hprof_sample/       # Latest sample HPROF + analysis output
+│   ├── smaps_sample/       # Latest sample smaps/meminfo/showmap/gfxinfo + reports
+│   └── memory-lab/         # Demo APK project used to regenerate sample datasets
 ├── docs/
 │   ├── en/                 # English documentation
 │   └── zh/                 # Chinese documentation
@@ -184,8 +186,9 @@ For detailed guides on interpreting analysis results:
 
 - [Chinese Documentation](./docs/zh/)
   - [分析结果解读指南](./docs/zh/analysis_results_interpretation_guide.md)
-  - [meminfo 解读](./docs/zh/meminfo_interpretation_guide.md)
-  - [smaps 解读](./docs/zh/smaps_interpretation_guide.md)
+- [meminfo 解读](./docs/zh/meminfo_interpretation_guide.md)
+- [smaps 解读](./docs/zh/smaps_interpretation_guide.md)
+- [Demo APK case study (Chinese)](./docs/zh/memory_lab_demo_case_study.md)
 
 ## Data Sources
 

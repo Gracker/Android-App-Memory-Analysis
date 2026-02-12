@@ -73,7 +73,7 @@ python3 analyze.py panorama -m meminfo.txt -g gfxinfo.txt -H app.hprof -S smaps.
 
 ```bash
 # 分析 Java 堆（HPROF）
-python3 analyze.py hprof demo/hprof_sample/heapdump.hprof
+python3 analyze.py hprof demo/hprof_sample/heapdump_latest.hprof
 
 # 分析 Native 内存（smaps）
 python3 analyze.py smaps demo/smaps_sample/smaps
@@ -85,10 +85,10 @@ python3 analyze.py meminfo dump/meminfo.txt
 python3 analyze.py gfxinfo dump/gfxinfo.txt
 
 # 传统联合分析（HPROF + smaps）
-python3 analyze.py combined -H demo/hprof.hprof -S demo/smaps.txt
+python3 analyze.py combined -H demo/hprof_sample/heapdump_latest.hprof -S demo/smaps_sample/smaps
 
 # 增强联合分析（支持 meminfo 口径，包含 mtrack）
-python3 analyze.py combined --modern --hprof demo/hprof_sample/heapdump-20250921-122155.hprof --smaps demo/smaps_sample/smaps --meminfo demo/smaps_sample/meminfo.txt --json-output report.json
+python3 analyze.py combined --modern --hprof demo/hprof_sample/heapdump_latest.hprof --smaps demo/smaps_sample/smaps --meminfo demo/smaps_sample/meminfo.txt --json-output report.json
 
 # 一键运行内置 demo（自动使用 hprof+smaps+meminfo）
 python3 analyze.py combined --demo --json-output demo_report.json
@@ -97,6 +97,7 @@ python3 analyze.py combined --demo --json-output demo_report.json
 说明：
 - `combined` 默认是传统模式（`combined_analyzer.py`）；当提供 `--modern`、`--meminfo`、`--pid`、`--json-output` 或 `--demo` 时，自动切换增强模式。
 - 增强模式下使用 `-p/--pid` 会自动抓取 `smaps`，并尝试抓取 `dumpsys meminfo -d`。
+- 为规避仓库单文件限制，示例 HPROF 以 `heapdump_latest.hprof.gz` 提交。首次使用示例命令前先解压一次：`gzip -dk demo/hprof_sample/heapdump_latest.hprof.gz`。
 
 ## 分析内容
 
@@ -165,8 +166,9 @@ Android-App-Memory-Analysis/
 │   ├── hprof_dumper.py     # HPROF Dump 工具
 │   └── adb                 # ADB 二进制文件（可选）
 ├── demo/
-│   ├── hprof_sample/       # 示例 HPROF 文件
-│   └── smaps_sample/       # 示例 smaps 文件
+│   ├── hprof_sample/       # 最新示例 HPROF 与分析结果
+│   ├── smaps_sample/       # 最新示例 smaps/meminfo/showmap/gfxinfo 与报告
+│   └── memory-lab/         # 用于回灌最新样本数据的 Demo APK 工程
 ├── docs/
 │   ├── en/                 # 英文文档
 │   └── zh/                 # 中文文档
@@ -178,9 +180,10 @@ Android-App-Memory-Analysis/
 详细的分析结果解读指南：
 
 - [中文文档](./docs/zh/)
-  - [分析结果解读指南](./docs/zh/analysis_results_interpretation_guide.md)
-  - [meminfo 解读](./docs/zh/meminfo_interpretation_guide.md)
-  - [smaps 解读](./docs/zh/smaps_interpretation_guide.md)
+- [分析结果解读指南](./docs/zh/analysis_results_interpretation_guide.md)
+- [meminfo 解读](./docs/zh/meminfo_interpretation_guide.md)
+- [smaps 解读](./docs/zh/smaps_interpretation_guide.md)
+- [Demo APK 实战案例](./docs/zh/memory_lab_demo_case_study.md)
 
 - [英文文档](./docs/en/)
   - [Analysis Results Guide](./docs/en/analysis_results_interpretation_guide.md)

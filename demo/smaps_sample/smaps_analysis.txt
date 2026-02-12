@@ -1,0 +1,252 @@
+
+========================================
+Android App Memory Analysis Report
+Generated: 2026-02-12 11:29:56
+Script Version: Universal Android Support
+========================================
+
+内存概览 / Memory Overview:
+总内存使用: 282.36 MB
+总交换内存: 0.16 MB
+
+Unknown (未知内存类型) : 68.485 MB
+	PSS: 68.485 MB
+		 : 61456 kB
+		[anon:partition_alloc] : 5752 kB
+		[anon:.bss] : 772 kB
+		[anon:linker_alloc] : 197 kB
+		[anon:bionic_alloc_lob] : 116 kB
+		[anon:bionic_alloc_small_objects] : 96 kB
+		[anon:tls-mmap-allocator] : 32 kB
+		[anon:System property context nodes] : 29 kB
+		[anon:cfi shadow] : 18 kB
+		[anon:atexit handlers] : 9 kB
+	SwapPSS: 0.001 MB
+		[anon:.bss] : 1 kB
+
+Dalvik (Dalvik虚拟机运行时内存) : 59.439 MB
+	PSS: 59.439 MB
+		[anon:dalvik-main space (region space)] : 48404 kB
+		[anon:dalvik-free list large object space] : 10460 kB
+		[anon:dalvik-zygote space] : 543 kB
+		[anon:dalvik-non moving space] : 32 kB
+	SwapPSS: 0.069 MB
+		[anon:dalvik-zygote space] : 54 kB
+		[anon:dalvik-free list large object space] : 15 kB
+
+Native (本地C/C++代码内存) : 80.860 MB
+	PSS: 80.860 MB
+		[anon:scudo:secondary] : 63660 kB
+		[anon:scudo:primary] : 17200 kB
+	SwapPSS: 0.025 MB
+		[anon:scudo:primary] : 25 kB
+
+Dalvik Other (Dalvik虚拟机额外内存) : 16.620 MB
+	PSS: 16.620 MB
+		/memfd:jit-cache (deleted) : 13676 kB
+		[anon:dalvik-LinearAlloc] : 1968 kB
+		[anon:dalvik-large object free list space allocation info map] : 452 kB
+		[anon:dalvik-region space live bitmap] : 268 kB
+		[anon:dalvik-card table] : 144 kB
+		[anon:dalvik-local ref table] : 48 kB
+		[anon:dalvik-live stack] : 36 kB
+		[anon:dalvik-indirect ref table] : 12 kB
+		[anon:dalvik-large marked objects] : 8 kB
+		[anon:dalvik-allocspace non moving space mark-bitmap 1] : 4 kB
+	SwapPSS: 0.000 MB
+
+Stack (线程栈内存) : 2.072 MB
+	PSS: 2.072 MB
+		[stack] : 108 kB
+		[anon:stack_and_tls:25207] : 84 kB
+		[anon:stack_and_tls:25324] : 60 kB
+		[anon:stack_and_tls:25362] : 48 kB
+		[anon:stack_and_tls:25155] : 48 kB
+		[anon:stack_and_tls:25213] : 44 kB
+		[anon:stack_and_tls:25354] : 36 kB
+		[anon:stack_and_tls:25350] : 36 kB
+		[anon:stack_and_tls:25337] : 36 kB
+		[anon:stack_and_tls:25183] : 36 kB
+	SwapPSS: 0.000 MB
+
+Ashmem (匿名共享内存) : 0.526 MB
+	PSS: 0.526 MB
+		/dev/ashmem/shared_memory/350E355C629EF5E23C4ED91E9A0FC7D0 (deleted) : 128 kB
+		/dev/ashmem/shared_memory/710A1BD0074572187C98B83D2B88FEE1 (deleted) : 122 kB
+		/dev/ashmem/shared_memory/079AD9FCE260662EA34C432574E8D3C7 (deleted) : 108 kB
+		/dev/ashmem/shared_memory/391B24E06354D69D618E1257C48FB9B1 (deleted) : 32 kB
+		/dev/ashmem/fontMap (deleted) : 20 kB
+		/dev/ashmem/shared_memory/2D5C5B48182B42F8ECCBBBA8B8337356 (deleted) : 10 kB
+		/dev/ashmem/memory-lab-ashmem-17 (deleted) : 4 kB
+		/dev/ashmem/memory-lab-ashmem-16 (deleted) : 4 kB
+		/dev/ashmem/memory-lab-ashmem-15 (deleted) : 4 kB
+		/dev/ashmem/memory-lab-ashmem-14 (deleted) : 4 kB
+	SwapPSS: 0.000 MB
+
+Gfx dev (图形设备内存) : 1.908 MB
+	PSS: 1.908 MB
+		/dev/kgsl-3d0 : 1908 kB
+	SwapPSS: 0.000 MB
+
+Other dev (其他设备内存) : 0.461 MB
+	PSS: 0.461 MB
+		/dev/binderfs/binder : 52 kB
+		/dev/__properties__/u:object_r:device_config_aconfig_flags_prop:s0 : 10 kB
+		/dev/binderfs/hwbinder : 8 kB
+		/dev/__properties__/u:object_r:init_service_status_private_prop:s0 : 8 kB
+		/dev/__properties__/u:object_r:bluetooth_config_prop:s0 : 8 kB
+		/dev/__properties__/u:object_r:system_prop:s0 : 7 kB
+		/dev/__properties__/u:object_r:wifi_log_prop:s0 : 4 kB
+		/dev/__properties__/u:object_r:vts_status_prop:s0 : 4 kB
+		/dev/__properties__/u:object_r:vts_config_prop:s0 : 4 kB
+		/dev/__properties__/u:object_r:vold_config_prop:s0 : 4 kB
+	SwapPSS: 0.000 MB
+
+.so mmap (动态链接库映射内存) : 3.552 MB
+	PSS: 3.552 MB
+		/vendor/lib64/hw/vulkan.adreno.so : 616 kB
+		/system/lib64/libhwui.so : 493 kB
+		/apex/com.android.art/lib64/libart.so : 392 kB
+		/vendor/lib64/egl/libGLESv2_adreno.so : 279 kB
+		/system/lib64/libiGraphicsLoader.so : 191 kB
+		/system/lib64/libgui.so : 122 kB
+		/system/lib64/libvulkan.so : 121 kB
+		/system/lib64/libandroid_runtime.so : 109 kB
+		/vendor/lib64/libllvm-glnext.so : 96 kB
+		/system/lib64/libmedia_jni.so : 61 kB
+	SwapPSS: 0.001 MB
+		/system/lib64/libagp.so : 1 kB
+
+.jar mmap (JAR文件映射内存) : 7.989 MB
+	PSS: 7.989 MB
+		/system/framework/framework.jar : 5320 kB
+		/system/framework/framework-magic.jar : 924 kB
+		/apex/com.android.art/javalib/core-oj.jar : 783 kB
+		/apex/com.android.i18n/javalib/core-icu4j.jar : 523 kB
+		/apex/com.android.tethering/javalib/framework-connectivity.jar : 103 kB
+		/apex/com.android.art/javalib/core-libart.jar : 63 kB
+		/system/framework/framework-nfc.jar : 58 kB
+		/apex/com.android.btservices/javalib/framework-bluetooth.jar : 40 kB
+		/apex/com.android.configinfrastructure/javalib/framework-configinfrastructure.jar : 24 kB
+		/system/framework/telephony-common.jar : 19 kB
+	SwapPSS: 0.000 MB
+
+.apk mmap (APK文件映射内存) : 17.940 MB
+	PSS: 17.940 MB
+		/data/app/~~42B35iciPYMFHNQpBg57YQ==/com.google.android.trichromelibrary_739009733-XMzARdgqY5fgZKsfADNkGQ==/base.apk : 15836 kB
+		/data/app/~~XNE2QZ2lqS8WS__es9ixGg==/com.google.android.webview-5Ld8E9w9HwmKlrRxq1kQkQ==/base.apk : 1675 kB
+		/data/app/~~-fUShJYlodIhQPdCFx7u6Q==/com.androidperformance.memorylab-2sB6VienT2XP9nnL4_ZFaw==/base.apk : 314 kB
+		/system/framework/framework-res.apk : 111 kB
+		/system/framework/framework-res-hnext.apk : 3 kB
+		/product_h/overlay/frameworkResOverlay.apk : 1 kB
+	SwapPSS: 0.000 MB
+
+.ttf mmap (字体文件映射内存) : 0.447 MB
+	PSS: 0.447 MB
+		/data/data/com.google.android.gms/files/fonts/opentype/Noto_COLR_Emoji_Compat-400-100_0-0_0.ttf : 236 kB
+		/system/fonts/Roboto-Regular.ttf : 176 kB
+		/system/fonts/HONORSansVFNormal.ttf : 35 kB
+	SwapPSS: 0.000 MB
+
+.dex mmap (DEX字节码文件映射内存) : 10.437 MB
+	PSS: 10.437 MB
+		[anon:dalvik-classes.dex extracted in memory from /data/app/~~-fUShJYlodIhQPdCFx7u6Q==/com.androidperformance.memorylab-2sB6VienT2XP9nnL4_ZFaw==/base.apk] : 9736 kB
+		[anon:dalvik-classes2.dex extracted in memory from /data/app/~~-fUShJYlodIhQPdCFx7u6Q==/com.androidperformance.memorylab-2sB6VienT2XP9nnL4_ZFaw==/base.apk] : 500 kB
+		/system/framework/boot-framework.vdex : 53 kB
+		/data/app/~~XNE2QZ2lqS8WS__es9ixGg==/com.google.android.webview-5Ld8E9w9HwmKlrRxq1kQkQ==/oat/arm64/base.vdex : 42 kB
+		/data/app/~~XNE2QZ2lqS8WS__es9ixGg==/com.google.android.webview-5Ld8E9w9HwmKlrRxq1kQkQ==/oat/arm64/base.odex : 40 kB
+		[anon:dalvik-classes3.dex extracted in memory from /data/app/~~-fUShJYlodIhQPdCFx7u6Q==/com.androidperformance.memorylab-2sB6VienT2XP9nnL4_ZFaw==/base.apk] : 32 kB
+		/system/framework/boot-framework-magic.vdex : 9 kB
+		/system/framework/boot-framework-adservices.vdex : 9 kB
+		/system/framework/boot.vdex : 8 kB
+		[anon:dalvik-classes4.dex extracted in memory from /data/app/~~-fUShJYlodIhQPdCFx7u6Q==/com.androidperformance.memorylab-2sB6VienT2XP9nnL4_ZFaw==/base.apk] : 4 kB
+	SwapPSS: 0.000 MB
+
+.oat mmap (编译后的安卓应用程序映射内存) : 0.048 MB
+	PSS: 0.048 MB
+		/system/framework/arm64/boot-framework.oat : 38 kB
+		/system/framework/arm64/boot.oat : 4 kB
+		/system/framework/arm64/boot-framework-magic.oat : 4 kB
+		/system/framework/arm64/boot-core-libart.oat : 2 kB
+	SwapPSS: 0.000 MB
+
+.art mmap (ART运行时文件映射内存) : 11.082 MB
+	PSS: 11.082 MB
+		[anon:dalvik-/system/framework/boot-framework.art] : 5530 kB
+		[anon:dalvik-/system/framework/boot-framework-adservices.art] : 2404 kB
+		[anon:dalvik-/system/framework/boot.art] : 1092 kB
+		[anon:dalvik-/system/framework/boot-telephony-common.art] : 551 kB
+		[anon:dalvik-/system/framework/boot-core-icu4j.art] : 485 kB
+		[anon:dalvik-/system/framework/boot-framework-magic.art] : 391 kB
+		[anon:dalvik-/system/framework/boot-voip-common.art] : 171 kB
+		[anon:dalvik-/system/framework/boot-core-libart.art] : 123 kB
+		[anon:dalvik-/system/framework/boot-ims-common.art] : 105 kB
+		[anon:dalvik-/system/framework/boot-okhttp.art] : 64 kB
+	SwapPSS: 0.066 MB
+		[anon:dalvik-/system/framework/boot-framework.art] : 28 kB
+		[anon:dalvik-/system/framework/boot-framework-adservices.art] : 25 kB
+		[anon:dalvik-/system/framework/boot-telephony-common.art] : 4 kB
+		[anon:dalvik-/system/framework/boot-core-icu4j.art] : 4 kB
+		[anon:dalvik-/system/framework/boot.art] : 3 kB
+		[anon:dalvik-/system/framework/boot-voip-common.art] : 2 kB
+
+Other mmap (其他文件映射内存) : 0.497 MB
+	PSS: 0.497 MB
+		/data/misc/shared_relro/libwebviewchromium64.relro : 265 kB
+		/data/data/com.androidperformance.memorylab/app_webview/BrowserMetrics/BrowserMetrics-698D4820-507A.pma (deleted) : 148 kB
+		/apex/com.android.i18n/etc/icu/icudt75l.dat : 31 kB
+		/data/data/com.androidperformance.memorylab/app_webview/Default/Shared Dictionary/db : 20 kB
+		/data/data/com.androidperformance.memorylab/app_webview/Default/Cookies : 16 kB
+		/apex/com.android.runtime/bin/linker64 : 13 kB
+		/data/data/com.androidperformance.memorylab/app_webview/Default/Web Data : 4 kB
+	SwapPSS: 0.000 MB
+
+
+==================================================
+内存分析洞察 / Memory Analysis Insights
+==================================================
+
+💡 优化建议 / Optimization Recommendations:
+  • 未分类内存较多: 68.5MB
+    建议: 可能存在未优化的内存分配，建议详细分析内存映射
+
+
+============================================================
+📚 深入学习指南 / Educational Resources
+============================================================
+
+为了更好地理解分析结果，建议阅读以下详细指南：
+For better understanding of analysis results, please refer to these detailed guides:
+
+🔍 基础内存分析 / Basic Memory Analysis:
+  • dumpsys meminfo 输出详解指南 / dumpsys meminfo Interpretation Guide:
+    ./meminfo_interpretation_guide.md
+    应用级内存使用分析，理解应用内存分布和使用状况
+
+  • /proc/meminfo 输出详解指南 / /proc/meminfo Interpretation Guide:
+    ./proc_meminfo_interpretation_guide.md
+    系统级内存使用分析，理解设备整体内存状况
+
+  • showmap 输出详解指南 / showmap Interpretation Guide:
+    ./showmap_interpretation_guide.md
+    进程级内存映射概览，快速识别内存使用模式
+
+🗺️ 详细内存分析 / Detailed Memory Analysis:
+  • smaps 输出详解指南 / smaps Interpretation Guide:
+    ./smaps_interpretation_guide.md
+    最详细的内存映射分析，深入理解每个内存区域
+
+📊 解析结果理解 / Understanding Analysis Results:
+  • 分析结果详解指南 / Analysis Results Interpretation Guide:
+    ./analysis_results_interpretation_guide.md
+    理解本工具输出的每一项数据和优化建议
+
+💡 推荐学习路径 / Recommended Learning Path:
+   1️⃣ 先阅读 meminfo 指南了解系统内存基础
+   2️⃣ 然后学习 showmap 指南掌握进程内存概览
+   3️⃣ 深入研究 smaps 指南理解详细内存映射
+   4️⃣ 最后参考分析结果指南优化内存使用
+
+
+分析完成 / Analysis completed: 2026-02-12 11:29:56
+工具版本 / Tool version: Universal Android Memory Parser

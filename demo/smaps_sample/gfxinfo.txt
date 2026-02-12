@@ -1,0 +1,81 @@
+Applications Graphics Acceleration Info:
+Uptime: 277763262 Realtime: 766707764
+
+** Graphics info for pid 20602 [com.androidperformance.memorylab] **
+
+Stats since: 277490439604718ns
+Total frames rendered: 103
+Janky frames: 50 (48.54%)
+Janky frames (legacy): 43 (41.75%)
+50th percentile: 5ms
+90th percentile: 24ms
+95th percentile: 32ms
+99th percentile: 150ms
+Number Missed Vsync: 48
+Number High input latency: 49
+Number Slow UI thread: 17
+Number Slow bitmap uploads: 0
+Number Slow issue draw commands: 3
+Number Frame deadline missed: 50
+Number Frame deadline missed (legacy): 41
+HISTOGRAM: 5ms=56 6ms=0 7ms=1 8ms=1 9ms=0 10ms=1 11ms=0 12ms=0 13ms=0 14ms=0 15ms=2 16ms=1 17ms=0 18ms=0 19ms=7 20ms=17 21ms=1 22ms=4 23ms=1 24ms=1 25ms=1 26ms=0 27ms=0 28ms=1 29ms=1 30ms=0 31ms=0 32ms=2 34ms=0 36ms=0 38ms=2 40ms=0 42ms=0 44ms=0 46ms=0 48ms=0 53ms=0 57ms=0 61ms=0 65ms=0 69ms=0 73ms=0 77ms=0 81ms=0 85ms=0 89ms=1 93ms=0 97ms=0 101ms=0 105ms=0 109ms=0 113ms=0 117ms=0 121ms=0 125ms=0 129ms=0 133ms=0 150ms=2 200ms=0 250ms=0 300ms=0 350ms=0 400ms=0 450ms=0 500ms=0 550ms=0 600ms=0 650ms=0 700ms=0 750ms=0 800ms=0 850ms=0 900ms=0 950ms=0 1000ms=0 1050ms=0 1100ms=0 1150ms=0 1200ms=0 1250ms=0 1300ms=0 1350ms=0 1400ms=0 1450ms=0 1500ms=0 1550ms=0 1600ms=0 1650ms=0 1700ms=0 1750ms=0 1800ms=0 1850ms=0 1900ms=0 1950ms=0 2000ms=0 2050ms=0 2100ms=0 2150ms=0 2200ms=0 2250ms=0 2300ms=0 2350ms=0 2400ms=0 2450ms=0 2500ms=0 2550ms=0 2600ms=0 2650ms=0 2700ms=0 2750ms=0 2800ms=0 2850ms=0 2900ms=0 2950ms=0 3000ms=0 3050ms=0 3100ms=0 3150ms=0 3200ms=0 3250ms=0 3300ms=0 3350ms=0 3400ms=0 3450ms=0 3500ms=0 3550ms=0 3600ms=0 3650ms=0 3700ms=0 3750ms=0 3800ms=0 3850ms=0 3900ms=0 3950ms=0 4000ms=0 4050ms=0 4100ms=0 4150ms=0 4200ms=0 4250ms=0 4300ms=0 4350ms=0 4400ms=0 4450ms=0 4500ms=0 4550ms=0 4600ms=0 4650ms=0 4700ms=0 4750ms=0 4800ms=0 4850ms=0 4900ms=0 4950ms=0
+50th gpu percentile: 3ms
+90th gpu percentile: 3ms
+95th gpu percentile: 4ms
+99th gpu percentile: 8ms
+GPU HISTOGRAM: 1ms=3 2ms=6 3ms=87 4ms=3 5ms=0 6ms=0 7ms=1 8ms=2 9ms=0 10ms=0 11ms=1 12ms=0 13ms=0 14ms=0 15ms=0 16ms=0 17ms=0 18ms=0 19ms=0 20ms=0 21ms=0 22ms=0 23ms=0 24ms=0 25ms=0 4950ms=0
+
+Pipeline=Skia (OpenGL)
+Memory policy:
+  Max surface area: 3304800
+  Max resource usage: 475.89MB (x144)
+  Background retention: 50% (altUiHidden = true)
+  GPU Context timeout: 10
+Contexts: 1 (stopped = 0)
+CPU Caches:
+  Glyph Cache: 131.22 KB (1 entry)
+  Glyph Count: 7 
+Total CPU memory usage:
+  134369 bytes, 131.22 KB (0.00 bytes is purgeable)
+GPU Caches:
+  Other:
+    Other: 32.05 KB (1 entry)
+  Image:
+    Texture: 170.62 KB (1 entry)
+  Scratch:
+    Texture: 4.00 MB (1 entry)
+    Buffer Object: 48.00 KB (1 entry)
+Total GPU memory usage:
+  4450992 bytes, 4.24 MB (170.62 KB is purgeable)
+
+GraphicBufferAllocator buffers:
+        Handle |        Size |     W (Stride) x H | Layers |   Format |      Usage | Requestor
+0xb400006dee680760 | 13500.00 KiB | 1224 (1280) x 2700 |      1 |        1 | 0x10000900 | VRI[MainActivity]#0(BLAST Consumer)0
+0xb400006dee680a30 | 13500.00 KiB | 1224 (1280) x 2700 |      1 |        1 | 0x10000900 | VRI[MainActivity]#0(BLAST Consumer)0
+0xb400006dee6822f0 | 13500.00 KiB | 1224 (1280) x 2700 |      1 |        1 | 0x10000900 | VRI[MainActivity]#0(BLAST Consumer)0
+0xb400006dee682380 | 13500.00 KiB | 1224 (1280) x 2700 |      1 |        1 | 0x10000900 | VRI[MainActivity]#0(BLAST Consumer)0
+Total allocated by GraphicBufferAllocator (estimate): 54000.00 KB
+Imported gralloc buffers:
++ name:VRI[MainActivity]#0(BLAST Consumer)0, id:1086, size:13608.00KiB, w/h:1224x2700, usage: 0x10000900, req fmt:1, fourcc/mod:875708993/0, dataspace: 0x8810000, compressed: true
+	planes: R/G/B/A:	 w/h:1224x2700, stride:5120 bytes, size:13934592
++ name:VRI[MainActivity]#0(BLAST Consumer)0, id:1085, size:13608.00KiB, w/h:1224x2700, usage: 0x10000900, req fmt:1, fourcc/mod:875708993/0, dataspace: 0x8810000, compressed: true
+	planes: R/G/B/A:	 w/h:1224x2700, stride:5120 bytes, size:13934592
++ name:VRI[MainActivity]#0(BLAST Consumer)0, id:1087, size:13608.00KiB, w/h:1224x2700, usage: 0x10000900, req fmt:1, fourcc/mod:875708993/0, dataspace: 0x8810000, compressed: true
+	planes: R/G/B/A:	 w/h:1224x2700, stride:5120 bytes, size:13934592
++ name:VRI[MainActivity]#0(BLAST Consumer)0, id:1084, size:13608.00KiB, w/h:1224x2700, usage: 0x10000900, req fmt:1, fourcc/mod:875708993/0, dataspace: 0x8810000, compressed: true
+	planes: R/G/B/A:	 w/h:1224x2700, stride:5120 bytes, size:13934592
+Total imported by gralloc: 54432.00KiB
+
+Profile data in ms:
+
+	com.androidperformance.memorylab/com.androidperformance.memorylab.MainActivity/android.view.ViewRootImpl@5a0cc92 (visibility=0)
+View hierarchy:
+
+  com.androidperformance.memorylab/com.androidperformance.memorylab.MainActivity/android.view.ViewRootImpl@5a0cc92
+  25 views, 78.10 kB of render nodes
+
+
+Total ViewRootImpl   : 1
+Total attached Views : 25
+Total RenderNode     : 78.10 kB (used) / 217.94 kB (capacity)
+

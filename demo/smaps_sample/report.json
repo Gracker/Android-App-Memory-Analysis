@@ -1,0 +1,132 @@
+{
+  "timestamp": "2026-02-12T11:29:46.998326",
+  "summary": {
+    "total_memory_mb": 275.75,
+    "total_memory_with_memtrack_mb": 329.87,
+    "java_heap_mb": 298.09,
+    "native_heap_mb": 78.96,
+    "dalvik_runtime_mb": 58.05,
+    "native_code_mb": 3.47,
+    "graphics_mb": 55.83,
+    "memtrack_mb": 53.97,
+    "java_heap_percentage": 90.4
+  },
+  "java_heap": {
+    "total_objects": 308537,
+    "total_arrays": 238869,
+    "string_objects": 130382,
+    "string_memory_mb": 2.49,
+    "top_classes": [
+      {
+        "class_name": "java.util.HashMap$Node[][]",
+        "instance_count": 1610,
+        "total_size_mb": 5.38,
+        "avg_size_kb": 3.42
+      },
+      {
+        "class_name": "java.lang.String",
+        "instance_count": 130259,
+        "total_size_mb": 2.48,
+        "avg_size_kb": 0.02
+      },
+      {
+        "class_name": "java.lang.Object[][]",
+        "instance_count": 27916,
+        "total_size_mb": 1.3,
+        "avg_size_kb": 0.05
+      },
+      {
+        "class_name": "java.util.HashMap$Node",
+        "instance_count": 47160,
+        "total_size_mb": 1.08,
+        "avg_size_kb": 0.02
+      },
+      {
+        "class_name": "android.widget.TextView",
+        "instance_count": 750,
+        "total_size_mb": 0.86,
+        "avg_size_kb": 1.18
+      },
+      {
+        "class_name": "sun.misc.Cleaner",
+        "instance_count": 6454,
+        "total_size_mb": 0.22,
+        "avg_size_kb": 0.04
+      },
+      {
+        "class_name": "android.icu.impl.locale.LSR",
+        "instance_count": 7824,
+        "total_size_mb": 0.21,
+        "avg_size_kb": 0.03
+      },
+      {
+        "class_name": "java.util.LinkedHashMap$Entry",
+        "instance_count": 6042,
+        "total_size_mb": 0.18,
+        "avg_size_kb": 0.03
+      },
+      {
+        "class_name": "android.graphics.Paint",
+        "instance_count": 1162,
+        "total_size_mb": 0.13,
+        "avg_size_kb": 0.11
+      },
+      {
+        "class_name": "java.util.concurrent.ConcurrentHashMap$Node",
+        "instance_count": 5338,
+        "total_size_mb": 0.12,
+        "avg_size_kb": 0.02
+      }
+    ]
+  },
+  "native_memory": {
+    "native_heap_mb": 78.96,
+    "native_heap_smaps_mb": 78.96,
+    "scudo_heap_mb": 0.0,
+    "native_heap_map_mb": 0.0,
+    "legacy_native_mb": 78.96,
+    "native_code_mb": 3.47,
+    "gfx_dev_mb": 1.86,
+    "graphics_mb": 55.83,
+    "gl_mb": 0.0,
+    "dmabuf_mb": 0.0,
+    "memtrack_mb": 53.97,
+    "memtrack_egl_mb": 53.16,
+    "memtrack_gl_mb": 0.81
+  },
+  "memory_breakdown": {
+    "Unknown (未知内存类型)": 66.88,
+    "Dalvik (Dalvik虚拟机运行时内存)": 58.05,
+    "Native (本地C/C++代码内存)": 78.96,
+    "Dalvik Other (Dalvik虚拟机额外内存)": 16.23,
+    "Stack (线程栈内存)": 2.02,
+    "Gfx dev (图形设备内存)": 1.86,
+    ".so mmap (动态链接库映射内存)": 3.47,
+    ".jar mmap (JAR文件映射内存)": 7.8,
+    ".apk mmap (APK文件映射内存)": 17.52,
+    ".dex mmap (DEX字节码文件映射内存)": 10.19,
+    ".art mmap (ART运行时文件映射内存)": 10.82
+  },
+  "recommendations": [
+    {
+      "type": "WARNING",
+      "category": "Java堆内存",
+      "message": "Java堆内存使用量较大 (298.1MB)，建议检查内存泄漏"
+    },
+    {
+      "type": "WARNING",
+      "category": "总内存使用",
+      "message": "应用总内存使用量过高 (329.9MB)，可能影响系统性能"
+    },
+    {
+      "type": "INFO",
+      "category": "Native内存",
+      "message": "Native堆内存使用较高 (79.0MB)，检查JNI代码和第三方库"
+    },
+    {
+      "type": "INFO",
+      "category": "图形内存",
+      "message": "图形内存使用较高 (55.8MB)，检查位图缓存和GPU内存使用"
+    }
+  ]
+}

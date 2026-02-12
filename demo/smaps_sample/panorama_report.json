@@ -1,0 +1,143 @@
+{
+  "timestamp": "2026-02-12T11:29:38.455349",
+  "package_name": "com.androidperformance.memorylab",
+  "pid": 20602,
+  "memory_overview": {
+    "total_pss_mb": 329.87,
+    "java_heap_mb": 68.08,
+    "native_heap_mb": 78.93,
+    "graphics_mb": 55.83,
+    "code_mb": 29.59,
+    "stack_mb": 2.02
+  },
+  "bitmap_correlation": {
+    "total_count": 0,
+    "total_mb": 0.0,
+    "malloced_count": 0,
+    "malloced_mb": 0.0,
+    "nonmalloced_count": 0,
+    "nonmalloced_mb": 0.0,
+    "gpu_cache_mb": 4.24,
+    "graphic_buffers_count": 4,
+    "graphic_buffers_mb": 52.73
+  },
+  "native_tracking": {
+    "native_heap_pss_mb": 78.93,
+    "tracked_mb": 0.0,
+    "tracked_percent": 0.0,
+    "untracked_mb": 78.93,
+    "untracked_percent": 100.0
+  },
+  "hprof_summary": {
+    "total_instances": 308537,
+    "total_arrays": 238869,
+    "total_memory_mb": 298.09,
+    "instance_size_mb": 7.92,
+    "array_size_mb": 290.17,
+    "bitmap_count": 22,
+    "bitmap_size_mb": 0.0,
+    "top_classes": [
+      {
+        "name": "java.util.HashMap$Node[][]",
+        "count": 1610,
+        "size_mb": 5.38
+      },
+      {
+        "name": "java.lang.String",
+        "count": 130259,
+        "size_mb": 2.48
+      },
+      {
+        "name": "java.lang.Object[][]",
+        "count": 27916,
+        "size_mb": 1.3
+      },
+      {
+        "name": "java.util.HashMap$Node",
+        "count": 47160,
+        "size_mb": 1.08
+      },
+      {
+        "name": "android.widget.TextView",
+        "count": 750,
+        "size_mb": 0.86
+      },
+      {
+        "name": "sun.misc.Cleaner",
+        "count": 6454,
+        "size_mb": 0.22
+      },
+      {
+        "name": "android.icu.impl.locale.LSR",
+        "count": 7824,
+        "size_mb": 0.21
+      },
+      {
+        "name": "java.util.LinkedHashMap$Entry",
+        "count": 6042,
+        "size_mb": 0.18
+      },
+      {
+        "name": "android.graphics.Paint",
+        "count": 1162,
+        "size_mb": 0.13
+      },
+      {
+        "name": "java.util.concurrent.ConcurrentHashMap$Node",
+        "count": 5338,
+        "size_mb": 0.12
+      }
+    ]
+  },
+  "system_memory": null,
+  "dmabuf_context": null,
+  "zram_swap": null,
+  "ui_resources": {
+    "views": 779,
+    "activities": 1,
+    "viewrootimpl": 1,
+    "webviews": 4
+  },
+  "frame_stats": {
+    "janky_percent": 48.54,
+    "p50_ms": 5,
+    "p90_ms": 24
+  },
+  "anomalies": [
+    {
+      "type": "UNTRACKED_NATIVE",
+      "severity": "HIGH",
+      "description": "78.9 MB 未追踪的 Native 内存",
+      "suggestion": "使用 malloc_debug 或 ASan 检测 Native 内存分配"
+    },
+    {
+      "type": "HIGH_JANK",
+      "severity": "MEDIUM",
+      "description": "卡顿率 48.5% 较高",
+      "suggestion": "使用 Perfetto 或 Systrace 分析卡顿原因"
+    },
+    {
+      "type": "TOO_MANY_VIEWS",
+      "severity": "MEDIUM",
+      "description": "View 数量 779 较多",
+      "suggestion": "考虑使用 RecyclerView、ViewStub 或简化布局"
+    }
+  ],
+  "recommendations": [
+    {
+      "priority": "HIGH",
+      "area": "UNTRACKED_NATIVE",
+      "suggestion": "使用 malloc_debug 或 ASan 检测 Native 内存分配"
+    },
+    {
+      "priority": "MEDIUM",
+      "area": "HIGH_JANK",
+      "suggestion": "使用 Perfetto 或 Systrace 分析卡顿原因"
+    },
+    {
+      "priority": "MEDIUM",
+      "area": "TOO_MANY_VIEWS",
+      "suggestion": "考虑使用 RecyclerView、ViewStub 或简化布局"
+    }
+  ]
+}
