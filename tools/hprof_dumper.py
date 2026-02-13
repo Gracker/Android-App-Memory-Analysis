@@ -6,13 +6,23 @@
 import argparse
 import os
 import re
-import subprocess
 import sys
 import time
 from datetime import datetime
 
+if __package__ in (None, ""):
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from tools.android_shell_utils import (
+    list_processes_with_adb,
+    resolve_pid_with_adb,
+    run_adb_command,
+    run_adb_shell,
+)
+
 class HprofDumper:
-    def __init__(self):
+    def __init__(self, adb_path='adb'):
+        self.adb = adb_path
         self.adb_available = self._check_adb()
 
     def _is_valid_package_name(self, package_name):
@@ -21,41 +31,16 @@ class HprofDumper:
 
     def _list_processes(self):
         """获取进程列表，返回 (pid, process_name) 元组列表"""
-        result = subprocess.run(['adb', 'shell', 'ps'], capture_output=True, text=True)
-        if result.returncode != 0:
-            return []
-
-        lines = [line.strip() for line in result.stdout.splitlines() if line.strip()]
-        if not lines:
-            return []
-
-        header = lines[0].split()
-        has_header = "PID" in header
-        start_index = 1 if has_header else 0
-        pid_index = header.index("PID") if has_header else 1
-        name_index = header.index("NAME") if has_header and "NAME" in header else -1
-
-        processes = []
-        for line in lines[start_index:]:
-            parts = line.split()
-            if len(parts) <= pid_index:
-                continue
-            pid_token = parts[pid_index]
-            if not pid_token.isdigit():
-                continue
-
-            process_name = parts[name_index] if name_index >= 0 and len(parts) > name_index else parts[-1]
-            processes.append((int(pid_token), process_name))
-        return processes
+        return [(pid, process_name) for pid, _, process_name in list_processes_with_adb(self.adb)]
         
     def _check_adb(self):
         """检查ADB是否可用"""
-        try:
-            result = subprocess.run(['adb', 'version'], capture_output=True, text=True)
-            return result.returncode == 0
-        except FileNotFoundError:
+        _, return_code, error = run_adb_command(self.adb, ['version'], timeout=10)
+        if return_code == 0:
+            return True
+        if "No such file" in error or "not found" in error:
             print("错误: ADB未找到，请确保Android SDK已安装并添加到PATH")
-            return False
+        return False
     
     def _get_package_pid(self, package_name):
         """根据包名获取进程PID"""
@@ -66,26 +51,22 @@ class HprofDumper:
             return None
             
         try:
-            processes = self._list_processes()
-            if not processes:
+            pid = resolve_pid_with_adb(self.adb, package_name)
+            if pid is None:
                 print(f"错误: 应用 {package_name} 未运行")
                 return None
 
-            # 优先精确匹配主进程，再匹配子进程
-            exact_match = [(pid, name) for pid, name in processes if name == package_name]
-            if exact_match:
-                pid = exact_match[0][0]
-                print(f"找到应用 {package_name} PID: {pid}")
-                return pid
+            process_name = None
+            for process_pid, name in self._list_processes():
+                if process_pid == pid:
+                    process_name = name
+                    break
 
-            child_match = [(pid, name) for pid, name in processes if name.startswith(f"{package_name}:")]
-            if child_match:
-                pid = child_match[0][0]
-                print(f"找到应用子进程 {child_match[0][1]} PID: {pid}")
-                return pid
-            
-            print(f"错误: 无法解析 {package_name} 的PID")
-            return None
+            if process_name and process_name.startswith(f"{package_name}:"):
+                print(f"找到应用子进程 {process_name} PID: {pid}")
+            else:
+                print(f"找到应用 {package_name} PID: {pid}")
+            return pid
             
         except Exception as e:
             print(f"获取PID时出错: {e}")
@@ -117,45 +98,44 @@ class HprofDumper:
         print(f"开始dump进程 {pid} 的内存文件...")
         
         try:
-            # 使用am dumpheap命令dump hprof
             if package_name:
-                dump_cmd = ['adb', 'shell', 'am', 'dumpheap', package_name, device_path]
+                dump_target = package_name
             else:
-                dump_cmd = ['adb', 'shell', 'am', 'dumpheap', str(pid), device_path]
-                
-            print(f"执行命令: {' '.join(dump_cmd)}")
-            result = subprocess.run(dump_cmd, capture_output=True, text=True)
-            
-            if result.returncode != 0:
-                print(f"dump命令执行失败: {result.stderr}")
+                dump_target = str(pid)
+
+            print(f"执行命令: {self.adb} shell am dumpheap {dump_target} {device_path}")
+            _, dump_code, dump_error = run_adb_shell(
+                self.adb,
+                f'am dumpheap {dump_target} {device_path}',
+                timeout=180,
+            )
+
+            if dump_code != 0:
+                print(f"dump命令执行失败: {dump_error or '无详细错误信息'}")
                 return None
             
-            # 等待文件生成
             print("等待hprof文件生成...")
             time.sleep(3)
             
-            # 检查文件是否存在
-            check_cmd = ['adb', 'shell', 'ls', '-la', device_path]
-            check_result = subprocess.run(check_cmd, capture_output=True, text=True)
-            
-            if check_result.returncode != 0:
+            _, check_code, _ = run_adb_shell(self.adb, f'ls -la {device_path}', timeout=30)
+            if check_code != 0:
                 print("hprof文件生成失败")
                 return None
                 
             print(f"hprof文件已生成: {device_path}")
             
-            # 拉取文件到本地
-            pull_cmd = ['adb', 'pull', device_path, local_path]
-            print(f"拉取文件到本地: {' '.join(pull_cmd)}")
-            pull_result = subprocess.run(pull_cmd, capture_output=True, text=True)
-            
-            if pull_result.returncode != 0:
-                print(f"拉取文件失败: {pull_result.stderr}")
+            print(f"拉取文件到本地: {self.adb} pull {device_path} {local_path}")
+            _, pull_code, pull_error = run_adb_command(
+                self.adb,
+                ['pull', device_path, local_path],
+                timeout=180,
+            )
+
+            if pull_code != 0:
+                print(f"拉取文件失败: {pull_error or '无详细错误信息'}")
                 return None
             
-            # 清理设备上的临时文件
-            cleanup_cmd = ['adb', 'shell', 'rm', device_path]
-            subprocess.run(cleanup_cmd, capture_output=True, text=True)
+            run_adb_shell(self.adb, f'rm {device_path}', timeout=30)
             
             print(f"hprof文件已保存到: {local_path}")
             return local_path

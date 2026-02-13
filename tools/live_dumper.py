@@ -21,6 +21,11 @@ import threading
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+if __package__ in (None, ""):
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from tools.android_shell_utils import parse_ps_processes, read_smaps_with_shell, resolve_pid_with_shell
+
 
 class LiveDumper:
     """一键内存数据采集器"""
@@ -90,26 +95,7 @@ class LiveDumper:
 
     def get_pid(self, package_name):
         """获取应用 PID"""
-        # 方法1: pidof
-        output, ret = self._adb_shell(f'pidof {package_name}')
-        if ret == 0 and output.strip():
-            try:
-                return int(output.strip().split()[0])
-            except:
-                pass
-
-        # 方法2: ps | grep
-        output, ret = self._adb_shell(f'ps -A | grep {package_name}')
-        if ret == 0 and output.strip():
-            for line in output.strip().split('\n'):
-                if package_name in line:
-                    parts = line.split()
-                    if len(parts) >= 2:
-                        try:
-                            return int(parts[1])
-                        except:
-                            continue
-        return None
+        return resolve_pid_with_shell(self._adb_shell, package_name)
 
     def list_running_apps(self):
         """列出正在运行的应用"""
@@ -118,56 +104,36 @@ class LiveDumper:
             return []
 
         output, ret = self._adb_shell('ps -A')
+        if ret != 0 or not output.strip():
+            output, ret = self._adb_shell('ps')
         if ret != 0:
             print("获取进程列表失败")
             return []
 
         apps = []
         system_apps = []
-        for line in output.strip().split('\n')[1:]:  # 跳过标题行
-            parts = line.split()
-            if len(parts) >= 9:
-                process_name = parts[-1]
-                pid = parts[1]
-                user = parts[0]
+        for pid, user, process_name in parse_ps_processes(output):
+            if process_name.startswith('[') or process_name.startswith('/'):
+                continue
+            if 'android.hardware.' in process_name:
+                continue
+            if process_name.startswith('.'):
+                continue
+            if '.' not in process_name:
+                continue
 
-                # 排除内核进程
-                if process_name.startswith('[') or process_name.startswith('/'):
-                    continue
+            is_user_app = user.startswith('u0_a') or user.startswith('u10_a')
+            if is_user_app:
+                apps.append((pid, process_name))
+            else:
+                system_apps.append((pid, process_name))
 
-                # 排除 HAL 服务
-                if 'android.hardware.' in process_name:
-                    continue
-
-                # 排除以 . 开头的进程
-                if process_name.startswith('.'):
-                    continue
-
-                # 必须包含 . 才是有效包名
-                if '.' not in process_name:
-                    continue
-
-                try:
-                    pid_int = int(pid)
-                except:
-                    continue
-
-                # 用户应用: u0_aXXX 或 u10_aXXX
-                is_user_app = user.startswith('u0_a') or user.startswith('u10_a')
-
-                if is_user_app:
-                    apps.append((pid_int, process_name))
-                else:
-                    # 系统应用 (com.android.*, com.google.*)
-                    system_apps.append((pid_int, process_name))
-
-        # 用户应用优先，然后是系统应用
         return sorted(apps, key=lambda x: x[1]) + sorted(system_apps, key=lambda x: x[1])
 
     def dump_smaps(self, pid, output_path):
         """Dump smaps"""
-        output, ret = self._adb_shell(f'cat /proc/{pid}/smaps', timeout=60)
-        if ret == 0 and output.strip():
+        output, _ = read_smaps_with_shell(self._adb_shell, pid, timeout=60)
+        if output:
             with open(output_path, 'w', encoding='utf-8') as f:
                 f.write(output)
             return True

@@ -11,6 +11,11 @@ import re
 from datetime import datetime
 import subprocess
 
+if __package__ in (None, ""):
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from tools.android_shell_utils import read_smaps_with_adb
+
 # 导入现有的解析器
 from hprof_parser import HprofParser
 import smaps_parser
@@ -735,17 +740,17 @@ def main():
         try:
             pid = int(args.pid)
             smaps_file = f"{pid}_smaps_file.txt"
-            cmd = ['adb', 'shell', 'su', 'root', 'cat', f'/proc/{pid}/smaps']
             print(f"获取进程 {pid} 的smaps数据...")
-            
-            result = subprocess.run(cmd, capture_output=True, text=True)
-            if result.returncode == 0:
-                with open(smaps_file, 'w') as f:
-                    f.write(result.stdout)
-                print(f"✓ smaps数据已保存到: {smaps_file}")
-            else:
-                print(f"✗ 获取smaps数据失败: {result.stderr}")
+
+            smaps_content, smaps_error = read_smaps_with_adb('adb', pid, timeout=60)
+
+            if not smaps_content:
+                print(f"✗ 获取smaps数据失败: {smaps_error or '无详细错误信息'}")
                 return
+
+            with open(smaps_file, 'w', encoding='utf-8') as f:
+                f.write(smaps_content)
+            print(f"✓ smaps数据已保存到: {smaps_file}")
 
             # 在PID模式下自动尝试获取meminfo（失败不阻断）
             auto_meminfo_file = f"{pid}_meminfo_file.txt"

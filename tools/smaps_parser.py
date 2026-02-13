@@ -28,9 +28,13 @@ import argparse
 import re
 from collections import Counter
 import os
-import subprocess
 import sys
 from datetime import datetime
+
+if __package__ in (None, ""):
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from tools.android_shell_utils import read_smaps_with_adb
 
 # Android version-adaptive memory heap type constants
 # Dynamically adjusts based on available features
@@ -820,34 +824,21 @@ def main():
                 pid = int(args.pid)
                 if pid > 0:
                     print(f"正在分析进程 PID: {pid}")
-                    
-                    # Universal ADB commands with enhanced compatibility
-                    if sys.platform == "win32":
-                        check_cmd = 'adb shell "su -c \'ls /proc/%d/smaps\' root 2>/dev/null"' % pid
-                        read_cmd = 'adb shell "su -c \'cat /proc/%d/smaps\' root"' % pid
-                    else:
-                        check_cmd = "adb shell 'su -c \"ls /proc/%d/smaps\" root 2>/dev/null'" % pid
-                        read_cmd = "adb shell 'su -c \"cat /proc/%d/smaps\" root'" % pid
-                    
-                    ret = os.system(check_cmd)
-                    if ret == 0:
+                    smaps_filename = f"{pid}_smaps_file.txt"
+                    smaps_content, _ = read_smaps_with_adb('adb', pid, timeout=60)
+
+                    if smaps_content:
                         print("正在读取内存映射数据...")
-                        
-                        smaps_filename = f"{pid}_smaps_file.txt"
-                        
                         try:
-                            with os.popen(read_cmd) as proc:
-                                with open(smaps_filename, 'w', encoding='utf-8') as new_file:
-                                    lines = proc.readlines()
-                                    for line in lines:
-                                        new_file.write(line)
-                            
+                            with open(smaps_filename, 'w', encoding='utf-8') as new_file:
+                                new_file.write(smaps_content)
+
                             if os.path.getsize(smaps_filename) > 0:
                                 parse_smaps(smaps_filename)
                                 print_result(args)
                             else:
-                                print(f"警告: smaps文件为空，可能权限不足")
-                                
+                                print("警告: smaps文件为空，可能权限不足")
+
                         except Exception as e:
                             print(f"读取smaps数据时出错: {e}")
                     else:
