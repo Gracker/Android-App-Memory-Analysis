@@ -30,9 +30,19 @@
 
 ### 环境要求
 
-- Python 3.6+
+- Python 3.8+
 - ADB（Android Debug Bridge）在 PATH 中或放在 `tools/` 目录
 - 已连接的 Android 设备并开启 USB 调试
+
+### Android 16 / API 36 兼容性说明
+
+- 工具支持 Android 4.0 到 Android 16+ 的输入格式，解析逻辑已覆盖较新的分配器与映射命名。
+- `smaps` 采集建议按以下兜底顺序执行，兼容更多设备：
+  1) `adb shell cat /proc/<pid>/smaps`
+  2) `adb shell su -c "cat /proc/<pid>/smaps"`
+  3) `adb shell su 0 cat /proc/<pid>/smaps`
+- PID 获取优先使用 `pidof`，失败时回退到解析 `ps -A`。
+- 若应用包含 Native `.so`，建议在 Android 15+/16 设备上验证 16 KB page size 兼容性。
 
 ### 安装
 
@@ -179,16 +189,18 @@ Android-App-Memory-Analysis/
 
 详细的分析结果解读指南：
 
-- [中文文档](./docs/zh/)
-- [分析结果解读指南](./docs/zh/analysis_results_interpretation_guide.md)
-- [meminfo 解读](./docs/zh/meminfo_interpretation_guide.md)
-- [smaps 解读](./docs/zh/smaps_interpretation_guide.md)
-- [Demo APK 实战案例](./docs/zh/memory_lab_demo_case_study.md)
+- [中文学习路径](./docs/zh/README.md)
+  - [分析结果解读指南](./docs/zh/analysis_results_interpretation_guide.md)
+  - [meminfo 解读](./docs/zh/meminfo_interpretation_guide.md)
+  - [smaps 解读](./docs/zh/smaps_interpretation_guide.md)
+  - [教学实践手册](./docs/zh/teaching_playbook.md)
+  - [Demo APK 实战案例](./docs/zh/memory_lab_demo_case_study.md)
 
-- [英文文档](./docs/en/)
+- [英文学习路径](./docs/en/README.md)
   - [Analysis Results Guide](./docs/en/analysis_results_interpretation_guide.md)
   - [Meminfo Interpretation](./docs/en/meminfo_interpretation_guide.md)
   - [SMAPS Interpretation](./docs/en/smaps_interpretation_guide.md)
+  - [Teaching Playbook](./docs/en/teaching_playbook.md)
 
 ## 数据源说明
 

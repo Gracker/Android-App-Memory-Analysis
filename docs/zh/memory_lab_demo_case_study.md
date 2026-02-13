@@ -3,7 +3,7 @@
 > 配套仓库：`Android-App-Memory-Analysis`  
 > 配套 Demo：`demo/memory-lab`
 
-![封面图：问题现象与证据链](TODO)
+> 封面建议：问题现象、采集命令、结论三段式排版。
 
 ## 1. 问题为什么难
 
@@ -37,7 +37,7 @@ Android 内存问题最难的点，不是“看不到数据”，而是“数据
 
 实现入口：`demo/memory-lab/app/src/main/java/com/androidperformance/memorylab/MainActivity.java`。
 
-![图1：场景触发页面](TODO)
+> 图示建议：场景触发页（可放 MainActivity 按钮分组截图）。
 
 ## 3. 一套可落地的采集流程
 
@@ -82,7 +82,7 @@ python3 analyze.py combined --modern \
   --json-output "$OUT/report.json"
 ```
 
-![图2：panorama 输出示例](TODO)
+> 图示建议：panorama 输出中的“内存概览 + 异常列表”区域。
 
 ## 4. 一次真实跑数（示例）
 
@@ -170,7 +170,7 @@ Combined 分析同时给出：
 - HPROF 前 3 条关键持有链
 - 修复动作与复验结果
 
-![图3：团队复盘模板](TODO)
+> 图示建议：团队复盘模板（触发步骤 / 关键指标 / 复验结果）。
 
 ## 9. 总结
 

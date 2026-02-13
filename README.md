@@ -30,9 +30,19 @@ A comprehensive toolkit for Android application memory analysis, featuring **one
 
 ### Prerequisites
 
-- Python 3.6+
+- Python 3.8+
 - ADB (Android Debug Bridge) in your PATH or in `tools/` folder
 - Connected Android device with USB debugging enabled
+
+### Android 16 / API 36 Compatibility Notes
+
+- The toolkit supports Android 4.0 through Android 16+ input formats; parsing logic includes newer allocator and mapping names.
+- For `smaps` collection, use fallback order for better device compatibility:
+  1) `adb shell cat /proc/<pid>/smaps`
+  2) `adb shell su -c "cat /proc/<pid>/smaps"`
+  3) `adb shell su 0 cat /proc/<pid>/smaps`
+- `pidof` is preferred for PID lookup, and `ps -A` parsing is used as fallback.
+- If your app ships native `.so` binaries, validate 16 KB page-size compatibility for Android 15+/16 devices.
 
 ### Installation
 
@@ -179,16 +189,18 @@ Android-App-Memory-Analysis/
 
 For detailed guides on interpreting analysis results:
 
-- [English Documentation](./docs/en/)
+- [English Learning Path](./docs/en/README.md)
   - [Analysis Results Guide](./docs/en/analysis_results_interpretation_guide.md)
   - [Meminfo Interpretation](./docs/en/meminfo_interpretation_guide.md)
   - [SMAPS Interpretation](./docs/en/smaps_interpretation_guide.md)
+  - [Teaching Playbook](./docs/en/teaching_playbook.md)
 
-- [Chinese Documentation](./docs/zh/)
+- [Chinese Learning Path](./docs/zh/README.md)
   - [分析结果解读指南](./docs/zh/analysis_results_interpretation_guide.md)
-- [meminfo 解读](./docs/zh/meminfo_interpretation_guide.md)
-- [smaps 解读](./docs/zh/smaps_interpretation_guide.md)
-- [Demo APK case study (Chinese)](./docs/zh/memory_lab_demo_case_study.md)
+  - [meminfo 解读](./docs/zh/meminfo_interpretation_guide.md)
+  - [smaps 解读](./docs/zh/smaps_interpretation_guide.md)
+  - [教学实践手册](./docs/zh/teaching_playbook.md)
+  - [Demo APK case study (Chinese)](./docs/zh/memory_lab_demo_case_study.md)
 
 ## Data Sources
 

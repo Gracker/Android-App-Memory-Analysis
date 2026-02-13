@@ -87,11 +87,13 @@ PID=$(adb shell pidof $PKG)
 mkdir -p "$OUT"
 ```
 
+If `adb root` is unavailable (common on user builds), keep the same flow but skip `adb root` and prefer fallback collection where `smaps` may be unavailable.
+
 Capture all primary artifacts:
 
 ```bash
 adb shell showmap $PID > "$OUT/showmap.txt"
-adb shell su -c "cat /proc/$PID/smaps" > "$OUT/smaps.txt"
+adb shell "cat /proc/$PID/smaps" > "$OUT/smaps.txt" || adb shell "su -c 'cat /proc/$PID/smaps'" > "$OUT/smaps.txt" || adb shell "su 0 cat /proc/$PID/smaps" > "$OUT/smaps.txt"
 adb shell dumpsys meminfo -d $PKG > "$OUT/meminfo.txt"
 adb shell dumpsys gfxinfo $PKG > "$OUT/gfxinfo.txt"
 adb shell am dumpheap $PKG $REMOTE_HPROF

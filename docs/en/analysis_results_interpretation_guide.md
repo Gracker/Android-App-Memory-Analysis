@@ -1071,124 +1071,14 @@ for (int i = 0; i < 1000; i++) {
 
 ## 💡 Summary and Best Practices
 
-### Standardized Analysis Process
+This guide focuses on how to interpret analysis outputs.
 
-#### 1. Basic Analysis
-```bash
-# One-click dump (recommended)
-python3 analyze.py live --package <package>
+For standardized team execution, report templates, and Android 16-compatible teaching workflow, use:
 
-# Or manually get data
-python3 tools/smaps_parser.py -p <pid>
-python3 tools/hprof_dumper.py -pkg <package>
-python3 tools/hprof_parser.py -f <hprof_file>
-```
+- [Teaching Playbook](./teaching_playbook.md)
 
-#### 2. Problem Identification
-- **Total Memory**: Whether exceeding reasonable range for app type
-- **Memory Distribution**: Java vs Native vs Graphics proportions
-- **Growth Trends**: Whether continuous memory growth exists
-- **Large Objects**: Identify abnormally large objects and classes
+Recommended usage:
 
-#### 3. In-Depth Analysis
-- **Memory Leaks**: Use LeakCanary + MAT
-- **Performance Impact**: Monitor GC frequency and duration
-- **User Experience**: Correlate memory usage with app responsiveness
-
-#### 4. Optimization Verification
-- **A/B Testing**: Compare memory performance before and after optimization
-- **Regression Testing**: Ensure optimization doesn't affect functionality
-- **Long-term Monitoring**: Establish continuous memory usage monitoring
-
-### Monitoring Automation
-
-#### Memory Monitoring Script
-```bash
-#!/bin/bash
-# memory_monitor.sh
-
-PACKAGE=$1
-INTERVAL=${2:-300}  # 5-minute interval
-LOG_DIR="memory_logs"
-
-mkdir -p $LOG_DIR
-
-while true; do
-    TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-    
-    # Get basic memory information
-    PID=$(adb shell "pidof $PACKAGE")
-    if [ -n "$PID" ]; then
-        # SMAPS analysis
-        python3 smaps_parser.py -p $PID -o "$LOG_DIR/smaps_$TIMESTAMP.txt"
-        
-        # Memory total recording
-        TOTAL_PSS=$(cat "$LOG_DIR/smaps_$TIMESTAMP.txt" | grep "Total Memory Usage" | grep -o '[0-9.]*')
-        echo "$TIMESTAMP,$TOTAL_PSS" >> "$LOG_DIR/memory_trend.csv"
-        
-        # Check memory growth
-        if [ -f "$LOG_DIR/memory_trend.csv" ]; then
-            LINES=$(wc -l < "$LOG_DIR/memory_trend.csv")
-            if [ $LINES -gt 1 ]; then
-                PREV_PSS=$(tail -2 "$LOG_DIR/memory_trend.csv" | head -1 | cut -d',' -f2)
-                GROWTH=$(echo "scale=2; ($TOTAL_PSS - $PREV_PSS) / $PREV_PSS * 100" | bc)
-                
-                if (( $(echo "$GROWTH > 10" | bc -l) )); then
-                    echo "⚠️  Memory growth warning: $GROWTH%"
-                    # Automatically trigger HPROF analysis
-                    python3 hprof_dumper.py -pkg $PACKAGE -o "$LOG_DIR/emergency_$TIMESTAMP/"
-                fi
-            fi
-        fi
-    else
-        echo "[$TIMESTAMP] Application not running: $PACKAGE"
-    fi
-    
-    sleep $INTERVAL
-done
-```
-
-### Team Collaboration Standards
-
-#### 1. Memory Analysis Report Template
-```markdown
-# Memory Analysis Report
-
-## Basic Information
-- App Version: v1.2.3
-- Android Version: 13
-- Device Model: Pixel 6
-- Analysis Time: 2025-01-12
-
-## Memory Usage Overview
-- Total Memory: XXX MB
-- Java Heap: XXX MB (XX%)
-- Native Memory: XXX MB (XX%)
-- Graphics Memory: XXX MB (XX%)
-
-## Issues Found
-1. [Issue Description]
-   - Impact Level: High/Medium/Low
-   - Root Cause: [Analysis Result]
-   - Proposed Solution: [Solution]
-
-## Optimization Recommendations
-1. [Specific Recommendation]
-   - Expected Benefit: [Memory Savings]
-   - Implementation Difficulty: High/Medium/Low
-   - Priority: High/Medium/Low
-
-## Attachments
-- SMAPS Analysis: [File Link]
-- HPROF Analysis: [File Link]
-- Monitoring Data: [Chart Link]
-```
-
-#### 2. Code Review Checklist
-- [ ] Are there possible memory leak risks
-- [ ] Are large objects released promptly
-- [ ] Is collection usage reasonable
-- [ ] Are there unnecessary object creations
-- [ ] Do caching strategies have boundaries
-
-Through systematic analysis methods and standardized processes, Android application memory issues can be effectively identified and resolved, improving application performance and user experience.
+1. Use this document for output interpretation and diagnosis logic.
+2. Use `teaching_playbook.md` for workshop flow, monitoring script baseline, and review checklists.
+3. Keep baseline and verification runs on the same capture strategy to avoid data drift.

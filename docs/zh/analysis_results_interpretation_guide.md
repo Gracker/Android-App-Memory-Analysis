@@ -1079,124 +1079,14 @@ for (int i = 0; i < 1000; i++) {
 
 ## 💡 总结和最佳实践
 
-### 分析流程标准化
+本指南聚焦于分析结果的解读与诊断逻辑。
 
-#### 1. 基础分析
-```bash
-# 一键 Dump（推荐）
-python3 analyze.py live --package <package>
+关于团队教学流程、报告模板和 Android 16 兼容检查，请统一使用：
 
-# 或手动获取数据
-python3 tools/smaps_parser.py -p <pid>
-python3 tools/hprof_dumper.py -pkg <package>
-python3 tools/hprof_parser.py -f <hprof_file>
-```
+- [教学实践手册](./teaching_playbook.md)
 
-#### 2. 问题识别
-- **内存总量**: 是否超出应用类型的合理范围
-- **内存分布**: Java vs Native vs Graphics 比例
-- **增长趋势**: 是否有持续的内存增长
-- **大对象**: 识别异常大的对象和类
+推荐配合方式：
 
-#### 3. 深入分析
-- **内存泄漏**: 使用 LeakCanary + MAT
-- **性能影响**: 监控 GC 频率和耗时
-- **用户体验**: 关联内存使用和应用响应性
-
-#### 4. 优化验证
-- **A/B 测试**: 对比优化前后的内存表现
-- **回归测试**: 确保优化不影响功能
-- **长期监控**: 建立内存使用的持续监控
-
-### 监控自动化
-
-#### 内存监控脚本
-```bash
-#!/bin/bash
-# memory_monitor.sh
-
-PACKAGE=$1
-INTERVAL=${2:-300}  # 5分钟间隔
-LOG_DIR="memory_logs"
-
-mkdir -p $LOG_DIR
-
-while true; do
-    TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-    
-    # 获取基础内存信息
-    PID=$(adb shell "pidof $PACKAGE")
-    if [ -n "$PID" ]; then
-        # SMAPS 分析
-        python3 smaps_parser.py -p $PID -o "$LOG_DIR/smaps_$TIMESTAMP.txt"
-        
-        # 内存总量记录
-        TOTAL_PSS=$(cat "$LOG_DIR/smaps_$TIMESTAMP.txt" | grep "总内存使用" | grep -o '[0-9.]*')
-        echo "$TIMESTAMP,$TOTAL_PSS" >> "$LOG_DIR/memory_trend.csv"
-        
-        # 检查内存增长
-        if [ -f "$LOG_DIR/memory_trend.csv" ]; then
-            LINES=$(wc -l < "$LOG_DIR/memory_trend.csv")
-            if [ $LINES -gt 1 ]; then
-                PREV_PSS=$(tail -2 "$LOG_DIR/memory_trend.csv" | head -1 | cut -d',' -f2)
-                GROWTH=$(echo "scale=2; ($TOTAL_PSS - $PREV_PSS) / $PREV_PSS * 100" | bc)
-                
-                if (( $(echo "$GROWTH > 10" | bc -l) )); then
-                    echo "⚠️  内存增长警告: $GROWTH%"
-                    # 自动触发 HPROF 分析
-                    python3 hprof_dumper.py -pkg $PACKAGE -o "$LOG_DIR/emergency_$TIMESTAMP/"
-                fi
-            fi
-        fi
-    else
-        echo "[$TIMESTAMP] 应用未运行: $PACKAGE"
-    fi
-    
-    sleep $INTERVAL
-done
-```
-
-### 团队协作规范
-
-#### 1. 内存分析报告模板
-```markdown
-# 内存分析报告
-
-## 基础信息
-- 应用版本: v1.2.3
-- Android 版本: 13
-- 设备型号: Pixel 6
-- 分析时间: 2025-01-12
-
-## 内存使用概况
-- 总内存: XXX MB
-- Java 堆: XXX MB (XX%)
-- Native 内存: XXX MB (XX%)
-- 图形内存: XXX MB (XX%)
-
-## 发现的问题
-1. [问题描述]
-   - 影响程度: 高/中/低
-   - 根本原因: [分析结果]
-   - 建议方案: [解决方案]
-
-## 优化建议
-1. [具体建议]
-   - 预期收益: [内存节省量]
-   - 实施难度: 高/中/低
-   - 优先级: 高/中/低
-
-## 附件
-- SMAPS 分析: [文件链接]
-- HPROF 分析: [文件链接]
-- 监控数据: [图表链接]
-```
-
-#### 2. 代码审查检查点
-- [ ] 是否有可能的内存泄漏风险
-- [ ] 大对象是否及时释放
-- [ ] 集合使用是否合理
-- [ ] 是否有不必要的对象创建
-- [ ] 缓存策略是否有界限
-
-通过系统化的分析方法和规范化的流程，可以有效识别和解决 Android 应用的内存问题，提升应用性能和用户体验。
+1. 本文用于读懂输出、定位问题。
+2. `teaching_playbook.md` 用于培训执行流程、监控脚本基线和评审检查项。
+3. 基线与复验必须使用同一采集策略，避免口径漂移。
