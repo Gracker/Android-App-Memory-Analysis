@@ -17,6 +17,11 @@ import sys
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
+if __package__ in (None, ""):
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from tools.android_shell_utils import read_dmabuf_with_adb
+
 
 @dataclass
 class DmaBufEntry:
@@ -241,6 +246,13 @@ def parse_dmabuf_file(filepath: str) -> DmaBufData:
     return parse_dmabuf_bufinfo(content)
 
 
+def read_dmabuf_from_device(adb_path: str = 'adb') -> Tuple[Optional[str], str]:
+    output, error = read_dmabuf_with_adb(adb_path, timeout=30)
+    if output.strip():
+        return output, ""
+    return None, error or "无法获取 DMA-BUF 数据"
+
+
 def print_report(data: DmaBufData):
     """打印 DMA-BUF 分析报告"""
     print("\n" + "=" * 60)
@@ -291,7 +303,7 @@ def print_report(data: DmaBufData):
     print("\n" + "=" * 60)
 
 
-def to_json(data: DmaBufData) -> dict:
+def to_json(data: DmaBufData) -> dict[str, object]:
     """转换为 JSON 格式"""
     categories = {}
     for cat in data.get_categories():
@@ -327,11 +339,14 @@ def main():
         epilog="""
 示例:
   python3 dmabuf_parser.py -f dmabuf_debug.txt
+  python3 dmabuf_parser.py --device
   adb shell su 0 cat /sys/kernel/debug/dma_buf/bufinfo | python3 dmabuf_parser.py
         """,
         formatter_class=argparse.RawTextHelpFormatter
     )
     parser.add_argument('-f', '--file', help='DMA-BUF debug 文件路径')
+    parser.add_argument('--device', action='store_true', help='直接从连接设备读取 DMA-BUF debug 信息')
+    parser.add_argument('--adb', default='adb', help='adb 可执行文件路径（默认: adb）')
     parser.add_argument('--json', action='store_true', help='输出 JSON 格式')
 
     args = parser.parse_args()
@@ -341,11 +356,17 @@ def main():
             print(f"错误: 文件不存在: {args.file}")
             sys.exit(1)
         data = parse_dmabuf_file(args.file)
+    elif args.device:
+        content, error = read_dmabuf_from_device(args.adb)
+        if not content:
+            print(f"错误: 从设备读取 DMA-BUF 失败: {error}")
+            print("请确认设备已连接，并具有读取 /sys/kernel/debug/dma_buf/bufinfo 的权限")
+            sys.exit(1)
+        data = parse_dmabuf_bufinfo(content)
     else:
-        # 从 stdin 读取
         content = sys.stdin.read()
         if not content.strip():
-            print("错误: 请提供 -f 参数或通过管道输入数据")
+            print("错误: 请提供 -f 参数、--device，或通过管道输入数据")
             sys.exit(1)
         data = parse_dmabuf_bufinfo(content)
 

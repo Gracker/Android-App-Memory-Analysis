@@ -24,6 +24,11 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional, List
 
+if __package__ in (None, ""):
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from tools.android_shell_utils import run_adb_command
+
 # Perfetto 工具路径
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PERFETTO_TOOLS_DIR = os.path.join(SCRIPT_DIR, 'perfetto-mac-arm64')
@@ -146,16 +151,17 @@ def generate_config(config: PerfettoConfig) -> str:
     return "\n".join(lines)
 
 
-def run_adb(args: List[str], check=True) -> subprocess.CompletedProcess:
-    """执行 adb 命令"""
-    cmd = ['adb'] + args
-    return subprocess.run(cmd, capture_output=True, text=True, check=check)
+def run_adb(args: List[str], timeout: int = 60) -> tuple[str, int, str]:
+    return run_adb_command('adb', args, timeout=timeout)
 
 
 def check_device():
     """检查设备连接"""
-    result = run_adb(['devices'], check=False)
-    lines = result.stdout.strip().split('\n')
+    output, return_code, error = run_adb(['devices'], timeout=15)
+    if return_code != 0:
+        print(f"错误: adb devices 执行失败: {error or '无详细错误信息'}")
+        return False
+    lines = output.strip().split('\n')
     devices = [l for l in lines[1:] if l.strip() and 'device' in l]
     if not devices:
         print("错误: 没有检测到 Android 设备")
@@ -166,19 +172,16 @@ def check_device():
 
 def push_config(config_content: str, remote_path: str = '/data/local/tmp/perfetto_config.pbtxt') -> bool:
     """推送配置文件到设备"""
-    # 创建临时文件
     local_path = '/tmp/perfetto_config.pbtxt'
     with open(local_path, 'w') as f:
         f.write(config_content)
 
-    # 推送到设备
-    result = run_adb(['push', local_path, remote_path], check=False)
-    if result.returncode != 0:
-        print(f"错误: 推送配置文件失败: {result.stderr}")
+    _, return_code, error = run_adb(['push', local_path, remote_path], timeout=30)
+    if return_code != 0:
+        print(f"错误: 推送配置文件失败: {error or '无详细错误信息'}")
         return False
 
-    # 设置权限，确保 perfetto 可以读取
-    run_adb(['shell', 'chmod', '644', remote_path], check=False)
+    run_adb(['shell', f'chmod 644 {remote_path}'], timeout=15)
     return True
 
 
@@ -222,14 +225,11 @@ def start_trace(config: PerfettoConfig, output_path: str = '/data/misc/perfetto-
         cmd_str = f'{root_prefix}sh -c \'echo "{config_b64}" | base64 -d | perfetto -c - -o {output_path}\''
 
     print(f"  命令: {cmd_str}")
-    cmd = ['shell', cmd_str]
-    result = run_adb(cmd, check=False)
+    timeout = max(duration_sec + 60, 90)
+    stdout, return_code, stderr = run_adb(['shell', cmd_str], timeout=timeout)
+    output = stderr or stdout
 
-    # perfetto 输出在 stderr 中
-    output = result.stderr or result.stdout
-
-    if result.returncode != 0:
-        # 如果失败，尝试不使用 root
+    if return_code != 0:
         if use_root:
             print("尝试不使用 root...")
             return start_trace(config, output_path, use_root=False)
@@ -260,17 +260,14 @@ def stop_trace() -> bool:
     """停止 Perfetto 追踪"""
     print("正在停止 Perfetto 追踪...")
 
-    # 发送 SIGINT 信号给 perfetto 进程
-    result = run_adb(['shell', 'pkill', '-SIGINT', 'perfetto'], check=False)
+    run_adb(['shell', 'pkill -SIGINT perfetto'], timeout=15)
 
-    # 等待进程结束
     time.sleep(2)
 
-    # 检查是否还在运行
-    result = run_adb(['shell', 'pgrep', 'perfetto'], check=False)
-    if result.stdout.strip():
+    output, _, _ = run_adb(['shell', 'pgrep perfetto'], timeout=15)
+    if output.strip():
         print("警告: Perfetto 进程仍在运行，尝试强制停止...")
-        run_adb(['shell', 'pkill', '-9', 'perfetto'], check=False)
+        run_adb(['shell', 'pkill -9 perfetto'], timeout=15)
 
     print("追踪已停止")
     return True
@@ -284,10 +281,10 @@ def pull_trace(remote_path: str = '/data/local/tmp/trace.perfetto',
         local_path = f'trace_{timestamp}.perfetto'
 
     print(f"正在拉取追踪文件...")
-    result = run_adb(['pull', remote_path, local_path], check=False)
+    _, return_code, error = run_adb(['pull', remote_path, local_path], timeout=180)
 
-    if result.returncode != 0:
-        print(f"错误: 拉取追踪文件失败: {result.stderr}")
+    if return_code != 0:
+        print(f"错误: 拉取追踪文件失败: {error or '无详细错误信息'}")
         return None
 
     # 获取文件大小
