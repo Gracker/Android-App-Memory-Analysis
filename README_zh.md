@@ -36,13 +36,14 @@
 
 ### Android 16 / API 36 兼容性说明
 
-- 工具支持 Android 4.0 到 Android 16+ 的输入格式，解析逻辑已覆盖较新的分配器与映射命名。
-- `smaps` 采集建议按以下兜底顺序执行，兼容更多设备：
+- Demo APK 已升级到 `compileSdk = 36`、`targetSdk = 36`，并处理 Android 16 的 edge-to-edge 与 16 KB page size Native `.so` 对齐。
+- 工具支持 Android 4.0 到 Android 16+ 的输入格式，解析逻辑覆盖较新的分配器与映射命名。
+- `smaps` 采集按以下兜底顺序执行，兼容更多设备：
   1) `adb shell cat /proc/<pid>/smaps`
   2) `adb shell su -c "cat /proc/<pid>/smaps"`
   3) `adb shell su 0 cat /proc/<pid>/smaps`
 - PID 获取优先使用 `pidof`，失败时回退到解析 `ps -A`。
-- 若应用包含 Native `.so`，建议在 Android 15+/16 设备上验证 16 KB page size 兼容性。
+- Android 16 适配的完整 review、命令和证据链见 [Android 16 / API 36 适配 Review](./docs/zh/android_16_adaptation_review.md)。
 
 ### 安装
 
@@ -193,6 +194,7 @@ Android-App-Memory-Analysis/
   - [分析结果解读指南](./docs/zh/analysis_results_interpretation_guide.md)
   - [meminfo 解读](./docs/zh/meminfo_interpretation_guide.md)
   - [smaps 解读](./docs/zh/smaps_interpretation_guide.md)
+  - [Android 16 / API 36 适配 Review](./docs/zh/android_16_adaptation_review.md)
   - [教学实践手册](./docs/zh/teaching_playbook.md)
   - [Demo APK 实战案例](./docs/zh/memory_lab_demo_case_study.md)
 

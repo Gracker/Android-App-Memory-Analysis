@@ -36,13 +36,14 @@ A comprehensive toolkit for Android application memory analysis, featuring **one
 
 ### Android 16 / API 36 Compatibility Notes
 
+- The Demo APK now uses `compileSdk = 36` and `targetSdk = 36`, with Android 16 edge-to-edge handling and 16 KB page-size alignment for native `.so` output.
 - The toolkit supports Android 4.0 through Android 16+ input formats; parsing logic includes newer allocator and mapping names.
 - For `smaps` collection, use fallback order for better device compatibility:
   1) `adb shell cat /proc/<pid>/smaps`
   2) `adb shell su -c "cat /proc/<pid>/smaps"`
   3) `adb shell su 0 cat /proc/<pid>/smaps`
 - `pidof` is preferred for PID lookup, and `ps -A` parsing is used as fallback.
-- If your app ships native `.so` binaries, validate 16 KB page-size compatibility for Android 15+/16 devices.
+- See [Android 16 / API 36 Adaptation Review](./docs/en/android_16_adaptation_review.md) for the full build, runtime, and evidence checklist.
 
 ### Installation
 
@@ -193,6 +194,7 @@ For detailed guides on interpreting analysis results:
   - [Analysis Results Guide](./docs/en/analysis_results_interpretation_guide.md)
   - [Meminfo Interpretation](./docs/en/meminfo_interpretation_guide.md)
   - [SMAPS Interpretation](./docs/en/smaps_interpretation_guide.md)
+  - [Android 16 / API 36 Adaptation Review](./docs/en/android_16_adaptation_review.md)
   - [Teaching Playbook](./docs/en/teaching_playbook.md)
 
 - [Chinese Learning Path](./docs/zh/README.md)

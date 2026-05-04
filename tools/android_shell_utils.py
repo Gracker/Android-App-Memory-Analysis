@@ -72,6 +72,17 @@ def read_dmabuf_with_adb(adb_path, timeout=60):
     return read_first_successful_shell_output(adb_path, dmabuf_shell_commands(), timeout)
 
 
+def read_dmabuf_with_shell(shell_executor, timeout=60):
+    last_error = ""
+    for command in dmabuf_shell_commands():
+        output, return_code = shell_executor(command, timeout)
+        if return_code == 0 and output.strip():
+            return output, ""
+        if output.strip():
+            last_error = output.strip()
+    return "", last_error
+
+
 def parse_ps_processes(ps_output):
     processes = []
     for raw_line in ps_output.splitlines():

@@ -223,6 +223,7 @@ def analyze_gfxinfo(file_path):
 
 
 def analyze_panorama(dump_dir=None, meminfo=None, gfxinfo=None, hprof=None, smaps=None,
+                     proc_meminfo=None, dmabuf=None, zram_swap=None,
                      output_json=False, output_markdown=False, output_file=None):
     """Full panorama analysis with multiple data sources."""
     command = [sys.executable, PANORAMA_ANALYZER]
@@ -238,6 +239,12 @@ def analyze_panorama(dump_dir=None, meminfo=None, gfxinfo=None, hprof=None, smap
             command.extend(['-H', hprof])
         if smaps:
             command.extend(['-S', smaps])
+        if proc_meminfo:
+            command.extend(['-P', proc_meminfo])
+        if dmabuf:
+            command.extend(['-D', dmabuf])
+        if zram_swap:
+            command.extend(['-Z', zram_swap])
 
     if output_json:
         command.append('--json')
@@ -341,6 +348,9 @@ def main():
     panorama_parser.add_argument('-g', '--gfxinfo', help='gfxinfo 文件路径')
     panorama_parser.add_argument('-H', '--hprof', help='HPROF 文件路径')
     panorama_parser.add_argument('-S', '--smaps', help='smaps 文件路径')
+    panorama_parser.add_argument('-P', '--proc-meminfo', help='/proc/meminfo 文件路径')
+    panorama_parser.add_argument('-D', '--dmabuf', help='DMA-BUF debug 文件路径')
+    panorama_parser.add_argument('-Z', '--zram-swap', help='zRAM/Swap 数据文件路径')
     panorama_parser.add_argument('--json', action='store_true', help='输出 JSON 格式')
     panorama_parser.add_argument('--markdown', '-md', action='store_true', help='输出 Markdown 格式')
     panorama_parser.add_argument('-o', '--output', help='输出文件路径')
@@ -401,6 +411,9 @@ def main():
             gfxinfo=args.gfxinfo,
             hprof=args.hprof,
             smaps=args.smaps,
+            proc_meminfo=args.proc_meminfo,
+            dmabuf=args.dmabuf,
+            zram_swap=args.zram_swap,
             output_json=args.json,
             output_markdown=args.markdown,
             output_file=args.output

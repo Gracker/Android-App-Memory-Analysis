@@ -1,12 +1,17 @@
 package com.androidperformance.memorylab;
 
 import android.os.Bundle;
+import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -17,9 +22,11 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         setContentView(R.layout.activity_main);
 
         tvStatus = findViewById(R.id.tvStatus);
+        setupSystemBarInsets();
         setupActions();
         updateStatus("ready");
     }
@@ -95,6 +102,26 @@ public class MainActivity extends AppCompatActivity {
             controller.clearAll();
             updateStatus("cleared all scenarios");
         });
+    }
+
+    private void setupSystemBarInsets() {
+        View contentRoot = findViewById(R.id.contentRoot);
+        int baseLeft = contentRoot.getPaddingLeft();
+        int baseTop = contentRoot.getPaddingTop();
+        int baseRight = contentRoot.getPaddingRight();
+        int baseBottom = contentRoot.getPaddingBottom();
+
+        ViewCompat.setOnApplyWindowInsetsListener(contentRoot, (view, insets) -> {
+            Insets bars = insets.getInsets(
+                    WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout());
+            view.setPadding(
+                    baseLeft + bars.left,
+                    baseTop + bars.top,
+                    baseRight + bars.right,
+                    baseBottom + bars.bottom);
+            return insets;
+        });
+        ViewCompat.requestApplyInsets(contentRoot);
     }
 
     private void runAllScenariosOneClick() {

@@ -24,7 +24,12 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 if __package__ in (None, ""):
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from tools.android_shell_utils import parse_ps_processes, read_smaps_with_shell, resolve_pid_with_shell
+from tools.android_shell_utils import (
+    parse_ps_processes,
+    read_dmabuf_with_shell,
+    read_smaps_with_shell,
+    resolve_pid_with_shell,
+)
 
 
 class LiveDumper:
@@ -218,6 +223,15 @@ class LiveDumper:
         
         return bool(content.strip())
 
+    def dump_dmabuf(self, output_path):
+        """Dump DMA-BUF debugfs information when the device exposes it."""
+        output, _ = read_dmabuf_with_shell(self._adb_shell, timeout=60)
+        if output:
+            with open(output_path, 'w', encoding='utf-8') as f:
+                f.write(output)
+            return True
+        return False
+
     def dump_proc_meminfo(self, output_path):
         """Dump /proc/meminfo (系统内存信息)"""
         output, ret = self._adb_shell('cat /proc/meminfo')
@@ -291,6 +305,7 @@ class LiveDumper:
             'hprof': os.path.join(dump_dir, 'heap.hprof'),
             'proc_meminfo': os.path.join(dump_dir, 'proc_meminfo.txt'),
             'zram_swap': os.path.join(dump_dir, 'zram_swap.txt'),
+            'dmabuf': os.path.join(dump_dir, 'dmabuf_debug.txt'),
         }
 
         results = {}
@@ -298,55 +313,62 @@ class LiveDumper:
         print("=" * 50)
 
         # 先快速采集轻量数据（确保时间点接近）
-        print("\n[1/4] Dumping smaps...")
+        print("\n[1/7] Dumping smaps...")
         if self.dump_smaps(pid, files['smaps']):
             results['smaps'] = files['smaps']
             print(f"  -> {os.path.basename(files['smaps'])}")
         else:
             print("  -> 失败")
 
-        print("\n[2/4] Dumping meminfo...")
+        print("\n[2/7] Dumping meminfo...")
         if self.dump_meminfo(package_name, files['meminfo']):
             results['meminfo'] = files['meminfo']
             print(f"  -> {os.path.basename(files['meminfo'])}")
         else:
             print("  -> 失败")
 
-        print("\n[3/6] Dumping gfxinfo...")
+        print("\n[3/7] Dumping gfxinfo...")
         if self.dump_gfxinfo(package_name, files['gfxinfo']):
             results['gfxinfo'] = files['gfxinfo']
             print(f"  -> {os.path.basename(files['gfxinfo'])}")
         else:
             print("  -> 失败")
 
-        print("\n[4/6] Dumping /proc/meminfo (系统内存)...")
+        print("\n[4/7] Dumping /proc/meminfo (系统内存)...")
         if self.dump_proc_meminfo(files['proc_meminfo']):
             results['proc_meminfo'] = files['proc_meminfo']
             print(f"  -> {os.path.basename(files['proc_meminfo'])}")
         else:
             print("  -> 失败")
 
-        print("\n[5/6] Dumping zRAM/Swap...")
+        print("\n[5/7] Dumping zRAM/Swap...")
         if self.dump_zram_swap(files['zram_swap']):
             results['zram_swap'] = files['zram_swap']
             print(f"  -> {os.path.basename(files['zram_swap'])}")
         else:
             print("  -> 失败或无 zRAM")
 
+        print("\n[6/7] Dumping DMA-BUF...")
+        if self.dump_dmabuf(files['dmabuf']):
+            results['dmabuf'] = files['dmabuf']
+            print(f"  -> {os.path.basename(files['dmabuf'])}")
+        else:
+            print("  -> 失败或无权限")
+
         # hprof 最后 dump（耗时较长）
         if not skip_hprof:
-            print("\n[6/6] Dumping hprof (这可能需要较长时间)...")
+            print("\n[7/7] Dumping hprof (这可能需要较长时间)...")
             if self.dump_hprof(package_name, files['hprof']):
                 results['hprof'] = files['hprof']
                 print(f"  -> {os.path.basename(files['hprof'])}")
             else:
                 print("  -> 失败 (可能需要 debuggable 应用或 root 权限)")
         else:
-            print("\n[6/6] 跳过 hprof dump")
+            print("\n[7/7] 跳过 hprof dump")
 
         print("\n" + "=" * 50)
         print(f"采集完成! 文件保存在: {dump_dir}")
-        total_items = 6 if not skip_hprof else 5
+        total_items = 7 if not skip_hprof else 6
         print(f"成功: {len(results)}/{total_items}")
 
         # 保存元信息

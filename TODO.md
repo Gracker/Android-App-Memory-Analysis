@@ -8,6 +8,7 @@
 - [x] **SMAPS 分析**: Native 内存映射分析（支持 Android 4.0-16+）
 - [x] **Bitmap 关联**: Java Bitmap 对象与 Native 像素内存关联
 - [x] **Native 追踪**: 可追踪 vs 未追踪 Native 内存分析
+- [x] **Android 16 / API 36 Demo 适配**: compile/target SDK 36、edge-to-edge、16 KB page size Native 对齐
 
 ---
 
@@ -80,7 +81,7 @@ python3 analyze.py diff --before-meminfo m1.txt --after-meminfo m2.txt
 - [x] 创建 `tools/proc_meminfo_parser.py`
 - [x] 解析关键字段: MemTotal, MemFree, MemAvailable, Buffers, Cached, SwapTotal, SwapFree
 - [x] 计算内存压力指标: 可用内存比例、Swap 使用率
-- [ ] 在 live_dumper 中采集 `/proc/meminfo` (待完善)
+- [x] 在 live_dumper 中采集 `/proc/meminfo`
 - [x] 在全景报告中添加 "系统内存上下文" 部分
 
 **用法**:
@@ -101,7 +102,7 @@ python3 tools/panorama_analyzer.py -d ./dump -P proc_meminfo.txt
 - [x] 解析 DMA-BUF debugfs 输出格式
 - [x] 按类型分类统计: GPU、Display、Camera、Video、Audio
 - [x] 在全景报告中添加 "DMA-BUF 分析" 部分
-- [ ] 在 live_dumper 中采集 dmabuf_debug.txt (待完善)
+- [x] 在 live_dumper 中采集 dmabuf_debug.txt
 
 **用法**:
 ```bash
