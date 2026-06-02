@@ -48,7 +48,7 @@ A comprehensive toolkit for Android application memory analysis, featuring **one
 ### Installation
 
 ```bash
-git clone https://github.com/aspect-apps/Android-App-Memory-Analysis.git
+git clone https://github.com/Gracker/Android-App-Memory-Analysis.git
 cd Android-App-Memory-Analysis
 ```
 
