@@ -199,10 +199,28 @@ def live_dump(package=None, list_apps=False, output_dir='.', skip_hprof=False, a
         print(f"\n数据已保存到: {dump_dir}")
 
         if analyze:
+            process_status = read_live_dump_process_status(dump_dir)
+            if process_status == 'not_running':
+                print("进程未运行，已跳过 panorama 分析；请查看 exit_info.txt、memory_limiter_status.txt 和 meta.txt。")
+                return dump_dir
+
             # 使用全景分析器进行深度分析
             subprocess.run([sys.executable, PANORAMA_ANALYZER, '-d', dump_dir])
 
         return dump_dir
+    return None
+
+
+def read_live_dump_process_status(dump_dir):
+    """Read ProcessStatus from a live dump meta file, if present."""
+    meta_path = os.path.join(dump_dir, 'meta.txt')
+    if not os.path.exists(meta_path):
+        return None
+
+    with open(meta_path, 'r', encoding='utf-8') as f:
+        for line in f:
+            if line.startswith('ProcessStatus:'):
+                return line.split(':', 1)[1].strip()
     return None
 
 

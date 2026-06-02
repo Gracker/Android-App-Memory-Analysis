@@ -34,16 +34,18 @@
 - ADB（Android Debug Bridge）在 PATH 中或放在 `tools/` 目录
 - 已连接的 Android 设备并开启 USB 调试
 
-### Android 16 / API 36 兼容性说明
+### Android 17 / API 37 兼容性说明
 
-- Demo APK 已升级到 `compileSdk = 36`、`targetSdk = 36`，并处理 Android 16 的 edge-to-edge 与 16 KB page size Native `.so` 对齐。
-- 工具支持 Android 4.0 到 Android 16+ 的输入格式，解析逻辑覆盖较新的分配器与映射命名。
+- Demo APK 已升级到 `compileSdk = 37`、`targetSdk = 37`，并继续保留 Android 16 edge-to-edge 与 16 KB page size Native `.so` 对齐。
+- 工具支持 Android 4.0 到 Android 17+ 的输入格式，解析逻辑覆盖较新的分配器与映射命名。
+- Android 17 app memory limits 是 Android 17 设备上的 all-app 运行时行为。Live dump 现在会在依赖 PID 的采集前归档 `exit_info.txt`、`memory_limiter_status.txt`、package UID、进程列表、Android release/sdk、build fingerprint 和 page size。
 - `smaps` 采集按以下兜底顺序执行，兼容更多设备：
   1) `adb shell cat /proc/<pid>/smaps`
   2) `adb shell su -c "cat /proc/<pid>/smaps"`
   3) `adb shell su 0 cat /proc/<pid>/smaps`
 - PID 获取优先使用 `pidof`，失败时回退到解析 `ps -A`。
-- Android 16 适配的完整 review、命令和证据链见 [Android 16 / API 36 适配 Review](./docs/zh/android_16_adaptation_review.md)。
+- Android 17 构建、memory-limiter、运行时和证据清单见 [Android 17 / API 37 适配 Review](./docs/zh/android_17_adaptation_review.md)。
+- Android 16 与 16 KB page size 基线见 [Android 16 / API 36 适配 Review](./docs/zh/android_16_adaptation_review.md)。
 
 ### 安装
 
@@ -194,6 +196,7 @@ Android-App-Memory-Analysis/
   - [分析结果解读指南](./docs/zh/analysis_results_interpretation_guide.md)
   - [meminfo 解读](./docs/zh/meminfo_interpretation_guide.md)
   - [smaps 解读](./docs/zh/smaps_interpretation_guide.md)
+  - [Android 17 / API 37 适配 Review](./docs/zh/android_17_adaptation_review.md)
   - [Android 16 / API 36 适配 Review](./docs/zh/android_16_adaptation_review.md)
   - [教学实践手册](./docs/zh/teaching_playbook.md)
   - [Demo APK 实战案例](./docs/zh/memory_lab_demo_case_study.md)
@@ -202,6 +205,7 @@ Android-App-Memory-Analysis/
   - [Analysis Results Guide](./docs/en/analysis_results_interpretation_guide.md)
   - [Meminfo Interpretation](./docs/en/meminfo_interpretation_guide.md)
   - [SMAPS Interpretation](./docs/en/smaps_interpretation_guide.md)
+  - [Android 17 / API 37 Adaptation Review](./docs/en/android_17_adaptation_review.md)
   - [Teaching Playbook](./docs/en/teaching_playbook.md)
 
 ## 数据源说明

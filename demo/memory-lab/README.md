@@ -9,12 +9,13 @@ This demo APK is intentionally built to generate representative Android memory i
 
 It is designed for this repository's analysis scripts and thresholds (`tools/panorama_analyzer.py`, `tools/meminfo_parser.py`, `tools/smaps_parser.py`, `tools/hprof_parser.py`).
 
-Android 16 / API 36 status:
+Android 17 / API 37 status:
 
-- Builds with `compileSdk = 36` and `targetSdk = 36`.
-- Handles Android 16 edge-to-edge by applying system bar and display cutout insets to the content root.
+- Builds with `compileSdk = 37` and `targetSdk = 37`.
+- Handles Android 16+ edge-to-edge by applying system bar and display cutout insets to the content root.
 - Builds the native `libmemorylab.so` with 16 KB ELF alignment flags and non-legacy JNI packaging.
-- See `docs/zh/android_16_adaptation_review.md` or `docs/en/android_16_adaptation_review.md` for the full adaptation checklist.
+- Captures Android 17 memory-limiter evidence through `exit_info.txt` and `memory_limiter_status.txt`.
+- See `docs/zh/android_17_adaptation_review.md` or `docs/en/android_17_adaptation_review.md` for the Android 17 adaptation checklist.
 
 ## 1. Project Structure
 
@@ -105,6 +106,8 @@ adb shell dumpsys meminfo -d $PKG > "$OUT/meminfo.txt"
 adb shell dumpsys gfxinfo $PKG > "$OUT/gfxinfo.txt"
 adb shell cat /proc/meminfo > "$OUT/proc_meminfo.txt"
 adb shell getconf PAGE_SIZE > "$OUT/page_size.txt"
+adb shell dumpsys activity exit-info $PKG > "$OUT/exit_info.txt"
+adb shell am memory-limiter status > "$OUT/memory_limiter_status.txt"
 adb shell am dumpheap $PKG $REMOTE_HPROF
 adb pull $REMOTE_HPROF "$OUT/heap.hprof"
 adb shell rm $REMOTE_HPROF
@@ -112,7 +115,7 @@ adb shell rm $REMOTE_HPROF
 
 Or run the bundled script: `./scripts/capture_memory_lab.sh`
 
-The script now continues on non-root user builds. `smaps` and `dmabuf_debug.txt` are best-effort, while `meminfo.txt`, `gfxinfo.txt`, `proc_meminfo.txt`, `zram_swap.txt`, `page_size.txt`, and `meta.txt` are still collected when the device exposes them.
+The script now continues on non-root user builds. `smaps` and `dmabuf_debug.txt` are best-effort, while `meminfo.txt`, `gfxinfo.txt`, `proc_meminfo.txt`, `zram_swap.txt`, `page_size.txt`, `exit_info.txt`, `memory_limiter_status.txt`, and `meta.txt` are still collected when the device exposes them.
 
 ## 5. Analyze with This Repository
 

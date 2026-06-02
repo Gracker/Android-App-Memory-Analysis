@@ -19,23 +19,42 @@ if [[ "$ROOT_ID" != *"uid=0"* ]]; then
   echo "Continuing with non-root capture; smaps and dmabuf may be unavailable."
 fi
 
-PID="$(adb shell pidof "$PKG" | tr -d '\r' | awk '{print $1}')"
-if [[ -z "$PID" ]]; then
-  PID="$(adb shell ps -A | tr -d '\r' | awk -v pkg="$PKG" '$NF == pkg || $NF ~ "^" pkg ":" { for (i = 2; i < NF; i++) if ($i ~ /^[0-9]+$/) { print $i; exit } }')"
-fi
-if [[ -z "$PID" ]]; then
-  echo "Process not found for package: $PKG"
-  exit 1
-fi
-
 echo "Package: $PKG"
-echo "PID: $PID"
 echo "Output: $OUT"
 
 adb shell getprop ro.build.fingerprint > "$OUT/build_fingerprint.txt" 2>/dev/null || true
 adb shell getprop ro.build.version.release > "$OUT/android_release.txt" 2>/dev/null || true
 adb shell getprop ro.build.version.sdk > "$OUT/android_sdk.txt" 2>/dev/null || true
 adb shell getconf PAGE_SIZE > "$OUT/page_size.txt" 2>/dev/null || true
+adb shell cmd package list packages -U "$PKG" > "$OUT/package_uid.txt" 2>/dev/null || true
+adb shell ps -A > "$OUT/processes.txt" 2>/dev/null || true
+adb shell dumpsys activity processes > "$OUT/activity_processes.txt" 2>/dev/null || true
+adb shell dumpsys activity exit-info "$PKG" > "$OUT/exit_info.txt" 2>"$OUT/exit_info.err" || true
+adb shell am memory-limiter status > "$OUT/memory_limiter_status.txt" 2>"$OUT/memory_limiter_status.err" || true
+
+PID="$(adb shell pidof "$PKG" 2>/dev/null || true)"
+PID="$(printf '%s\n' "$PID" | tr -d '\r' | awk '{print $1}')"
+if [[ -z "$PID" ]]; then
+  PID="$(adb shell ps -A | tr -d '\r' | awk -v pkg="$PKG" '$NF == pkg || $NF ~ "^" pkg ":" { for (i = 2; i < NF; i++) if ($i ~ /^[0-9]+$/) { print $i; exit } }')"
+fi
+if [[ -z "$PID" ]]; then
+  echo "Process not found for package: $PKG"
+  echo "Android 17 exit-info and memory-limiter evidence were still collected."
+  cat > "$OUT/meta.txt" <<META
+Package: $PKG
+PID:
+ProcessStatus: not_running
+Timestamp: $TS
+PageSize: $(tr -d '\r' < "$OUT/page_size.txt" 2>/dev/null || true)
+AndroidRelease: $(tr -d '\r' < "$OUT/android_release.txt" 2>/dev/null || true)
+AndroidSdk: $(tr -d '\r' < "$OUT/android_sdk.txt" 2>/dev/null || true)
+BuildFingerprint: $(tr -d '\r' < "$OUT/build_fingerprint.txt" 2>/dev/null || true)
+META
+  echo "Capture completed: $OUT"
+  exit 0
+fi
+
+echo "PID: $PID"
 
 if adb shell showmap "$PID" > "$OUT/showmap.txt" 2>"$OUT/showmap.err"; then
   true
@@ -99,10 +118,12 @@ fi
 cat > "$OUT/meta.txt" <<META
 Package: $PKG
 PID: $PID
+ProcessStatus: running
 Timestamp: $TS
 PageSize: $(tr -d '\r' < "$OUT/page_size.txt" 2>/dev/null || true)
 AndroidRelease: $(tr -d '\r' < "$OUT/android_release.txt" 2>/dev/null || true)
 AndroidSdk: $(tr -d '\r' < "$OUT/android_sdk.txt" 2>/dev/null || true)
+BuildFingerprint: $(tr -d '\r' < "$OUT/build_fingerprint.txt" 2>/dev/null || true)
 META
 
 echo "Capture completed: $OUT"

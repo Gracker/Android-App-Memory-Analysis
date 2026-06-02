@@ -3,14 +3,14 @@
 This review is scoped to this repository:
 
 - `tools/` must keep collecting and interpreting memory data on Android 16 devices, including permission-denied fallbacks.
-- `demo/memory-lab` is a native-code demo APK and must be valid when targeting API 36.
+- `demo/memory-lab` is a native-code demo APK. This document records the API 36 baseline; current `master` now targets API 37, so use `android_17_adaptation_review.md` for current SDK validation.
 - `docs/` must explain which conclusions are supported by `meminfo`, `smaps`, `showmap`, `hprof`, `dmabuf`, and `zram`, and which are only hypotheses.
 
 ## Current Status
 
 | Area | Status | Evidence |
 |------|--------|----------|
-| Android 16 SDK | `compileSdk = 36`, `targetSdk = 36` | `demo/memory-lab/app/build.gradle.kts` |
+| Android 16 SDK | API 36 baseline retained; current demo SDK is superseded by Android 17 / API 37 | `demo/memory-lab/app/build.gradle.kts`, `android_17_adaptation_review.md` |
 | AGP/Gradle | AGP `9.2.0`, Gradle `9.4.1` | `demo/memory-lab/build.gradle.kts`, `gradle-wrapper.properties` |
 | Edge-to-edge | Explicitly enabled with system bar and cutout insets | `MainActivity.setupSystemBarInsets()` |
 | Predictive back | No custom back interception, no temporary opt-out required | `MainActivity` |
@@ -21,7 +21,7 @@ Device-side validation is still required on an Android 16 or 16 KB page-size env
 
 ## Build Adaptation
 
-Android 16 maps to API 36. `compileSdk` and `targetSdk` must be reviewed separately:
+Android 16 maps to API 36. This is the API 36 baseline; current `master` uses API 37. If validating an API 36 branch, `compileSdk` and `targetSdk` must be reviewed separately:
 
 ```kotlin
 android {
@@ -114,8 +114,8 @@ JobScheduler quota changes do not directly affect this Python+ADB collection flo
 
 ## Review Checklist
 
-- [ ] `compileSdk = 36`
-- [ ] `targetSdk = 36`
+- [ ] API 36 branch or baseline has `compileSdk = 36`
+- [ ] API 36 branch or baseline has `targetSdk = 36`
 - [ ] AGP supports API 36 without suppressing warnings
 - [ ] JDK 17 and Build Tools 36 are available
 - [ ] APK passes `zipalign -c -P 16`

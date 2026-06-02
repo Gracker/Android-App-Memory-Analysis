@@ -5,6 +5,7 @@
 ## 1）基础认知
 
 - [Android 内存调试指南](./android_memory_debug_guide.md)
+- [Android 17 / API 37 适配 Review](./android_17_adaptation_review.md)
 - [Android 16 / API 36 适配 Review](./android_16_adaptation_review.md)
 
 ## 2）单数据源解读
@@ -27,7 +28,8 @@
 ## 推荐阅读顺序
 
 1. 先读 `android_memory_debug_guide.md`，统一指标和术语。
-2. 如果目标设备或目标 SDK 是 Android 16，先跑 `android_16_adaptation_review.md` 的构建、16 KB page size 和采集清单。
-3. 结合 `smaps_interpretation_guide.md` 与 `meminfo_interpretation_guide.md` 建立证据链。
-4. 再读 `analysis_results_interpretation_guide.md` 做综合诊断。
-5. 最后用 `teaching_playbook.md` 作为团队演练和复盘模板。
+2. 如果目标设备运行 Android 17，或 Demo target 是 API 37，先跑 `android_17_adaptation_review.md` 的构建、memory-limiter 和采集清单。
+3. 如果目标设备或目标 SDK 是 Android 16，或问题聚焦 16 KB page size，再跑 `android_16_adaptation_review.md` 的清单。
+4. 结合 `smaps_interpretation_guide.md` 与 `meminfo_interpretation_guide.md` 建立证据链。
+5. 再读 `analysis_results_interpretation_guide.md` 做综合诊断。
+6. 最后用 `teaching_playbook.md` 作为团队演练和复盘模板。

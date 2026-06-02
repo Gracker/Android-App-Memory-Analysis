@@ -3,14 +3,14 @@
 这份 review 不是泛泛列 Android 16 行为变更，而是把本仓库的真实边界拆开：
 
 - `tools/` 是离线和在线采集分析工具，重点是 Android 16 设备上的输入格式、权限退化和证据口径。
-- `demo/memory-lab` 是带 JNI 的 Demo APK，重点是 `targetSdk 36`、edge-to-edge、Native `.so` 的 16 KB page size 兼容。
+- `demo/memory-lab` 是带 JNI 的 Demo APK。这份文档记录 API 36 基线；当前 `master` 已经 target API 37，当前 SDK 复验请看 `android_17_adaptation_review.md`。
 - `docs/` 是教学链路，重点是让团队知道哪些结论能从 `meminfo/smaps/showmap/hprof/dmabuf/zram` 交叉证明，哪些只能作为假设。
 
 ## 当前结论
 
 | 项目面 | 当前状态 | 证据 |
 |--------|----------|------|
-| Android 16 SDK | 已升到 `compileSdk = 36`、`targetSdk = 36` | `demo/memory-lab/app/build.gradle.kts` |
+| Android 16 SDK | 保留 API 36 基线；当前 Demo SDK 已被 Android 17 / API 37 supersede | `demo/memory-lab/app/build.gradle.kts`、`android_17_adaptation_review.md` |
 | AGP/Gradle | 已升到 AGP `9.2.0`、Gradle `9.4.1` | `demo/memory-lab/build.gradle.kts`、`gradle-wrapper.properties` |
 | edge-to-edge | 已显式启用并处理 system bars/display cutout insets | `MainActivity.setupSystemBarInsets()` |
 | predictive back | 当前 Demo 没有拦截 back，不需要临时 opt-out | `MainActivity` 未使用 `onBackPressed`/`KEYCODE_BACK` |
@@ -23,7 +23,7 @@
 
 ### 1.1 compileSdk/targetSdk
 
-Android 16 对应 API 36。Demo 现在已经把编译和运行目标都切到 36：
+Android 16 对应 API 36。这一节记录 API 36 基线；当前 `master` 使用 API 37。如果复验 API 36 分支，需要分别检查编译目标和运行目标：
 
 ```kotlin
 android {
@@ -154,8 +154,8 @@ Android 16 用户版本设备上，`smaps`、debugfs DMA-BUF 很可能不可读�
 
 ### 构建清单
 
-- [ ] `compileSdk = 36`
-- [ ] `targetSdk = 36`
+- [ ] API 36 分支或基线使用 `compileSdk = 36`
+- [ ] API 36 分支或基线使用 `targetSdk = 36`
 - [ ] AGP 版本支持 API 36，不靠 suppress warning 过关
 - [ ] JDK 17、Build Tools 36 可用
 - [ ] Native `.so` 通过 `zipalign -c -P 16`
