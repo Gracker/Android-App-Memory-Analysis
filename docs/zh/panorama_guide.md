@@ -435,7 +435,8 @@ python3 analyze.py diff --before-meminfo m1.txt --after-meminfo m2.txt
 | Android 4.0-7.x | ✅ 完全支持 | 部分数据源可能不可用 |
 | Android 8.0-10 | ✅ 完全支持 | - |
 | Android 11-13 | ✅ 完全支持 | Scudo 分配器 |
-| Android 14+ | ✅ 完全支持 | 支持 16KB 页面 |
+| Android 14-16 | ✅ 完全支持 | 支持 16KB 页面 |
+| Android 17+ / API 37 | ✅ 完全支持 | 支持 memory-limiter 证据、smaps SwapPSS/native allocator 旁证 |
 
 ## 参考资料
 

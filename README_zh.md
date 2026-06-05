@@ -36,8 +36,9 @@
 
 ### Android 17 / API 37 兼容性说明
 
-- Demo APK 已升级到 `compileSdk = 37`、`targetSdk = 37`，并继续保留 Android 16 edge-to-edge 与 16 KB page size Native `.so` 对齐。
-- 工具支持 Android 4.0 到 Android 17+ 的输入格式，解析逻辑覆盖较新的分配器与映射命名。
+- Demo APK 已升级到 `compileSdk = 37`、`targetSdk = 37`，demo 版本为 `1.1.0`，并继续保留 Android 16 edge-to-edge 与 16 KB page size Native `.so` 对齐。
+- 工具支持 Android 4.0 到 Android 17+ 的输入格式，解析逻辑覆盖 Scudo、GWP-ASan、DMA-BUF、stack/TLS、JIT cache 等较新的分配器与映射命名。
+- 全景分析现在把 `smaps` 作为一等进程映射数据源；可以只输入 smaps，并输出 smaps PSS/SwapPSS、native allocator、graphics、DMA-BUF、code、stack 和 top mapping 证据，同时不覆盖 `dumpsys meminfo` 口径。
 - Android 17 app memory limits 是 Android 17 设备上的 all-app 运行时行为。Live dump 现在会在依赖 PID 的采集前归档 `exit_info.txt`、`memory_limiter_status.txt`、package UID、进程列表、Android release/sdk、build fingerprint 和 page size。
 - `smaps` 采集按以下兜底顺序执行，兼容更多设备：
   1) `adb shell cat /proc/<pid>/smaps`
@@ -80,13 +81,16 @@ python3 analyze.py panorama -d ./dumps/com.example.app_20231225_120000
 
 # 分析单独的文件
 python3 analyze.py panorama -m meminfo.txt -g gfxinfo.txt -H app.hprof -S smaps.txt
+
+# 只分析特权进程映射
+python3 analyze.py panorama -S smaps.txt --json -o smaps_panorama.json
 ```
 
 #### 单独文件分析
 
 ```bash
 # 分析 Java 堆（HPROF）
-python3 analyze.py hprof demo/hprof_sample/heapdump_latest.hprof
+python3 analyze.py hprof demo/hprof_sample/heapdump_latest.hprof.gz
 
 # 分析 Native 内存（smaps）
 python3 analyze.py smaps demo/smaps_sample/smaps
@@ -98,10 +102,10 @@ python3 analyze.py meminfo dump/meminfo.txt
 python3 analyze.py gfxinfo dump/gfxinfo.txt
 
 # 传统联合分析（HPROF + smaps）
-python3 analyze.py combined -H demo/hprof_sample/heapdump_latest.hprof -S demo/smaps_sample/smaps
+python3 analyze.py combined -H demo/hprof_sample/heapdump_latest.hprof.gz -S demo/smaps_sample/smaps
 
 # 增强联合分析（支持 meminfo 口径，包含 mtrack）
-python3 analyze.py combined --modern --hprof demo/hprof_sample/heapdump_latest.hprof --smaps demo/smaps_sample/smaps --meminfo demo/smaps_sample/meminfo.txt --json-output report.json
+python3 analyze.py combined --modern --hprof demo/hprof_sample/heapdump_latest.hprof.gz --smaps demo/smaps_sample/smaps --meminfo demo/smaps_sample/meminfo.txt --json-output report.json
 
 # 一键运行内置 demo（自动使用 hprof+smaps+meminfo）
 python3 analyze.py combined --demo --json-output demo_report.json
@@ -110,7 +114,7 @@ python3 analyze.py combined --demo --json-output demo_report.json
 说明：
 - `combined` 默认是传统模式（`combined_analyzer.py`）；当提供 `--modern`、`--meminfo`、`--pid`、`--json-output` 或 `--demo` 时，自动切换增强模式。
 - 增强模式下使用 `-p/--pid` 会自动抓取 `smaps`，并尝试抓取 `dumpsys meminfo -d`。
-- 为规避仓库单文件限制，示例 HPROF 以 `heapdump_latest.hprof.gz` 提交。首次使用示例命令前先解压一次：`gzip -dk demo/hprof_sample/heapdump_latest.hprof.gz`。
+- 为规避仓库单文件限制，示例 HPROF 以 `heapdump_latest.hprof.gz` 提交。统一入口 `analyze.py` 可直接读取 `.hprof.gz`；如果旧的 `.hprof` 示例路径不存在但同目录存在 `.hprof.gz`，会自动 fallback 到压缩样本。
 
 ## 分析内容
 

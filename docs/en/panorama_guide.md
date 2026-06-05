@@ -412,7 +412,8 @@ Diff analysis shows:
 | Android 4.0-7.x | ✅ Fully supported | Some data sources may be unavailable |
 | Android 8.0-10 | ✅ Fully supported | - |
 | Android 11-13 | ✅ Fully supported | Scudo allocator |
-| Android 14+ | ✅ Fully supported | 16KB page support |
+| Android 14-16 | ✅ Fully supported | 16KB page support |
+| Android 17+ / API 37 | ✅ Fully supported | memory-limiter evidence plus smaps SwapPSS/native allocator cross-checks |
 
 ## FAQ
 

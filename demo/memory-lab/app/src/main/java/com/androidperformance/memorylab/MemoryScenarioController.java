@@ -142,17 +142,36 @@ public class MemoryScenarioController {
     public int allocateAshmemBlocks(int count, int eachMb) {
         int created = 0;
         for (int i = 0; i < count; i++) {
+            SharedMemory sharedMemory = null;
+            ByteBuffer byteBuffer = null;
             try {
-                SharedMemory sharedMemory = SharedMemory.create("memory-lab-ashmem-" + i, eachMb * 1024 * 1024);
-                ByteBuffer byteBuffer = sharedMemory.mapReadWrite();
+                sharedMemory = SharedMemory.create("memory-lab-ashmem-" + i, eachMb * 1024 * 1024);
+                byteBuffer = sharedMemory.mapReadWrite();
                 if (byteBuffer.remaining() > 16) {
                     byteBuffer.putInt(0, i);
                     byteBuffer.putInt(4, eachMb);
                 }
                 LeakySingletons.ASHMEM_BUFFERS.add(sharedMemory);
+                LeakySingletons.ASHMEM_MAPPINGS.add(byteBuffer);
+                sharedMemory = null;
+                byteBuffer = null;
                 created++;
             } catch (ErrnoException | RuntimeException exception) {
                 Log.w(TAG, "allocateAshmemBlocks failed", exception);
+                if (byteBuffer != null) {
+                    try {
+                        SharedMemory.unmap(byteBuffer);
+                    } catch (RuntimeException cleanupException) {
+                        Log.w(TAG, "allocateAshmemBlocks unmap cleanup failed", cleanupException);
+                    }
+                }
+                if (sharedMemory != null) {
+                    try {
+                        sharedMemory.close();
+                    } catch (RuntimeException cleanupException) {
+                        Log.w(TAG, "allocateAshmemBlocks close cleanup failed", cleanupException);
+                    }
+                }
             }
         }
         return created;
@@ -275,6 +294,14 @@ public class MemoryScenarioController {
     }
 
     public long clearNativeSide() {
+        for (ByteBuffer byteBuffer : LeakySingletons.ASHMEM_MAPPINGS) {
+            try {
+                SharedMemory.unmap(byteBuffer);
+            } catch (RuntimeException exception) {
+                Log.w(TAG, "clearNativeSide unmap failed", exception);
+            }
+        }
+        LeakySingletons.ASHMEM_MAPPINGS.clear();
         for (SharedMemory sharedMemory : LeakySingletons.ASHMEM_BUFFERS) {
             try {
                 sharedMemory.close();
@@ -317,6 +344,7 @@ public class MemoryScenarioController {
                 + "\nbitmapCount=" + LeakySingletons.BITMAP_CACHE.size()
                 + "\ndirectBuffers=" + LeakySingletons.DIRECT_BUFFERS.size()
                 + "\nashmemBlocks=" + LeakySingletons.ASHMEM_BUFFERS.size()
+                + "\nashmemMappings=" + LeakySingletons.ASHMEM_MAPPINGS.size()
                 + "\nthreads=" + LeakySingletons.EXTRA_THREADS.size()
                 + "\nwebViews=" + LeakySingletons.WEBVIEW_LEAKS.size()
                 + "\nviewStorm=" + LeakySingletons.VIEW_STORM.size()

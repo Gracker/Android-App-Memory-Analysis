@@ -36,8 +36,9 @@ A comprehensive toolkit for Android application memory analysis, featuring **one
 
 ### Android 17 / API 37 Compatibility Notes
 
-- The Demo APK now uses `compileSdk = 37` and `targetSdk = 37`, while keeping Android 16 edge-to-edge handling and 16 KB page-size alignment for native `.so` output.
-- The toolkit supports Android 4.0 through Android 17+ input formats; parsing logic includes newer allocator and mapping names.
+- The Demo APK now uses `compileSdk = 37`, `targetSdk = 37`, and demo version `1.1.0`, while keeping Android 16 edge-to-edge handling and 16 KB page-size alignment for native `.so` output.
+- The toolkit supports Android 4.0 through Android 17+ input formats; parsing logic includes newer allocator and mapping names such as Scudo, GWP-ASan, DMA-BUF, stack/TLS, and JIT caches.
+- Panorama analysis now treats `smaps` as a first-class process-mapping source. It can run with smaps-only input and reports smaps PSS/SwapPSS, native allocator, graphics, DMA-BUF, code, stack, and top mapping evidence without overwriting `dumpsys meminfo` metrics.
 - Android 17 app memory limits are an Android 17 all-app runtime behavior on supported devices. Live dump now archives `exit_info.txt`, `memory_limiter_status.txt`, package UID, process lists, Android release/sdk, build fingerprint, and page size before requiring PID-dependent artifacts.
 - For `smaps` collection, use fallback order for better device compatibility:
   1) `adb shell cat /proc/<pid>/smaps`
@@ -80,13 +81,16 @@ python3 analyze.py panorama -d ./dumps/com.example.app_20231225_120000
 
 # Analyze individual files
 python3 analyze.py panorama -m meminfo.txt -g gfxinfo.txt -H app.hprof -S smaps.txt
+
+# Analyze privileged process mappings only
+python3 analyze.py panorama -S smaps.txt --json -o smaps_panorama.json
 ```
 
 #### Individual File Analysis
 
 ```bash
 # Analyze Java heap (HPROF)
-python3 analyze.py hprof demo/hprof_sample/heapdump_latest.hprof
+python3 analyze.py hprof demo/hprof_sample/heapdump_latest.hprof.gz
 
 # Analyze native memory (smaps)
 python3 analyze.py smaps demo/smaps_sample/smaps
@@ -98,10 +102,10 @@ python3 analyze.py meminfo dump/meminfo.txt
 python3 analyze.py gfxinfo dump/gfxinfo.txt
 
 # Traditional combined analysis (HPROF + smaps)
-python3 analyze.py combined -H demo/hprof_sample/heapdump_latest.hprof -S demo/smaps_sample/smaps
+python3 analyze.py combined -H demo/hprof_sample/heapdump_latest.hprof.gz -S demo/smaps_sample/smaps
 
 # Enhanced combined analysis (meminfo-aware, mtrack included)
-python3 analyze.py combined --modern --hprof demo/hprof_sample/heapdump_latest.hprof --smaps demo/smaps_sample/smaps --meminfo demo/smaps_sample/meminfo.txt --json-output report.json
+python3 analyze.py combined --modern --hprof demo/hprof_sample/heapdump_latest.hprof.gz --smaps demo/smaps_sample/smaps --meminfo demo/smaps_sample/meminfo.txt --json-output report.json
 
 # One-command demo shortcut (built-in hprof+smaps+meminfo)
 python3 analyze.py combined --demo --json-output demo_report.json
@@ -110,7 +114,7 @@ python3 analyze.py combined --demo --json-output demo_report.json
 Notes:
 - `combined` defaults to legacy mode (`combined_analyzer.py`) unless `--modern`, `--meminfo`, `--pid`, `--json-output`, or `--demo` is provided.
 - In modern mode with `-p/--pid`, the tool auto-collects `smaps` and tries to collect `dumpsys meminfo -d`.
-- The bundled demo HPROF is committed as `heapdump_latest.hprof.gz` to avoid large-file push limits. Extract once before running `.hprof` sample commands: `gzip -dk demo/hprof_sample/heapdump_latest.hprof.gz`.
+- The bundled demo HPROF is committed as `heapdump_latest.hprof.gz` to avoid large-file push limits. The unified `analyze.py` entry point reads `.hprof.gz` directly. If an old sample path ending in `.hprof` is missing but a sibling `.hprof.gz` exists, it automatically falls back to the packaged sample.
 
 ## What Gets Analyzed?
 

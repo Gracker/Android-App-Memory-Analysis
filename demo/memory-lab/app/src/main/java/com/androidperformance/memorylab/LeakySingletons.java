@@ -16,6 +16,7 @@ public final class LeakySingletons {
     public static final List<Bitmap> BITMAP_CACHE = new ArrayList<>();
     public static final List<ByteBuffer> DIRECT_BUFFERS = new ArrayList<>();
     public static final List<SharedMemory> ASHMEM_BUFFERS = new ArrayList<>();
+    public static final List<ByteBuffer> ASHMEM_MAPPINGS = new ArrayList<>();
     public static final List<WebView> WEBVIEW_LEAKS = new ArrayList<>();
     public static final List<Thread> EXTRA_THREADS = new ArrayList<>();
     public static final List<Object> LOW_UTIL_COLLECTIONS = new ArrayList<>();

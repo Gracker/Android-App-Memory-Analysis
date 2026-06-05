@@ -1,8 +1,8 @@
 # Android Application Memory Debugging Complete Guide
 
-> **Version**: 2.0  
-> **Updated**: 2025-01  
-> **Scope**: Android 4.0 - Android 15+
+> **Version**: 2.1
+> **Updated**: 2026-06
+> **Scope**: Android 4.0 - Android 17+ / API 37
 
 ## Table of Contents
 
@@ -804,4 +804,3 @@ APEX is a modular system component format:
 > **Version History**
 > - v2.0 (2025-01): Merged optimized version, updated modern Android features
 > - v1.0 (2024): Initial version
-

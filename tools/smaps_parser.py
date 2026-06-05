@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
 # Android App Memory Analysis Script
-# Enhanced for Android 16 compatibility with backward compatibility
+# Enhanced for Android 17 compatibility with backward compatibility
 # Original: 2019/6/13 上午10:55 by yangzhiting
 # Enhanced: 2025 for comprehensive Android version support
 
@@ -9,11 +9,11 @@
 Android App Memory Analysis Tool
 
 This script analyzes Android app memory usage by parsing smaps files.
-Compatible with Android versions from early releases to Android 16+.
+Compatible with Android versions from early releases to Android 17+.
 
 Features:
 - Parse /proc/PID/smaps files from Android devices  
-- Support for all Android versions including Android 16 features
+- Support for all Android versions including Android 17/API 37 features
 - Enhanced heap type classification including latest memory management
 - Memory insights and anomaly detection
 - Backward compatibility with older Android versions
@@ -27,6 +27,7 @@ Usage:
 import argparse
 import re
 from collections import Counter
+from dataclasses import dataclass
 import os
 import sys
 from datetime import datetime
@@ -38,7 +39,7 @@ from tools.android_shell_utils import read_smaps_with_adb
 
 # Android version-adaptive memory heap type constants
 # Dynamically adjusts based on available features
-type_length = 45  # Extended for Android 16, backward compatible
+type_length = 45  # Extended through Android 17/API 37, backward compatible
 pssSum_count = [0] * type_length
 pss_count = [0] * type_length
 swapPss_count = [0] * type_length
@@ -97,7 +98,7 @@ HEAP_JIT_CACHE = 37                 # JIT编译缓存
 HEAP_ZYGOTE_CODE_CACHE = 38         # Zygote代码缓存
 HEAP_APP_CODE_CACHE = 39            # 应用代码缓存
 
-# Android 16+ new heap types (backward compatible)
+# Android 16+/17 heap types (backward compatible)
 HEAP_SCUDO_HEAP = 40                # Scudo内存分配器堆
 HEAP_GWP_ASAN = 41                  # GWP-ASan调试堆
 HEAP_TLS_OPTIMIZED = 42             # 优化的线程本地存储
@@ -157,7 +158,7 @@ pss_type = [
     "jit cache (即时编译缓存)",
     "zygote code cache (Zygote代码缓存)",
     "app code cache (应用代码缓存)",
-    # Android 16+ heap types
+    # Android 16+/17 heap types
     "scudo heap (Scudo安全内存分配器)",
     "gwp-asan (GWP-ASan内存错误检测)",
     "tls optimized (优化的线程本地存储)",
@@ -183,6 +184,15 @@ def reset_parse_state():
     pss_type_list[:] = [{} for _ in range(type_length)]
     swap_type_list[:] = [{} for _ in range(type_length)]
 
+
+@dataclass(frozen=True)
+class SmapsEntry:
+    """A single smaps mapping with the fields needed by structured callers."""
+    name: str
+    heap_type: int
+    pss_kb: int = 0
+    swap_pss_kb: int = 0
+
 def help():
     """
     Enhanced argument parser with comprehensive Android version support
@@ -202,7 +212,8 @@ def help():
 支持的Android版本 / Supported Android Versions:
   • Android 4.0+ (基础功能)
   • Android 15+ (增强内存分析)  
-  • Android 16+ (最新安全和性能特性)
+  • Android 16+ (16KB page size 和现代分配器)
+  • Android 17+ / API 37 (Memory Limiter 证据关联)
   • 自动向后兼容所有版本
         """)
     
@@ -305,7 +316,7 @@ def match_type(name, prewhat):
     Universal memory type matching for all Android versions
     
     Classifies memory regions based on their name patterns.
-    Supports Android 4.0 through Android 16+ with automatic fallback for older versions.
+    Supports Android 4.0 through Android 17+ with automatic fallback for older versions.
     
     Args:
         name (str): Memory region name from smaps
@@ -452,6 +463,217 @@ def match_type(name, prewhat):
         which_heap = HEAP_UNKNOWN
         
     return which_heap
+
+
+def iter_smaps_entries(filename):
+    """
+    Yield structured smaps entries without mutating global parser state or printing.
+
+    This is used by higher-level analyzers that need JSON-safe summaries. It reuses
+    the same header, PSS, SwapPSS, and heap-type matchers as the legacy CLI parser.
+    """
+    with open(filename, 'r', encoding='utf-8', errors='ignore') as file:
+        current_name = None
+        current_type = HEAP_UNKNOWN
+        current_pss = 0
+        current_swap = 0
+        previous_type = HEAP_UNKNOWN
+
+        def finish_current():
+            if current_name is None:
+                return None
+            return SmapsEntry(
+                name=current_name,
+                heap_type=current_type,
+                pss_kb=current_pss,
+                swap_pss_kb=current_swap,
+            )
+
+        for line in file:
+            header = match_head(line)
+            if header:
+                entry = finish_current()
+                if entry is not None:
+                    yield entry
+
+                current_name = header.group(8) if header.group(8) else ""
+                current_type = match_type(current_name, previous_type)
+                previous_type = current_type
+                current_pss = 0
+                current_swap = 0
+                continue
+
+            if current_name is None:
+                continue
+
+            pss_match = match_pss(line)
+            if pss_match:
+                try:
+                    current_pss += int(float(pss_match.group(1)))
+                except (ValueError, TypeError):
+                    pass
+
+            swap_match = match_swapPss(line)
+            if swap_match:
+                try:
+                    current_swap += int(float(swap_match.group(1)))
+                except (ValueError, TypeError):
+                    pass
+
+        entry = finish_current()
+        if entry is not None:
+            yield entry
+
+
+def _is_scudo_mapping(name):
+    return name.startswith("[anon:scudo:") or name.startswith("[anon:scudo_")
+
+
+def _is_libc_malloc_mapping(name):
+    return name.startswith("[anon:libc_malloc]")
+
+
+def _is_gwp_asan_mapping(name):
+    return name.startswith("[anon:GWP-ASan") or name.startswith("[anon:gwp_asan")
+
+
+def _is_legacy_heap_mapping(name):
+    return name.startswith("[heap]")
+
+
+def _is_dmabuf_mapping(name):
+    lowered = name.lower()
+    return (
+        "dmabuf" in lowered
+        or "dma_buf" in lowered
+        or name.startswith("/dev/dma_heap")
+        or name.startswith("/dev/dmabuf")
+    )
+
+
+def _is_graphics_mapping(name):
+    lowered = name.lower()
+    graphics_tokens = (
+        "/dev/kgsl",
+        "/dev/mali",
+        "/dev/ion",
+        "/dev/dri",
+        "gralloc",
+        "graphicbuffer",
+        "gpu",
+    )
+    return any(token in lowered for token in graphics_tokens) or _is_dmabuf_mapping(name)
+
+
+def _is_code_mapping(heap_type, name):
+    if heap_type in (HEAP_SO, HEAP_JAR, HEAP_APK, HEAP_TTF, HEAP_DEX, HEAP_OAT, HEAP_ART):
+        return True
+    return name.startswith("/memfd:jit-cache") or name.startswith("/memfd:jit-zygote-cache")
+
+
+def parse_smaps_summary(filename, top_n=10):
+    """
+    Return a structured smaps summary for programmatic callers.
+
+    The returned values are kB-based to preserve smaps precision. Higher-level
+    reports can convert to MB without losing the evidence boundary.
+    """
+    by_type = {}
+    mapping_pss = Counter()
+    mapping_swap = Counter()
+    aggregates = {
+        "native_heap_kb": 0,
+        "native_legacy_heap_kb": 0,
+        "native_libc_malloc_kb": 0,
+        "native_scudo_kb": 0,
+        "native_gwp_asan_kb": 0,
+        "dalvik_heap_kb": 0,
+        "dalvik_other_kb": 0,
+        "stack_kb": 0,
+        "code_kb": 0,
+        "graphics_kb": 0,
+        "dmabuf_kb": 0,
+        "file_mapping_kb": 0,
+        "unknown_kb": 0,
+    }
+
+    total_pss = 0
+    total_swap = 0
+    entry_count = 0
+
+    for entry in iter_smaps_entries(filename):
+        entry_count += 1
+        total_pss += entry.pss_kb
+        total_swap += entry.swap_pss_kb
+
+        type_name = pss_type[entry.heap_type] if 0 <= entry.heap_type < len(pss_type) else pss_type[HEAP_UNKNOWN]
+        type_bucket = by_type.setdefault(
+            type_name,
+            {"pss_kb": 0, "swap_pss_kb": 0, "count": 0},
+        )
+        type_bucket["pss_kb"] += entry.pss_kb
+        type_bucket["swap_pss_kb"] += entry.swap_pss_kb
+        type_bucket["count"] += 1
+
+        if entry.pss_kb > 0:
+            mapping_pss[entry.name or "[anonymous]"] += entry.pss_kb
+        if entry.swap_pss_kb > 0:
+            mapping_swap[entry.name or "[anonymous]"] += entry.swap_pss_kb
+
+        if entry.heap_type == HEAP_NATIVE:
+            aggregates["native_heap_kb"] += entry.pss_kb
+        if _is_legacy_heap_mapping(entry.name):
+            aggregates["native_legacy_heap_kb"] += entry.pss_kb
+        if _is_libc_malloc_mapping(entry.name):
+            aggregates["native_libc_malloc_kb"] += entry.pss_kb
+        if _is_scudo_mapping(entry.name):
+            aggregates["native_scudo_kb"] += entry.pss_kb
+        if _is_gwp_asan_mapping(entry.name):
+            aggregates["native_gwp_asan_kb"] += entry.pss_kb
+
+        if entry.heap_type == HEAP_DALVIK:
+            aggregates["dalvik_heap_kb"] += entry.pss_kb
+        elif entry.heap_type == HEAP_DALVIK_OTHER:
+            aggregates["dalvik_other_kb"] += entry.pss_kb
+
+        if entry.heap_type == HEAP_STACK:
+            aggregates["stack_kb"] += entry.pss_kb
+        if _is_code_mapping(entry.heap_type, entry.name):
+            aggregates["code_kb"] += entry.pss_kb
+        if _is_graphics_mapping(entry.name):
+            aggregates["graphics_kb"] += entry.pss_kb
+        if _is_dmabuf_mapping(entry.name):
+            aggregates["dmabuf_kb"] += entry.pss_kb
+        if entry.name.startswith("/"):
+            aggregates["file_mapping_kb"] += entry.pss_kb
+        if entry.heap_type == HEAP_UNKNOWN:
+            aggregates["unknown_kb"] += entry.pss_kb
+
+    by_type_rows = [
+        {
+            "type": type_name,
+            "pss_kb": values["pss_kb"],
+            "swap_pss_kb": values["swap_pss_kb"],
+            "count": values["count"],
+        }
+        for type_name, values in by_type.items()
+    ]
+    by_type_rows.sort(key=lambda item: item["pss_kb"], reverse=True)
+
+    return {
+        "file": filename,
+        "entry_count": entry_count,
+        "total_pss_kb": total_pss,
+        "total_swap_pss_kb": total_swap,
+        "aggregates": aggregates,
+        "by_type": by_type_rows,
+        "top_pss_mappings": [
+            {"name": name, "pss_kb": pss} for name, pss in mapping_pss.most_common(top_n)
+        ],
+        "top_swap_mappings": [
+            {"name": name, "swap_pss_kb": swap} for name, swap in mapping_swap.most_common(top_n)
+        ],
+    }
 
 def parse_smaps(filename):
     """

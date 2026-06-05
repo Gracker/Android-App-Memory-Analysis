@@ -17,9 +17,12 @@ Android 内存全景分析器
 """
 
 import argparse
+import contextlib
+import gzip
 import json
 import os
 import sys
+import tempfile
 from dataclasses import dataclass, field, asdict
 from datetime import datetime
 from typing import Dict, List, Optional, Any
@@ -31,6 +34,7 @@ from hprof_parser import HprofParser
 from proc_meminfo_parser import parse_proc_meminfo_file, ProcMeminfoData
 from dmabuf_parser import parse_dmabuf_file, DmaBufData
 from zram_parser import parse_zram_swap_file, ZramSwapData
+from smaps_parser import parse_smaps_summary
 
 
 @dataclass
@@ -176,6 +180,35 @@ class ZramSwapContext:
 
 
 @dataclass
+class SmapsContext:
+    """进程 smaps 映射分析结果"""
+    available: bool = False
+    total_pss_mb: float = 0
+    total_swap_pss_mb: float = 0
+    entry_count: int = 0
+
+    # 进程内映射聚合，来自 /proc/<pid>/smaps PSS，不覆盖 dumpsys meminfo 口径。
+    native_heap_mb: float = 0
+    native_legacy_heap_mb: float = 0
+    native_libc_malloc_mb: float = 0
+    native_scudo_mb: float = 0
+    native_gwp_asan_mb: float = 0
+    dalvik_heap_mb: float = 0
+    dalvik_other_mb: float = 0
+    stack_mb: float = 0
+    code_mb: float = 0
+    graphics_mb: float = 0
+    dmabuf_mb: float = 0
+    file_mapping_mb: float = 0
+    unknown_mb: float = 0
+
+    top_types: List[Dict] = field(default_factory=list)
+    top_pss_mappings: List[Dict] = field(default_factory=list)
+    top_swap_mappings: List[Dict] = field(default_factory=list)
+    smaps_notes: List[str] = field(default_factory=list)
+
+
+@dataclass
 class PanoramaResult:
     """全景分析结果"""
     package_name: str = ""
@@ -206,6 +239,9 @@ class PanoramaResult:
 
     # zRAM/Swap 分析
     zram_swap_context: ZramSwapContext = field(default_factory=ZramSwapContext)
+
+    # smaps 映射分析
+    smaps_context: SmapsContext = field(default_factory=SmapsContext)
 
     # UI 资源
     views_count: int = 0
@@ -287,6 +323,28 @@ class PanoramaAnalyzer:
         self.dmabuf_data: Optional[DmaBufData] = None
         self.zram_swap_data: Optional[ZramSwapData] = None
 
+    def _prepare_hprof_file(self):
+        """Return a readable HPROF path, transparently unpacking .gz inputs."""
+        if not self.hprof_file or not os.path.exists(self.hprof_file):
+            return None, None
+        if not self.hprof_file.endswith('.gz'):
+            return self.hprof_file, None
+
+        fd, temp_path = tempfile.mkstemp(prefix='panorama_hprof_', suffix='.hprof')
+        os.close(fd)
+        try:
+            with gzip.open(self.hprof_file, 'rb') as source, open(temp_path, 'wb') as target:
+                while True:
+                    chunk = source.read(1024 * 1024)
+                    if not chunk:
+                        break
+                    target.write(chunk)
+            return temp_path, temp_path
+        except OSError:
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+            raise
+
     def parse_all(self):
         """解析所有可用的数据文件"""
         if self.meminfo_file and os.path.exists(self.meminfo_file):
@@ -297,20 +355,28 @@ class PanoramaAnalyzer:
 
         # 解析 HPROF 文件
         if self.hprof_file and os.path.exists(self.hprof_file):
+            hprof_path = None
+            temp_hprof = None
             try:
-                hprof_parser = HprofParser(self.hprof_file, verbose=False)
-                if hprof_parser.parse_basic():
+                hprof_path, temp_hprof = self._prepare_hprof_file()
+                hprof_parser = HprofParser(hprof_path, verbose=False)
+                with contextlib.redirect_stdout(sys.stderr):
+                    parsed = hprof_parser.parse_basic()
+                if parsed:
                     self.hprof_data = hprof_parser.get_summary(top_n=10)
             except Exception as e:
-                print(f"警告: HPROF 解析失败: {e}")
+                print(f"警告: HPROF 解析失败: {e}", file=sys.stderr)
                 self.hprof_data = None
+            finally:
+                if temp_hprof and os.path.exists(temp_hprof):
+                    os.remove(temp_hprof)
 
         # 解析 /proc/meminfo 文件
         if self.proc_meminfo_file and os.path.exists(self.proc_meminfo_file):
             try:
                 self.proc_meminfo_data = parse_proc_meminfo_file(self.proc_meminfo_file)
             except Exception as e:
-                print(f"警告: /proc/meminfo 解析失败: {e}")
+                print(f"警告: /proc/meminfo 解析失败: {e}", file=sys.stderr)
                 self.proc_meminfo_data = None
 
         # 解析 DMA-BUF 文件
@@ -318,7 +384,7 @@ class PanoramaAnalyzer:
             try:
                 self.dmabuf_data = parse_dmabuf_file(self.dmabuf_file)
             except Exception as e:
-                print(f"警告: DMA-BUF 解析失败: {e}")
+                print(f"警告: DMA-BUF 解析失败: {e}", file=sys.stderr)
                 self.dmabuf_data = None
 
         # 解析 zRAM/Swap 文件
@@ -326,10 +392,16 @@ class PanoramaAnalyzer:
             try:
                 self.zram_swap_data = parse_zram_swap_file(self.zram_swap_file)
             except Exception as e:
-                print(f"警告: zRAM/Swap 解析失败: {e}")
+                print(f"警告: zRAM/Swap 解析失败: {e}", file=sys.stderr)
                 self.zram_swap_data = None
 
-        # TODO: 集成 smaps 解析
+        # 解析 smaps 文件。结构化 summary 路径不向 stdout 写进度，保证 JSON 输出纯净。
+        if self.smaps_file and os.path.exists(self.smaps_file):
+            try:
+                self.smaps_data = parse_smaps_summary(self.smaps_file)
+            except Exception as e:
+                print(f"警告: smaps 解析失败: {e}", file=sys.stderr)
+                self.smaps_data = None
 
     def analyze(self) -> PanoramaResult:
         """执行全景分析"""
@@ -347,6 +419,9 @@ class PanoramaAnalyzer:
 
         # Bitmap 关联分析
         self._analyze_bitmap_correlation(result)
+
+        # smaps 映射分析
+        self._analyze_smaps_context(result)
 
         # Native 内存追踪
         self._analyze_native_tracking(result)
@@ -436,11 +511,95 @@ class PanoramaAnalyzer:
                     f"GraphicBuffer: {bc.graphic_buffers_count} 个，共 {bc.graphic_buffers_kb/1024:.2f} MB"
                 )
 
+    def _analyze_smaps_context(self, result: PanoramaResult):
+        """分析 smaps 映射上下文"""
+        if not self.smaps_data:
+            return
+
+        def kb_to_mb(value):
+            return value / 1024
+
+        sc = result.smaps_context
+        aggregates = self.smaps_data.get("aggregates", {})
+
+        sc.available = True
+        sc.entry_count = self.smaps_data.get("entry_count", 0)
+        sc.total_pss_mb = kb_to_mb(self.smaps_data.get("total_pss_kb", 0))
+        sc.total_swap_pss_mb = kb_to_mb(self.smaps_data.get("total_swap_pss_kb", 0))
+        sc.native_heap_mb = kb_to_mb(aggregates.get("native_heap_kb", 0))
+        sc.native_legacy_heap_mb = kb_to_mb(aggregates.get("native_legacy_heap_kb", 0))
+        sc.native_libc_malloc_mb = kb_to_mb(aggregates.get("native_libc_malloc_kb", 0))
+        sc.native_scudo_mb = kb_to_mb(aggregates.get("native_scudo_kb", 0))
+        sc.native_gwp_asan_mb = kb_to_mb(aggregates.get("native_gwp_asan_kb", 0))
+        sc.dalvik_heap_mb = kb_to_mb(aggregates.get("dalvik_heap_kb", 0))
+        sc.dalvik_other_mb = kb_to_mb(aggregates.get("dalvik_other_kb", 0))
+        sc.stack_mb = kb_to_mb(aggregates.get("stack_kb", 0))
+        sc.code_mb = kb_to_mb(aggregates.get("code_kb", 0))
+        sc.graphics_mb = kb_to_mb(aggregates.get("graphics_kb", 0))
+        sc.dmabuf_mb = kb_to_mb(aggregates.get("dmabuf_kb", 0))
+        sc.file_mapping_mb = kb_to_mb(aggregates.get("file_mapping_kb", 0))
+        sc.unknown_mb = kb_to_mb(aggregates.get("unknown_kb", 0))
+
+        sc.top_types = [
+            {
+                "type": item.get("type", ""),
+                "pss_mb": round(kb_to_mb(item.get("pss_kb", 0)), 2),
+                "swap_pss_mb": round(kb_to_mb(item.get("swap_pss_kb", 0)), 2),
+                "count": item.get("count", 0),
+            }
+            for item in self.smaps_data.get("by_type", [])[:8]
+        ]
+        sc.top_pss_mappings = [
+            {
+                "name": item.get("name", ""),
+                "pss_mb": round(kb_to_mb(item.get("pss_kb", 0)), 2),
+            }
+            for item in self.smaps_data.get("top_pss_mappings", [])[:8]
+        ]
+        sc.top_swap_mappings = [
+            {
+                "name": item.get("name", ""),
+                "swap_pss_mb": round(kb_to_mb(item.get("swap_pss_kb", 0)), 2),
+            }
+            for item in self.smaps_data.get("top_swap_mappings", [])[:8]
+        ]
+
+        sc.smaps_notes.append(
+            f"smaps 映射 {sc.entry_count} 个，总 PSS {sc.total_pss_mb:.1f} MB"
+        )
+        if sc.native_heap_mb > 0:
+            native_parts = []
+            if sc.native_scudo_mb > 0:
+                native_parts.append(f"Scudo {sc.native_scudo_mb:.1f} MB")
+            if sc.native_libc_malloc_mb > 0:
+                native_parts.append(f"libc_malloc {sc.native_libc_malloc_mb:.1f} MB")
+            if sc.native_legacy_heap_mb > 0:
+                native_parts.append(f"[heap] {sc.native_legacy_heap_mb:.1f} MB")
+            if sc.native_gwp_asan_mb > 0:
+                native_parts.append(f"GWP-ASan {sc.native_gwp_asan_mb:.1f} MB")
+            if native_parts:
+                sc.smaps_notes.append("Native allocator 映射: " + ", ".join(native_parts))
+
+        if sc.total_swap_pss_mb > 0:
+            sc.smaps_notes.append(
+                f"进程 SwapPSS {sc.total_swap_pss_mb:.1f} MB，可用于排查 Android 17 memory limiter / AnonSwap 相关压力"
+            )
+
+        if sc.dmabuf_mb > 0:
+            sc.smaps_notes.append(
+                f"进程内 DMA-BUF 映射 {sc.dmabuf_mb:.1f} MB；系统级 buffer 仍以 dmabuf_context 为准"
+            )
+
     def _analyze_native_tracking(self, result: PanoramaResult):
         """Native 内存追踪分析"""
         nt = result.native_tracking
 
         if not self.meminfo_data:
+            sc = result.smaps_context
+            if sc.available and sc.native_heap_mb > 0:
+                nt.tracking_notes.append(
+                    f"仅有 smaps native allocator PSS 旁证: {sc.native_heap_mb:.1f} MB"
+                )
             return
 
         nt.native_heap_pss_kb = self.meminfo_data.native_heap_pss
@@ -473,6 +632,20 @@ class PanoramaAnalyzer:
             nt.tracking_notes.append(
                 f"Native 内存追踪良好，{100-nt.untracked_percent:.1f}% 可追踪"
             )
+
+        sc = result.smaps_context
+        if sc.available and sc.native_heap_mb > 0:
+            nt.tracking_notes.append(
+                f"smaps native allocator PSS 旁证: {sc.native_heap_mb:.1f} MB (不覆盖 dumpsys meminfo Native Heap)"
+            )
+            smaps_native_kb = sc.native_heap_mb * 1024
+            if nt.native_heap_pss_kb > 0:
+                diff_kb = abs(nt.native_heap_pss_kb - smaps_native_kb)
+                diff_percent = diff_kb / max(nt.native_heap_pss_kb, smaps_native_kb) * 100
+                if diff_kb > 10 * 1024 and diff_percent > 30:
+                    nt.tracking_notes.append(
+                        f"meminfo Native Heap 与 smaps native allocator PSS 差异 {diff_kb/1024:.1f} MB；按跨来源口径差异解读"
+                    )
 
     def _analyze_hprof(self, result: PanoramaResult):
         """HPROF 堆分析"""
@@ -740,6 +913,28 @@ class PanoramaAnalyzer:
                 'suggestion': '检查是否加载了过大的图片，考虑降采样或使用 WebP 格式'
             })
 
+        # 6. smaps SwapPSS 较高，和 Android 17 memory limiter/AnonSwap 排查相关
+        sc = result.smaps_context
+        if sc.available and sc.total_swap_pss_mb > 50:
+            anomalies.append({
+                'type': 'HIGH_SMAPS_SWAP',
+                'severity': 'HIGH' if sc.total_swap_pss_mb > 150 else 'MEDIUM',
+                'description': f"smaps SwapPSS {sc.total_swap_pss_mb:.1f} MB 较高",
+                'suggestion': '结合 ApplicationExitInfo、am memory-limiter status 和进程分配明细排查 AnonSwap 压力'
+            })
+
+        # 7. meminfo 与 smaps native allocator 口径差异较大
+        if sc.available and sc.native_heap_mb > 0 and result.native_heap_mb > 0:
+            diff_mb = abs(result.native_heap_mb - sc.native_heap_mb)
+            diff_percent = diff_mb / max(result.native_heap_mb, sc.native_heap_mb) * 100
+            if diff_mb > 10 and diff_percent > 30:
+                anomalies.append({
+                    'type': 'NATIVE_SOURCE_MISMATCH',
+                    'severity': 'INFO',
+                    'description': f"meminfo Native Heap 与 smaps native allocator PSS 差异 {diff_mb:.1f} MB",
+                    'suggestion': '按跨来源口径差异处理：meminfo 是 dumpsys 汇总，smaps 是进程映射 PSS 明细'
+                })
+
     def _generate_recommendations(self, result: PanoramaResult):
         """生成优化建议"""
         recommendations = result.recommendations
@@ -768,6 +963,21 @@ class PanoramaAnalyzer:
                 'priority': 'MEDIUM',
                 'area': 'GPU_CACHE',
                 'suggestion': f"GPU 缓存 {bc.gpu_cache_mb:.1f} MB 较大，检查是否有过多的自定义绘制"
+            })
+
+        sc = result.smaps_context
+        if sc.available and sc.native_scudo_mb > 50:
+            recommendations.append({
+                'priority': 'MEDIUM',
+                'area': 'SMAPS_NATIVE',
+                'suggestion': f"Scudo native allocator PSS {sc.native_scudo_mb:.1f} MB，建议结合 malloc_debug/heapprofd 定位 C/C++ 分配来源"
+            })
+
+        if sc.available and sc.dmabuf_mb > 30:
+            recommendations.append({
+                'priority': 'MEDIUM',
+                'area': 'SMAPS_DMABUF',
+                'suggestion': f"进程 DMA-BUF 映射 {sc.dmabuf_mb:.1f} MB，建议结合 dmabuf_context/gfxinfo 确认图形 buffer 生命周期"
             })
 
     def check_thresholds(self, result: PanoramaResult) -> List[ThresholdViolation]:
@@ -972,6 +1182,34 @@ class PanoramaAnalyzer:
             for note in zs.zram_swap_notes:
                 print(f"  > {note}")
 
+        # smaps 映射分析
+        sc = result.smaps_context
+        if sc.available:
+            print(f"\n{'─' * 40}")
+            print("[ smaps 进程映射分析 ]")
+            print(f"{'─' * 40}")
+            print(f"映射数量: {sc.entry_count}")
+            print(f"总 PSS:   {sc.total_pss_mb:>10.2f} MB")
+            print(f"SwapPSS:  {sc.total_swap_pss_mb:>10.2f} MB")
+            print(f"Native allocator: {sc.native_heap_mb:>8.2f} MB")
+            if sc.native_scudo_mb > 0 or sc.native_libc_malloc_mb > 0 or sc.native_legacy_heap_mb > 0:
+                print(f"  - Scudo:      {sc.native_scudo_mb:>8.2f} MB")
+                print(f"  - libc_malloc:{sc.native_libc_malloc_mb:>8.2f} MB")
+                print(f"  - [heap]:     {sc.native_legacy_heap_mb:>8.2f} MB")
+            print(f"Dalvik:   {sc.dalvik_heap_mb:>10.2f} MB | Dalvik Other: {sc.dalvik_other_mb:.2f} MB")
+            print(f"Code:     {sc.code_mb:>10.2f} MB | Stack: {sc.stack_mb:.2f} MB")
+            print(f"Graphics: {sc.graphics_mb:>10.2f} MB | DMA-BUF: {sc.dmabuf_mb:.2f} MB")
+            if sc.top_types:
+                print("TOP 类型:")
+                for item in sc.top_types[:5]:
+                    print(f"  - {item['type']}: {item['pss_mb']:.2f} MB ({item['count']} maps)")
+            if sc.top_pss_mappings:
+                print("TOP 映射:")
+                for item in sc.top_pss_mappings[:5]:
+                    print(f"  - {item['name']}: {item['pss_mb']:.2f} MB")
+            for note in sc.smaps_notes:
+                print(f"  > {note}")
+
         # Bitmap 关联分析
         bc = result.bitmap_correlation
         if bc.meminfo_count > 0:
@@ -1161,6 +1399,30 @@ class PanoramaAnalyzer:
                     'device_count': result.zram_swap_context.zram_device_count,
                 } if result.zram_swap_context.has_zram else None,
             } if result.zram_swap_context.swap_total_mb > 0 or result.zram_swap_context.has_zram else None,
+            'smaps_context': {
+                'total_pss_mb': round(result.smaps_context.total_pss_mb, 2),
+                'total_swap_pss_mb': round(result.smaps_context.total_swap_pss_mb, 2),
+                'entry_count': result.smaps_context.entry_count,
+                'aggregates': {
+                    'native_heap_mb': round(result.smaps_context.native_heap_mb, 2),
+                    'native_legacy_heap_mb': round(result.smaps_context.native_legacy_heap_mb, 2),
+                    'native_libc_malloc_mb': round(result.smaps_context.native_libc_malloc_mb, 2),
+                    'native_scudo_mb': round(result.smaps_context.native_scudo_mb, 2),
+                    'native_gwp_asan_mb': round(result.smaps_context.native_gwp_asan_mb, 2),
+                    'dalvik_heap_mb': round(result.smaps_context.dalvik_heap_mb, 2),
+                    'dalvik_other_mb': round(result.smaps_context.dalvik_other_mb, 2),
+                    'stack_mb': round(result.smaps_context.stack_mb, 2),
+                    'code_mb': round(result.smaps_context.code_mb, 2),
+                    'graphics_mb': round(result.smaps_context.graphics_mb, 2),
+                    'dmabuf_mb': round(result.smaps_context.dmabuf_mb, 2),
+                    'file_mapping_mb': round(result.smaps_context.file_mapping_mb, 2),
+                    'unknown_mb': round(result.smaps_context.unknown_mb, 2),
+                },
+                'top_types': result.smaps_context.top_types,
+                'top_pss_mappings': result.smaps_context.top_pss_mappings,
+                'top_swap_mappings': result.smaps_context.top_swap_mappings,
+                'notes': result.smaps_context.smaps_notes,
+            } if result.smaps_context.available else None,
             'ui_resources': {
                 'views': result.views_count,
                 'activities': result.activities_count,
@@ -1278,6 +1540,45 @@ class PanoramaAnalyzer:
                     lines.append("> ✅ zRAM 压缩效果很好 (>3x)")
                 elif zs.zram_compression_ratio < 1.5 and zs.zram_compression_ratio > 0:
                     lines.append("> ⚠️ zRAM 压缩率较低 (<1.5x)")
+                lines.append("")
+
+        # smaps Context
+        sc = result.smaps_context
+        if sc.available:
+            lines.append("## smaps 进程映射分析")
+            lines.append("")
+            lines.append("| 指标 | 数值 |")
+            lines.append("|------|------|")
+            lines.append(f"| 映射数量 | {sc.entry_count} |")
+            lines.append(f"| 总 PSS | {sc.total_pss_mb:.2f} MB |")
+            lines.append(f"| SwapPSS | {sc.total_swap_pss_mb:.2f} MB |")
+            lines.append(f"| Native allocator | {sc.native_heap_mb:.2f} MB |")
+            lines.append(f"| Scudo | {sc.native_scudo_mb:.2f} MB |")
+            lines.append(f"| libc_malloc | {sc.native_libc_malloc_mb:.2f} MB |")
+            lines.append(f"| [heap] | {sc.native_legacy_heap_mb:.2f} MB |")
+            lines.append(f"| Dalvik / Dalvik Other | {sc.dalvik_heap_mb:.2f} MB / {sc.dalvik_other_mb:.2f} MB |")
+            lines.append(f"| Code | {sc.code_mb:.2f} MB |")
+            lines.append(f"| Stack | {sc.stack_mb:.2f} MB |")
+            lines.append(f"| Graphics / DMA-BUF | {sc.graphics_mb:.2f} MB / {sc.dmabuf_mb:.2f} MB |")
+            lines.append("")
+            if sc.top_types:
+                lines.append("### smaps TOP 类型")
+                lines.append("")
+                lines.append("| 类型 | PSS | SwapPSS | 映射数 |")
+                lines.append("|------|-----|---------|--------|")
+                for item in sc.top_types[:5]:
+                    lines.append(f"| {item['type']} | {item['pss_mb']:.2f} MB | {item['swap_pss_mb']:.2f} MB | {item['count']} |")
+                lines.append("")
+            if sc.top_pss_mappings:
+                lines.append("### smaps TOP 映射")
+                lines.append("")
+                lines.append("| 映射 | PSS |")
+                lines.append("|------|-----|")
+                for item in sc.top_pss_mappings[:5]:
+                    lines.append(f"| `{item['name']}` | {item['pss_mb']:.2f} MB |")
+                lines.append("")
+            for note in sc.smaps_notes:
+                lines.append(f"> {note}")
                 lines.append("")
 
         # Bitmap Analysis
@@ -1454,22 +1755,58 @@ def main():
     dmabuf_file = args.dmabuf
     zram_swap_file = args.zram_swap
 
+    explicit_files = {
+        'meminfo': bool(args.meminfo),
+        'gfxinfo': bool(args.gfxinfo),
+        'hprof': bool(args.hprof),
+        'smaps': bool(args.smaps),
+        'proc_meminfo': bool(args.proc_meminfo),
+        'dmabuf': bool(args.dmabuf),
+        'zram_swap': bool(args.zram_swap),
+    }
+
+    def find_first_existing(dump_dir, *names):
+        for name in names:
+            candidate = os.path.join(dump_dir, name)
+            if os.path.exists(candidate):
+                return candidate
+        return None
+
     # 如果指定了 dump 目录，自动查找文件
     if args.dump_dir:
         if not os.path.isdir(args.dump_dir):
             print(f"错误: 目录不存在: {args.dump_dir}")
             sys.exit(1)
 
-        meminfo_file = meminfo_file or os.path.join(args.dump_dir, 'meminfo.txt')
-        gfxinfo_file = gfxinfo_file or os.path.join(args.dump_dir, 'gfxinfo.txt')
-        hprof_file = hprof_file or os.path.join(args.dump_dir, 'heap.hprof')
-        smaps_file = smaps_file or os.path.join(args.dump_dir, 'smaps.txt')
-        proc_meminfo_file = proc_meminfo_file or os.path.join(args.dump_dir, 'proc_meminfo.txt')
-        dmabuf_file = dmabuf_file or os.path.join(args.dump_dir, 'dmabuf_debug.txt')
-        zram_swap_file = zram_swap_file or os.path.join(args.dump_dir, 'zram_swap.txt')
+        meminfo_file = meminfo_file or find_first_existing(args.dump_dir, 'meminfo.txt')
+        gfxinfo_file = gfxinfo_file or find_first_existing(args.dump_dir, 'gfxinfo.txt')
+        hprof_file = hprof_file or find_first_existing(args.dump_dir, 'heap.hprof', 'heap.hprof.gz')
+        smaps_file = smaps_file or find_first_existing(args.dump_dir, 'smaps.txt', 'smaps')
+        proc_meminfo_file = proc_meminfo_file or find_first_existing(args.dump_dir, 'proc_meminfo.txt')
+        dmabuf_file = dmabuf_file or find_first_existing(args.dump_dir, 'dmabuf_debug.txt')
+        zram_swap_file = zram_swap_file or find_first_existing(args.dump_dir, 'zram_swap.txt')
 
-    if not meminfo_file and not gfxinfo_file:
-        print("请至少提供 meminfo 或 gfxinfo 文件")
+    source_files = {
+        'meminfo': meminfo_file,
+        'gfxinfo': gfxinfo_file,
+        'hprof': hprof_file,
+        'smaps': smaps_file,
+        'proc_meminfo': proc_meminfo_file,
+        'dmabuf': dmabuf_file,
+        'zram_swap': zram_swap_file,
+    }
+
+    for name, file_path in source_files.items():
+        if explicit_files[name] and file_path and not os.path.exists(file_path):
+            print(f"错误: {name} 文件不存在: {file_path}")
+            sys.exit(1)
+
+    available_sources = [
+        name for name, file_path in source_files.items()
+        if file_path and os.path.exists(file_path)
+    ]
+    if not available_sources:
+        print("请至少提供一个可读取的数据源文件：meminfo、gfxinfo、hprof、smaps、/proc/meminfo、DMA-BUF 或 zRAM/Swap")
         parser.print_help()
         sys.exit(1)
 

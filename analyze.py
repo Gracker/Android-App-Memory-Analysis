@@ -22,9 +22,17 @@ DEMO_SMAPS = os.path.join(os.path.dirname(__file__), 'demo', 'smaps_sample', 'sm
 DEMO_MEMINFO = os.path.join(os.path.dirname(__file__), 'demo', 'smaps_sample', 'meminfo.txt')
 
 
-def resolve_hprof_input(file_path):
+def resolve_hprof_input(file_path, notice_stream=None):
     if not file_path:
         return None, None, None
+    if notice_stream is None:
+        notice_stream = sys.stdout
+
+    if not os.path.exists(file_path) and file_path.endswith('.hprof'):
+        compressed_path = f"{file_path}.gz"
+        if os.path.exists(compressed_path):
+            print(f"--- HPROF file not found, using packaged sample: {compressed_path} ---", file=notice_stream)
+            file_path = compressed_path
 
     if file_path.endswith('.gz'):
         if not os.path.exists(file_path):
@@ -48,7 +56,7 @@ def resolve_hprof_input(file_path):
             print(f"Error: failed to extract HPROF package '{file_path}': {error}")
             sys.exit(1)
 
-        print(f"--- Decompressed HPROF package: {file_path} ---")
+        print(f"--- Decompressed HPROF package: {file_path} ---", file=notice_stream)
         sidecar = f"{os.path.splitext(os.path.basename(temp_path))[0]}_analysis.txt"
         return temp_path, temp_path, sidecar
 
@@ -81,7 +89,7 @@ def analyze_hprof(file_path, extra_args=None):
     try:
         subprocess.run(command, check=True)
     finally:
-        cleanup_temp_hprof(temp_hprof, temp_sidecar, remove_sidecar=False)
+        cleanup_temp_hprof(temp_hprof, temp_sidecar, remove_sidecar=True)
 
 def analyze_smaps(file_path):
     """Calls the smaps parser script."""
@@ -245,24 +253,30 @@ def analyze_panorama(dump_dir=None, meminfo=None, gfxinfo=None, hprof=None, smap
                      output_json=False, output_markdown=False, output_file=None):
     """Full panorama analysis with multiple data sources."""
     command = [sys.executable, PANORAMA_ANALYZER]
+    resolved_hprof, temp_hprof, temp_sidecar = (hprof, None, None)
+    if hprof:
+        notice_stream = sys.stderr if output_json and not output_file else sys.stdout
+        resolved_hprof, temp_hprof, temp_sidecar = resolve_hprof_input(hprof, notice_stream=notice_stream)
+        if not resolved_hprof or not os.path.exists(resolved_hprof):
+            print(f"Error: HPROF file not found at '{hprof}'")
+            sys.exit(1)
 
     if dump_dir:
         command.extend(['-d', dump_dir])
-    else:
-        if meminfo:
-            command.extend(['-m', meminfo])
-        if gfxinfo:
-            command.extend(['-g', gfxinfo])
-        if hprof:
-            command.extend(['-H', hprof])
-        if smaps:
-            command.extend(['-S', smaps])
-        if proc_meminfo:
-            command.extend(['-P', proc_meminfo])
-        if dmabuf:
-            command.extend(['-D', dmabuf])
-        if zram_swap:
-            command.extend(['-Z', zram_swap])
+    if meminfo:
+        command.extend(['-m', meminfo])
+    if gfxinfo:
+        command.extend(['-g', gfxinfo])
+    if resolved_hprof:
+        command.extend(['-H', resolved_hprof])
+    if smaps:
+        command.extend(['-S', smaps])
+    if proc_meminfo:
+        command.extend(['-P', proc_meminfo])
+    if dmabuf:
+        command.extend(['-D', dmabuf])
+    if zram_swap:
+        command.extend(['-Z', zram_swap])
 
     if output_json:
         command.append('--json')
@@ -271,7 +285,10 @@ def analyze_panorama(dump_dir=None, meminfo=None, gfxinfo=None, hprof=None, smap
     if output_file:
         command.extend(['-o', output_file])
 
-    subprocess.run(command, check=True)
+    try:
+        subprocess.run(command, check=True)
+    finally:
+        cleanup_temp_hprof(temp_hprof, temp_sidecar, remove_sidecar=True)
 
 
 def analyze_diff(before_dir=None, after_dir=None, before_meminfo=None, after_meminfo=None,
@@ -308,7 +325,7 @@ def main():
   python3 analyze.py live --package com.example.app --skip-hprof  # 快速模式
 
   # 分析本地文件
-  python3 analyze.py hprof demo/hprof_sample/heapdump_latest.hprof
+  python3 analyze.py hprof demo/hprof_sample/heapdump_latest.hprof.gz
   python3 analyze.py smaps demo/smaps_sample/smaps
   python3 analyze.py meminfo dump/meminfo.txt
   python3 analyze.py gfxinfo dump/gfxinfo.txt
@@ -325,7 +342,7 @@ def main():
   python3 analyze.py combined -H demo/hprof.hprof -S demo/smaps.txt
 
   # 增强联合分析（支持 meminfo/mtrack）
-  python3 analyze.py combined --hprof demo/hprof_sample/heapdump_latest.hprof --smaps demo/smaps_sample/smaps --meminfo demo/smaps_sample/meminfo.txt --json-output report.json
+  python3 analyze.py combined --hprof demo/hprof_sample/heapdump_latest.hprof.gz --smaps demo/smaps_sample/smaps --meminfo demo/smaps_sample/meminfo.txt --json-output report.json
   python3 analyze.py combined --demo --json-output demo_report.json
 """,
         formatter_class=argparse.RawTextHelpFormatter
@@ -469,7 +486,12 @@ def main():
                 sys.exit(1)
             analyze_combined_legacy(args.hprof, args.smaps, args.markdown, args.output)
 
-    print("\n--- Analysis complete. ---")
+    json_stdout = (
+        (args.command == 'panorama' and args.json and not args.output) or
+        (args.command == 'diff' and args.json and not args.output)
+    )
+    if not json_stdout:
+        print("\n--- Analysis complete. ---")
 
 if __name__ == '__main__':
     try:

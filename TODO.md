@@ -5,10 +5,11 @@
 - [x] **一键 Dump**: 从设备采集 meminfo/gfxinfo/hprof/smaps
 - [x] **全景分析**: 多数据源关联分析
 - [x] **HPROF 分析**: Java 堆对象分析、泄漏检测、引用链追踪
-- [x] **SMAPS 分析**: Native 内存映射分析（支持 Android 4.0-16+）
+- [x] **SMAPS 分析**: Native 内存映射分析（支持 Android 4.0-17+ / API 37）
 - [x] **Bitmap 关联**: Java Bitmap 对象与 Native 像素内存关联
 - [x] **Native 追踪**: 可追踪 vs 未追踪 Native 内存分析
 - [x] **Android 16 / API 36 Demo 适配**: compile/target SDK 36、edge-to-edge、16 KB page size Native 对齐
+- [x] **Android 17 / API 37 兼容**: compile/target SDK 37、memory-limiter 证据采集、smaps 全景分析、`.hprof.gz` 样本 fallback
 
 ---
 
@@ -43,6 +44,22 @@ python3 analyze.py panorama -d ./dump --markdown -o report.md
 **用法**:
 ```bash
 python3 analyze.py panorama -m meminfo.txt -g gfxinfo.txt -H heap.hprof
+```
+
+### 1.2.1 SMAPS 集成到全景分析 ✅ 已完成
+
+**目标**: 在全景报告中包含 smaps 进程映射证据，支持 Android 17 native/scudo/swap 分析。
+
+**Action Items**:
+- [x] 在 `smaps_parser.py` 增加静默结构化 summary API
+- [x] 在 `panorama_analyzer.py` 中导入 smaps summary
+- [x] 将 smaps PSS/SwapPSS、native allocator、graphics、DMA-BUF、code、stack、TOP mapping 整合到 `PanoramaResult`
+- [x] 支持 smaps-only 全景分析
+- [x] 在 JSON、Markdown、文本报告中添加 `smaps_context`
+
+**用法**:
+```bash
+python3 analyze.py panorama -S smaps.txt --json -o smaps_panorama.json
 ```
 
 ### 1.3 对比分析 ✅ 已完成

@@ -125,6 +125,7 @@ KernelPageSize:        4 kB
 - **Common Values**: 4KB (ARMv7/ARMv8), 16KB (ARMv8 optional)
 - **Impact**: Affects memory allocation granularity and efficiency
 - **Android 16+**: Supports 16KB page optimization
+- **Android 17+ / API 37**: For memory-limiter/AnonSwap investigations, correlate SwapPSS, Scudo/native allocator, and DMA-BUF mapping evidence
 
 #### MMUPageSize (MMU Page Size)
 ```
