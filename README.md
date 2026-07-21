@@ -116,6 +116,37 @@ Notes:
 - In modern mode with `-p/--pid`, the tool auto-collects `smaps` and tries to collect `dumpsys meminfo -d`.
 - The bundled demo HPROF is committed as `heapdump_latest.hprof.gz` to avoid large-file push limits. The unified `analyze.py` entry point reads `.hprof.gz` directly. If an old sample path ending in `.hprof` is missing but a sibling `.hprof.gz` exists, it automatically falls back to the packaged sample.
 
+## AI Evidence Context and Skills
+
+The provider-neutral `ai-context` protocol validates artifacts, separates accounting domains, exposes missing/conflicting input, and selects versioned theory records with official sources before any AI interprets the case. It never uploads artifacts or calls an external model.
+
+New live dumps include a structured `manifest.json`, so skipped, unsupported, permission-denied, failed, and genuinely collected states remain distinguishable instead of becoming a generic “missing” file.
+
+```bash
+python3 analyze.py ai-context \
+  -d ./dumps/com.example.app_20260721_120000 \
+  --question "Native memory keeps growing after the screen exits" \
+  --format json \
+  -o android-memory-context.json
+```
+
+Importable Skills live under `skills/`:
+
+- `android-memory-evidence` validates partial or inaccurate inputs and gives exact capture guidance;
+- `android-memory-diagnose` combines artifact-bound facts with versioned theory;
+- `android-memory-remediate` changes code only after ownership and mechanism are supported, then verifies the matching scenario.
+
+Install the complete public package into the current AI project (Node.js 18+ and Python 3.8+):
+
+```bash
+npx skills add Gracker/Android-App-Memory-Analysis \
+  --skill '*'
+```
+
+For a global Codex install, add `--agent codex --global`. The Evidence Skill includes its validated runtime and knowledge catalog, so installed copies can create contexts without cloning this repository or setting `ANDROID_MEMORY_ANALYSIS_ROOT`. The full analyzer checkout is only an optional enhancement for live capture, panorama, diff, and helper-driven Perfetto workflows.
+
+See [Android Memory AI Workflow](./docs/en/ai_workflow.md) for architecture, schema, installation, refresh, privacy boundaries, and verification.
+
 ## What Gets Analyzed?
 
 ### Panorama Analysis Output
@@ -236,4 +267,4 @@ Contributions are welcome! Please feel free to submit pull requests or open issu
 
 ## License
 
-This project is open source. See LICENSE file for details.
+Licensed under the [Apache License 2.0](./LICENSE). Each independently installed Skill includes the same license text.

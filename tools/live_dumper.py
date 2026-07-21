@@ -32,6 +32,7 @@ from tools.android_shell_utils import (
     read_smaps_with_shell,
     resolve_pid_with_shell,
 )
+from android_memory_ai.capture_manifest import build_capture_manifest, write_capture_manifest
 
 
 class LiveDumper:
@@ -101,6 +102,11 @@ class LiveDumper:
         except Exception as e:
             return "", -1, str(e)
 
+    def _adb_shell_with_error_output(self, cmd, timeout=30):
+        """Adapt full shell results for fallback readers without discarding stderr."""
+        output, return_code, error = self._adb_shell_full(cmd, timeout=timeout)
+        return output if output.strip() else error, return_code
+
     def _adb_pull(self, remote_path, local_path, timeout=60):
         """拉取文件到本地"""
         try:
@@ -120,6 +126,18 @@ class LiveDumper:
     def _write_artifact(self, output_path, content):
         with open(output_path, 'w', encoding='utf-8') as f:
             f.write(content)
+
+    def _write_collection_error(self, error_path, command, detail):
+        if not error_path:
+            return
+        message = detail.strip() if detail and detail.strip() else "command returned no usable output"
+        self._write_artifact(error_path, f"command: {command}\n{message}\n")
+
+    def _preserve_error_result(self, results, files, artifact_type):
+        error_key = f'{artifact_type}_error'
+        error_path = files.get(error_key)
+        if error_path and os.path.isfile(error_path):
+            results[error_key] = error_path
 
     def _read_artifact_value(self, path):
         if not path or not os.path.exists(path):
@@ -205,36 +223,47 @@ class LiveDumper:
 
         return sorted(apps, key=lambda x: x[1]) + sorted(system_apps, key=lambda x: x[1])
 
-    def dump_showmap(self, pid, output_path):
+    def dump_showmap(self, pid, output_path, error_path=None):
         """Dump showmap when available."""
-        output, ret = self._adb_shell(f'showmap {pid}', timeout=60)
+        command = f'showmap {pid}'
+        output, ret, error = self._adb_shell_full(command, timeout=60)
         if ret == 0 and output.strip():
             self._write_artifact(output_path, output)
             return True
+        self._write_collection_error(error_path, command, error or output)
         return False
 
-    def dump_smaps(self, pid, output_path):
+    def dump_smaps(self, pid, output_path, error_path=None):
         """Dump smaps"""
-        output, _ = read_smaps_with_shell(self._adb_shell, pid, timeout=60)
+        output, error = read_smaps_with_shell(
+            self._adb_shell_with_error_output,
+            pid,
+            timeout=60,
+        )
         if output:
             self._write_artifact(output_path, output)
             return True
+        self._write_collection_error(error_path, f'cat /proc/{pid}/smaps', error)
         return False
 
-    def dump_meminfo(self, package_name, output_path):
+    def dump_meminfo(self, package_name, output_path, error_path=None):
         """Dump detailed dumpsys meminfo."""
-        output, ret = self._adb_shell(f'dumpsys meminfo -d {package_name}', timeout=30)
+        command = f'dumpsys meminfo -d {package_name}'
+        output, ret, error = self._adb_shell_full(command, timeout=30)
         if ret == 0 and output.strip():
             self._write_artifact(output_path, output)
             return True
+        self._write_collection_error(error_path, command, error or output)
         return False
 
-    def dump_gfxinfo(self, package_name, output_path):
+    def dump_gfxinfo(self, package_name, output_path, error_path=None):
         """Dump dumpsys gfxinfo"""
-        output, ret = self._adb_shell(f'dumpsys gfxinfo {package_name}', timeout=30)
+        command = f'dumpsys gfxinfo {package_name}'
+        output, ret, error = self._adb_shell_full(command, timeout=30)
         if ret == 0 and output.strip():
             self._write_artifact(output_path, output)
             return True
+        self._write_collection_error(error_path, command, error or output)
         return False
 
     def dump_zram_swap(self, output_path):
@@ -297,20 +326,30 @@ class LiveDumper:
         
         return bool(content.strip())
 
-    def dump_dmabuf(self, output_path):
+    def dump_dmabuf(self, output_path, error_path=None):
         """Dump DMA-BUF debugfs information when the device exposes it."""
-        output, _ = read_dmabuf_with_shell(self._adb_shell, timeout=60)
+        output, error = read_dmabuf_with_shell(
+            self._adb_shell_with_error_output,
+            timeout=60,
+        )
         if output:
             self._write_artifact(output_path, output)
             return True
+        self._write_collection_error(
+            error_path,
+            'cat /sys/kernel/debug/dma_buf/bufinfo',
+            error,
+        )
         return False
 
-    def dump_proc_meminfo(self, output_path):
+    def dump_proc_meminfo(self, output_path, error_path=None):
         """Dump /proc/meminfo (系统内存信息)"""
-        output, ret = self._adb_shell('cat /proc/meminfo')
+        command = 'cat /proc/meminfo'
+        output, ret, error = self._adb_shell_full(command)
         if ret == 0 and output.strip():
             self._write_artifact(output_path, output)
             return True
+        self._write_collection_error(error_path, command, error or output)
         return False
 
     def write_meta(self, meta_path, package_name, pid, timestamp, results, files, process_status):
@@ -331,13 +370,17 @@ class LiveDumper:
                 size = os.path.getsize(path) if os.path.exists(path) else 0
                 f.write(f"  {name}: {os.path.basename(path)} ({size} bytes)\n")
 
-    def dump_hprof(self, package_name, output_path, timeout=120):
+    def dump_hprof(self, package_name, output_path, timeout=120, error_path=None):
         """Dump hprof (Java 堆)"""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         device_path = f'/data/local/tmp/dump_{timestamp}.hprof'
 
         # 执行 dumpheap
-        _, ret = self._adb_shell(f'am dumpheap {package_name} {device_path}', timeout=timeout)
+        command = f'am dumpheap {package_name} {device_path}'
+        output, ret, error = self._adb_shell_full(command, timeout=timeout)
+        if ret != 0:
+            self._write_collection_error(error_path, command, error or output)
+            return False
 
         # 等待文件生成
         print("  等待 hprof 文件生成...")
@@ -347,11 +390,21 @@ class LiveDumper:
         output, ret = self._adb_shell(f'ls -la {device_path}')
         if ret != 0 or 'No such file' in output:
             print("  hprof 文件生成失败")
+            self._write_collection_error(
+                error_path,
+                command,
+                output or 'device heap dump file was not created',
+            )
             return False
 
         # 拉取文件
         if not self._adb_pull(device_path, output_path, timeout=120):
             print("  拉取 hprof 文件失败")
+            self._write_collection_error(
+                error_path,
+                f'adb pull {device_path}',
+                'adb pull failed',
+            )
             return False
 
         # 清理设备文件
@@ -393,13 +446,21 @@ class LiveDumper:
             'memory_limiter_status': os.path.join(dump_dir, 'memory_limiter_status.txt'),
             'memory_limiter_status_error': os.path.join(dump_dir, 'memory_limiter_status.err'),
             'showmap': os.path.join(dump_dir, 'showmap.txt'),
+            'showmap_error': os.path.join(dump_dir, 'showmap.err'),
             'smaps': os.path.join(dump_dir, 'smaps.txt'),
+            'smaps_error': os.path.join(dump_dir, 'smaps.err'),
             'meminfo': os.path.join(dump_dir, 'meminfo.txt'),
+            'meminfo_error': os.path.join(dump_dir, 'meminfo.err'),
             'gfxinfo': os.path.join(dump_dir, 'gfxinfo.txt'),
+            'gfxinfo_error': os.path.join(dump_dir, 'gfxinfo.err'),
             'hprof': os.path.join(dump_dir, 'heap.hprof'),
+            'hprof_error': os.path.join(dump_dir, 'heap.err'),
             'proc_meminfo': os.path.join(dump_dir, 'proc_meminfo.txt'),
+            'proc_meminfo_error': os.path.join(dump_dir, 'proc_meminfo.err'),
             'zram_swap': os.path.join(dump_dir, 'zram_swap.txt'),
             'dmabuf': os.path.join(dump_dir, 'dmabuf_debug.txt'),
+            'dmabuf_error': os.path.join(dump_dir, 'dmabuf_debug.err'),
+            'manifest': os.path.join(dump_dir, 'manifest.json'),
         }
 
         results = {}
@@ -420,6 +481,11 @@ class LiveDumper:
             meta_path = os.path.join(dump_dir, 'meta.txt')
             self.write_meta(meta_path, package_name, None, timestamp, results, files, 'not_running')
             results['meta'] = meta_path
+            manifest = build_capture_manifest(
+                dump_dir, package_name, None, timestamp, results, files, 'not_running', skip_hprof
+            )
+            write_capture_manifest(files['manifest'], manifest)
+            results['manifest'] = files['manifest']
             results['dump_dir'] = dump_dir
             results['package'] = package_name
             results['pid'] = None
@@ -430,38 +496,43 @@ class LiveDumper:
 
         # 先快速采集轻量数据（确保时间点接近）
         print("\n[1/8] Dumping showmap...")
-        if self.dump_showmap(pid, files['showmap']):
+        if self.dump_showmap(pid, files['showmap'], files['showmap_error']):
             results['showmap'] = files['showmap']
             print(f"  -> {os.path.basename(files['showmap'])}")
         else:
+            self._preserve_error_result(results, files, 'showmap')
             print("  -> 失败或无权限")
 
         print("\n[2/8] Dumping smaps...")
-        if self.dump_smaps(pid, files['smaps']):
+        if self.dump_smaps(pid, files['smaps'], files['smaps_error']):
             results['smaps'] = files['smaps']
             print(f"  -> {os.path.basename(files['smaps'])}")
         else:
+            self._preserve_error_result(results, files, 'smaps')
             print("  -> 失败")
 
         print("\n[3/8] Dumping meminfo -d...")
-        if self.dump_meminfo(package_name, files['meminfo']):
+        if self.dump_meminfo(package_name, files['meminfo'], files['meminfo_error']):
             results['meminfo'] = files['meminfo']
             print(f"  -> {os.path.basename(files['meminfo'])}")
         else:
+            self._preserve_error_result(results, files, 'meminfo')
             print("  -> 失败")
 
         print("\n[4/8] Dumping gfxinfo...")
-        if self.dump_gfxinfo(package_name, files['gfxinfo']):
+        if self.dump_gfxinfo(package_name, files['gfxinfo'], files['gfxinfo_error']):
             results['gfxinfo'] = files['gfxinfo']
             print(f"  -> {os.path.basename(files['gfxinfo'])}")
         else:
+            self._preserve_error_result(results, files, 'gfxinfo')
             print("  -> 失败")
 
         print("\n[5/8] Dumping /proc/meminfo (系统内存)...")
-        if self.dump_proc_meminfo(files['proc_meminfo']):
+        if self.dump_proc_meminfo(files['proc_meminfo'], files['proc_meminfo_error']):
             results['proc_meminfo'] = files['proc_meminfo']
             print(f"  -> {os.path.basename(files['proc_meminfo'])}")
         else:
+            self._preserve_error_result(results, files, 'proc_meminfo')
             print("  -> 失败")
 
         print("\n[6/8] Dumping zRAM/Swap...")
@@ -472,19 +543,25 @@ class LiveDumper:
             print("  -> 失败或无 zRAM")
 
         print("\n[7/8] Dumping DMA-BUF...")
-        if self.dump_dmabuf(files['dmabuf']):
+        if self.dump_dmabuf(files['dmabuf'], files['dmabuf_error']):
             results['dmabuf'] = files['dmabuf']
             print(f"  -> {os.path.basename(files['dmabuf'])}")
         else:
+            self._preserve_error_result(results, files, 'dmabuf')
             print("  -> 失败或无权限")
 
         # hprof 最后 dump（耗时较长）
         if not skip_hprof:
             print("\n[8/8] Dumping hprof (这可能需要较长时间)...")
-            if self.dump_hprof(package_name, files['hprof']):
+            if self.dump_hprof(
+                package_name,
+                files['hprof'],
+                error_path=files['hprof_error'],
+            ):
                 results['hprof'] = files['hprof']
                 print(f"  -> {os.path.basename(files['hprof'])}")
             else:
+                self._preserve_error_result(results, files, 'hprof')
                 print("  -> 失败 (可能需要 debuggable 应用或 root 权限)")
         else:
             print("\n[8/8] 跳过 hprof dump")
@@ -502,6 +579,11 @@ class LiveDumper:
         meta_path = os.path.join(dump_dir, 'meta.txt')
         self.write_meta(meta_path, package_name, pid, timestamp, results, files, 'running')
         results['meta'] = meta_path
+        manifest = build_capture_manifest(
+            dump_dir, package_name, pid, timestamp, results, files, 'running', skip_hprof
+        )
+        write_capture_manifest(files['manifest'], manifest)
+        results['manifest'] = files['manifest']
         results['dump_dir'] = dump_dir
         results['package'] = package_name
         results['pid'] = pid

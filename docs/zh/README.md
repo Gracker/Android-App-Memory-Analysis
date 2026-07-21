@@ -7,6 +7,7 @@
 - [Android 内存调试指南](./android_memory_debug_guide.md)
 - [Android 17 / API 37 适配 Review](./android_17_adaptation_review.md)
 - [Android 16 / API 36 适配 Review](./android_16_adaptation_review.md)
+- [Android 内存 AI 工作流](./ai_workflow.md)
 
 ## 2）单数据源解读
 
@@ -32,4 +33,5 @@
 3. 如果目标设备或目标 SDK 是 Android 16，或问题聚焦 16 KB page size，再跑 `android_16_adaptation_review.md` 的清单。
 4. 结合 `smaps_interpretation_guide.md` 与 `meminfo_interpretation_guide.md` 建立证据链。
 5. 再读 `analysis_results_interpretation_guide.md` 做综合诊断。
-6. 最后用 `teaching_playbook.md` 作为团队演练和复盘模板。
+6. 当证据残缺、AI 项目需要消费 artifact，或代码改动需要证据契约时，使用 `ai_workflow.md`。
+7. 最后用 `teaching_playbook.md` 作为团队演练和复盘模板。

@@ -1,0 +1,517 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "android-memory-operational-knowledge",
+  "catalog_version": "2026.07.1",
+  "generated_from": {
+    "repository": "Gracker/android-memory",
+    "visibility": "private",
+    "revision": "2feca977830e99ddfb191022e9ba02409e7f0e19",
+    "policy": "Original condensed operational records; primary articles remain the private source of truth."
+  },
+  "records": [
+    {
+      "id": "accounting-ledgers-are-not-additive",
+      "title": {
+        "zh": "页账、Android 分类账与运行时堆账不能直接相加",
+        "en": "Page, Android category, and runtime heap ledgers are not directly additive"
+      },
+      "summary": {
+        "zh": "PSS/RSS/Private Dirty/SwapPss 描述页成本，App Summary 是 Android 对页账与 memtrack 的分类，Heap Size/Alloc/Free 与 HPROF 描述运行时或对象图。分析必须先标明账本，再比较同口径、同时间窗的数据。",
+        "en": "PSS, RSS, Private Dirty, and SwapPss describe page cost; App Summary classifies page and memtrack data; Heap Size/Alloc/Free and HPROF describe runtime or object-graph state. Label the ledger before comparing matching samples."
+      },
+      "intents": ["all"],
+      "accounting_domains": ["process-pages", "android-summary", "runtime-heap", "object-graph", "memtrack"],
+      "evidence": {
+        "required": ["meminfo"],
+        "supporting": ["smaps", "hprof", "analysis_report"]
+      },
+      "does_not_prove": {
+        "zh": "单个 Heap Alloc、HPROF retained size 或 PSS 数字不能独立证明总物理内存、泄漏 owner 或可回收量。",
+        "en": "A Heap Alloc, HPROF retained-size, or PSS value alone does not prove total physical memory, leak ownership, or reclaimable bytes."
+      },
+      "version_scope": {
+        "baseline": "Android 17 / API 37, android-17.0.0_r1; concepts also apply earlier with field and formula checks",
+        "caveat": "App Summary formulas, memtrack categories, and printed fields vary by Android release and vendor."
+      },
+      "theory_origin": {
+        "article": "P01-memory-accounting-meminfo-smaps.md",
+        "revision": "2feca977830e99ddfb191022e9ba02409e7f0e19"
+      },
+      "practice": ["tools/meminfo_parser.py", "tools/smaps_parser.py", "tools/panorama_analyzer.py"],
+      "sources": [
+        {
+          "title": "Android memory management overview",
+          "url": "https://developer.android.com/topic/performance/memory-overview",
+          "type": "official-doc"
+        },
+        {
+          "title": "Android 17 Debug.MemoryInfo",
+          "url": "https://android.googlesource.com/platform/frameworks/base/+/refs/tags/android-17.0.0_r1/core/java/android/os/Debug.java",
+          "type": "source"
+        },
+        {
+          "title": "Android 17 libmeminfo process accounting",
+          "url": "https://android.googlesource.com/platform/system/memory/libmeminfo/+/refs/tags/android-17.0.0_r1/procmeminfo.cpp",
+          "type": "source"
+        }
+      ]
+    },
+    {
+      "id": "capture-context-bounds-conclusions",
+      "title": {
+        "zh": "设备、版本、进程、场景与时间窗是证据的一部分",
+        "en": "Device, version, process, scenario, and time window are part of the evidence"
+      },
+      "summary": {
+        "zh": "每个现场至少记录 package/PID、API、build fingerprint、页大小、采集时间、场景 phase、复现轮次、冷却时间和工具开关。缺少这些字段时，跨设备、跨版本与前后对比必须降级。",
+        "en": "Record package/PID, API level, build fingerprint, page size, timestamp, scenario phase, loops, cooldown, and tool switches. Missing context weakens cross-device, cross-version, and before/after comparisons."
+      },
+      "intents": ["all"],
+      "accounting_domains": ["capture-context"],
+      "evidence": {
+        "required": ["device_context"],
+        "supporting": ["phase_metadata", "meminfo"]
+      },
+      "does_not_prove": {
+        "zh": "仅写“Android 17”或设备型号不能证明内核、ROM 策略、页大小和 WebView/provider 实现一致。",
+        "en": "An Android version or device model alone does not prove matching kernel, ROM policy, page size, or WebView/provider behavior."
+      },
+      "version_scope": {
+        "baseline": "All Android versions",
+        "caveat": "16 KB base-page devices and OEM memory policies make context especially important."
+      },
+      "theory_origin": {
+        "article": "P10-memory-lab-playbook.md",
+        "revision": "2feca977830e99ddfb191022e9ba02409e7f0e19"
+      },
+      "practice": ["tools/live_dumper.py", "demo/memory-lab/scripts/capture_memory_lab.sh"],
+      "sources": [
+        {
+          "title": "Android 16 KB page-size compatibility",
+          "url": "https://source.android.com/docs/core/architecture/16kb-page-size/16kb",
+          "type": "official-doc"
+        }
+      ]
+    },
+    {
+      "id": "measurement-perturbation-must-be-recorded",
+      "title": {
+        "zh": "采集工具会改写被观察现场",
+        "en": "Collection tools can alter the observed state"
+      },
+      "summary": {
+        "zh": "自然 phase 优先使用低扰动页账；详细 meminfo、HPROF、heapprofd 与强制 GC 进入独立 diagnostic phase。只有采集模式相同的样本才适合直接做趋势。",
+        "en": "Prefer low-perturbation page accounting for natural phases. Put detailed meminfo, HPROF, heapprofd, and forced GC in diagnostic phases. Compare trends only across matching collection modes."
+      },
+      "intents": ["java-leak", "native-memory", "regression", "quick-triage"],
+      "accounting_domains": ["capture-context", "object-graph", "allocation-profile"],
+      "evidence": {
+        "required": ["phase_metadata"],
+        "supporting": ["meminfo", "hprof", "native_heap_profile"]
+      },
+      "does_not_prove": {
+        "zh": "强制 GC 后的对象图不能代表自然峰值，诊断期间的帧时间也不能用于用户体验验收。",
+        "en": "A post-forced-GC object graph is not a natural peak, and frame time during invasive diagnostics is not UX validation evidence."
+      },
+      "version_scope": {
+        "baseline": "All Android versions",
+        "caveat": "Exact dumpsys behavior and profiler overhead depend on platform and tool version."
+      },
+      "theory_origin": {
+        "article": "P09-memory-toolbox-engineering.md",
+        "revision": "2feca977830e99ddfb191022e9ba02409e7f0e19"
+      },
+      "practice": ["tools/live_dumper.py", "tools/hprof_dumper.py"],
+      "sources": [
+        {
+          "title": "Android profile types",
+          "url": "https://developer.android.com/topic/performance/tracing/profile-types-overview",
+          "type": "official-doc"
+        },
+        {
+          "title": "Android 17 ActivityThread meminfo behavior",
+          "url": "https://android.googlesource.com/platform/frameworks/base/+/refs/tags/android-17.0.0_r1/core/java/android/app/ActivityThread.java#1856",
+          "type": "source"
+        }
+      ]
+    },
+    {
+      "id": "java-leak-needs-object-path-and-repeatability",
+      "title": {
+        "zh": "Java 泄漏需要对象存活、强引用路径与可重复增长",
+        "en": "Java leaks need object survival, a strong reference path, and repeatable growth"
+      },
+      "summary": {
+        "zh": "类实例数或 retained size 只建立候选。可靠定位要绑定业务 owner、GC Root 强引用路径、生命周期预期和多轮 before/after/cooldown 证据。",
+        "en": "Class counts or retained size only create candidates. Reliable attribution binds the business owner, GC-root path, lifecycle expectation, and repeated before/after/cooldown evidence."
+      },
+      "intents": ["java-leak", "regression"],
+      "accounting_domains": ["object-graph", "runtime-heap"],
+      "evidence": {
+        "required": ["hprof"],
+        "supporting": ["phase_metadata", "meminfo", "comparison_report"]
+      },
+      "does_not_prove": {
+        "zh": "对象很多、对象很大或从 GC Root 可达都不自动等于泄漏；必须先定义该对象在场景结束后是否应释放。",
+        "en": "Many objects, large objects, or GC-root reachability do not automatically mean a leak; first define whether the object should be gone after the scenario."
+      },
+      "version_scope": {
+        "baseline": "ART-era Android; HPROF format and profiler APIs are tool/version sensitive",
+        "caveat": "HPROF describes managed objects and selected native wrappers, not all process pages."
+      },
+      "theory_origin": {
+        "article": "P08-memory-leak-cases.md",
+        "revision": "2feca977830e99ddfb191022e9ba02409e7f0e19"
+      },
+      "practice": ["tools/hprof_parser.py", "demo/memory-lab"],
+      "sources": [
+        {
+          "title": "Android Studio Memory Profiler",
+          "url": "https://developer.android.com/studio/profile/memory-profiler",
+          "type": "official-doc"
+        },
+        {
+          "title": "Android 17 ART HPROF implementation",
+          "url": "https://android.googlesource.com/platform/art/+/refs/tags/android-17.0.0_r1/runtime/hprof/hprof.cc",
+          "type": "source"
+        }
+      ]
+    },
+    {
+      "id": "native-owner-needs-allocation-stacks",
+      "title": {
+        "zh": "Native 页增长与 Native 分配 owner 是两层证据",
+        "en": "Native page growth and native allocation ownership are separate evidence layers"
+      },
+      "summary": {
+        "zh": "meminfo/smaps/showmap 能确认 Native/Scudo/匿名映射成本与走势；具体调用方需要 heapprofd、malloc_debug、GWP-ASan/MTE/HWASan 或业务分配追踪。DirectByteBuffer 的 Java wrapper 只解释一部分 native 生命周期。",
+        "en": "meminfo, smaps, and showmap establish Native/Scudo/anonymous mapping cost and trend. Ownership needs heapprofd, malloc_debug, GWP-ASan/MTE/HWASan, or app allocation tracing. A DirectByteBuffer wrapper explains only part of native lifetime."
+      },
+      "intents": ["native-memory", "regression"],
+      "accounting_domains": ["process-pages", "allocation-profile", "object-graph"],
+      "evidence": {
+        "required": ["smaps"],
+        "supporting": ["meminfo", "native_heap_profile", "hprof"]
+      },
+      "does_not_prove": {
+        "zh": "一个 `[anon:scudo:*]` 大映射不能证明是哪段 C/C++ 代码分配，也不能证明这些页不可复用。",
+        "en": "A large `[anon:scudo:*]` mapping does not identify the allocating C/C++ callsite or prove that allocator pages are unusable."
+      },
+      "version_scope": {
+        "baseline": "Android 10+ for heapprofd; Android 17 allocator mappings used as the current source baseline",
+        "caveat": "Allocator, sanitizer, and mapping names vary by Android release, ABI, and vendor."
+      },
+      "theory_origin": {
+        "article": "P04-native-heap-scudo-jni.md",
+        "revision": "2feca977830e99ddfb191022e9ba02409e7f0e19"
+      },
+      "practice": ["tools/smaps_parser.py", "tools/perfetto_helper.py"],
+      "sources": [
+        {
+          "title": "Perfetto native heap profiler",
+          "url": "https://perfetto.dev/docs/data-sources/native-heap-profiler",
+          "type": "official-doc"
+        },
+        {
+          "title": "Android native memory debugging",
+          "url": "https://source.android.com/docs/core/tests/debug/native-memory",
+          "type": "official-doc"
+        },
+        {
+          "title": "Android 17 Scudo secondary allocator",
+          "url": "https://android.googlesource.com/platform/external/scudo/+/refs/tags/android-17.0.0_r1/standalone/secondary.h",
+          "type": "source"
+        }
+      ]
+    },
+    {
+      "id": "graphics-is-cross-process-and-multi-ledger",
+      "title": {
+        "zh": "Graphics/WebView/IPC 内存跨进程、跨 owner、跨账本",
+        "en": "Graphics, WebView, and IPC memory crosses processes, owners, and ledgers"
+      },
+      "summary": {
+        "zh": "Graphics 可能同时出现在 memtrack、Gfx dev、DMA-BUF、SurfaceFlinger、WebView renderer 和 Java wrapper。先确认 buffer owner、进程模型和计费口径，再讨论纹理、Bitmap、Surface 或 WebView 优化。",
+        "en": "Graphics can appear through memtrack, Gfx dev, DMA-BUF, SurfaceFlinger, WebView renderers, and Java wrappers. Establish buffer ownership, process model, and accounting before proposing Bitmap, texture, Surface, or WebView changes."
+      },
+      "intents": ["graphics", "quick-triage", "regression"],
+      "accounting_domains": ["memtrack", "process-pages", "cross-process-buffers", "object-graph"],
+      "evidence": {
+        "required": ["meminfo"],
+        "supporting": ["gfxinfo", "dmabuf", "smaps", "device_context"]
+      },
+      "does_not_prove": {
+        "zh": "Java Bitmap 数量或 Graphics App Summary 单项不能独立证明 GPU/Surface/DMA-BUF owner，也不能安全相加为总显存。",
+        "en": "Java Bitmap counts or a Graphics App Summary value alone do not identify GPU, Surface, or DMA-BUF owners and cannot be safely summed as total GPU memory."
+      },
+      "version_scope": {
+        "baseline": "Android 17 framework/native source baseline",
+        "caveat": "GPU drivers, memtrack HALs, WebView providers, and OEM debugfs access vary widely."
+      },
+      "theory_origin": {
+        "article": "P05-graphics-webview-ipc-memory.md",
+        "revision": "2feca977830e99ddfb191022e9ba02409e7f0e19"
+      },
+      "practice": ["tools/gfxinfo_parser.py", "tools/dmabuf_parser.py", "tools/panorama_analyzer.py"],
+      "sources": [
+        {
+          "title": "Android BufferQueue and gralloc architecture",
+          "url": "https://source.android.com/docs/core/graphics/arch-bq-gralloc",
+          "type": "official-doc"
+        },
+        {
+          "title": "Android graphics memory management",
+          "url": "https://developer.android.com/topic/performance/graphics/manage-memory",
+          "type": "official-doc"
+        },
+        {
+          "title": "Android 17 DMA-BUF accounting",
+          "url": "https://android.googlesource.com/platform/system/memory/libmeminfo/+/refs/tags/android-17.0.0_r1/libdmabufinfo/dmabufinfo.cpp",
+          "type": "source"
+        }
+      ]
+    },
+    {
+      "id": "system-pressure-needs-a-timeline",
+      "title": {
+        "zh": "整机低内存是 reclaim、swap、stall 与 kill 的时间链",
+        "en": "System low memory is a timeline of reclaim, swap, stalls, and kills"
+      },
+      "summary": {
+        "zh": "系统压力分析应把 `/proc/meminfo`、PSI、ZRAM/swap、调度/Perfetto、LMKD/exit 事件放进同一窗口。App PSS 高可以是候选成本，但不能独立证明整机压力或 kill 原因。",
+        "en": "System-pressure analysis aligns `/proc/meminfo`, PSI, ZRAM/swap, scheduling/Perfetto, and LMKD/exit events. High app PSS may be a cost candidate but does not independently prove pressure or kill cause."
+      },
+      "intents": ["system-pressure", "regression"],
+      "accounting_domains": ["system-pages", "pressure-time", "swap", "process-exit"],
+      "evidence": {
+        "required": ["proc_meminfo"],
+        "supporting": ["pressure_memory", "zram", "perfetto_trace", "exit_info"]
+      },
+      "does_not_prove": {
+        "zh": "单点 MemAvailable、单个 SwapPss 或一次进程消失不能区分 reclaim 抖动、LMKD、OOM、memory limiter、用户操作或崩溃。",
+        "en": "A MemAvailable snapshot, SwapPss value, or missing process cannot distinguish reclaim thrash, LMKD, OOM, memory limiter, user action, or crash."
+      },
+      "version_scope": {
+        "baseline": "PSI-based LMKD is common on Android 10+; Android 17 sources are the current reference",
+        "caveat": "OEM thresholds, kernel features, low-RAM mode, swap policy, and kill strategy vary."
+      },
+      "theory_origin": {
+        "article": "P06-zram-psi-lmkd-pressure.md",
+        "revision": "2feca977830e99ddfb191022e9ba02409e7f0e19"
+      },
+      "practice": ["tools/proc_meminfo_parser.py", "tools/zram_parser.py", "tools/perfetto_helper.py"],
+      "sources": [
+        {
+          "title": "Android low memory killer daemon",
+          "url": "https://source.android.com/docs/core/perf/lmkd",
+          "type": "official-doc"
+        },
+        {
+          "title": "Linux pressure stall information",
+          "url": "https://docs.kernel.org/6.18/accounting/psi.html",
+          "type": "official-doc"
+        },
+        {
+          "title": "Linux ZRAM administration",
+          "url": "https://docs.kernel.org/6.18/admin-guide/blockdev/zram.html",
+          "type": "official-doc"
+        }
+      ]
+    },
+    {
+      "id": "exit-reason-is-event-evidence-not-exact-snapshot",
+      "title": {
+        "zh": "退出原因是事件证据，不是死亡前精确内存快照",
+        "en": "Exit reason is event evidence, not an exact pre-death memory snapshot"
+      },
+      "summary": {
+        "zh": "ApplicationExitInfo 可区分 low-memory、memory-limiter、ANR、crash、signal、freezer 等退出原因，并提供时间与最后采样 PSS/RSS；最后采样可能滞后或为零，必须与现场时间线对齐。",
+        "en": "ApplicationExitInfo distinguishes low-memory, memory-limiter, ANR, crash, signal, freezer, and other exits with timing and last sampled PSS/RSS. The sample can lag or be zero and must be aligned with the incident timeline."
+      },
+      "intents": ["system-pressure", "quick-triage", "regression"],
+      "accounting_domains": ["process-exit", "process-pages"],
+      "evidence": {
+        "required": ["exit_info"],
+        "supporting": ["proc_meminfo", "pressure_memory", "device_context"]
+      },
+      "does_not_prove": {
+        "zh": "`REASON_LOW_MEMORY` 不等于 App 泄漏，最后 RSS/PSS 也不等于 kill 瞬间的完整页账。",
+        "en": "`REASON_LOW_MEMORY` does not equal an app leak, and last RSS/PSS is not the complete page ledger at the kill instant."
+      },
+      "version_scope": {
+        "baseline": "ApplicationExitInfo is API 30+; memory-limiter reason is Android 17/API 37",
+        "caveat": "Fields and reasons must be gated by API level and device behavior."
+      },
+      "theory_origin": {
+        "article": "P13-process-freezer-kill-swap-strategy.md",
+        "revision": "2feca977830e99ddfb191022e9ba02409e7f0e19"
+      },
+      "practice": ["tools/live_dumper.py"],
+      "sources": [
+        {
+          "title": "ApplicationExitInfo API",
+          "url": "https://developer.android.com/reference/android/app/ApplicationExitInfo",
+          "type": "official-doc"
+        }
+      ]
+    },
+    {
+      "id": "device-variance-is-an-analysis-dimension",
+      "title": {
+        "zh": "设备差异必须作为分析维度而不是噪声",
+        "en": "Device variance is an analysis dimension, not noise"
+      },
+      "summary": {
+        "zh": "RAM 档、low-RAM 配置、页大小、SoC/GPU driver、WebView provider、UI runtime、OEM LMKD/freezer/swap 策略都会改变同一场景的页账与生存线。预算和阈值应按 bucket 建立并可回修。",
+        "en": "RAM class, low-RAM mode, page size, SoC/GPU driver, WebView provider, UI runtime, and OEM LMKD/freezer/swap policy change the same scenario's accounting and survival boundary. Build revisable budgets by device bucket."
+      },
+      "intents": ["all"],
+      "accounting_domains": ["capture-context", "device-policy"],
+      "evidence": {
+        "required": ["device_context"],
+        "supporting": ["meminfo", "proc_meminfo", "exit_info"]
+      },
+      "does_not_prove": {
+        "zh": "一台实验机上的绝对 MB 阈值不能直接推广为所有设备、ROM 和 UI runtime 的门禁。",
+        "en": "An absolute MB threshold from one lab device cannot become a universal gate across devices, ROMs, and UI runtimes."
+      },
+      "version_scope": {
+        "baseline": "All Android versions and vendors",
+        "caveat": "Bucket definitions are product-specific and must be refreshed from production evidence."
+      },
+      "theory_origin": {
+        "article": "P11-device-variance-online-memory.md",
+        "revision": "2feca977830e99ddfb191022e9ba02409e7f0e19"
+      },
+      "practice": ["tools/live_dumper.py", "tools/diff_analyzer.py"],
+      "sources": [
+        {
+          "title": "Android memory allocation among processes",
+          "url": "https://developer.android.com/topic/performance/memory-management",
+          "type": "official-doc"
+        },
+        {
+          "title": "Android LMKD device configuration",
+          "url": "https://source.android.com/docs/core/perf/lmkd",
+          "type": "official-doc"
+        }
+      ]
+    },
+    {
+      "id": "optimization-needs-budget-owner-and-verification",
+      "title": {
+        "zh": "优化建议必须绑定预算、owner、机制与验收",
+        "en": "Optimization advice must bind budget, owner, mechanism, and verification"
+      },
+      "summary": {
+        "zh": "从证据确认增长的账本与 owner 后，再提出最小改动。修复计划要写清目标场景、预算、预期改变的指标、可能回归、before/after/cooldown 验收与回滚条件。",
+        "en": "After evidence identifies the growing ledger and owner, propose the smallest mechanism-aligned change. State scenario budget, expected metric change, regressions, before/after/cooldown validation, and rollback conditions."
+      },
+      "intents": ["regression", "java-leak", "native-memory", "graphics", "quick-triage"],
+      "accounting_domains": ["change-plan", "verification"],
+      "evidence": {
+        "required": ["phase_metadata"],
+        "supporting": ["comparison_report", "analysis_report", "device_context"]
+      },
+      "does_not_prove": {
+        "zh": "“减少缓存”“改 SoftReference”“调用 recycle”或“主动 GC”等通用建议不证明适合当前 owner，也不证明用户体验会改善。",
+        "en": "Generic advice such as reducing caches, using SoftReference, recycling, or forcing GC does not prove fit for the current owner or improved UX."
+      },
+      "version_scope": {
+        "baseline": "All Android versions",
+        "caveat": "Lifecycle, cache, and resource-release semantics depend on the app architecture and library versions."
+      },
+      "theory_origin": {
+        "article": "P07-app-memory-optimization-practice.md",
+        "revision": "2feca977830e99ddfb191022e9ba02409e7f0e19"
+      },
+      "practice": ["tools/diff_analyzer.py", "docs/zh/teaching_playbook.md"],
+      "sources": [
+        {
+          "title": "Manage your app memory",
+          "url": "https://developer.android.com/topic/performance/memory",
+          "type": "official-doc"
+        }
+      ]
+    },
+    {
+      "id": "hprof-is-sensitive-data",
+      "title": {
+        "zh": "HPROF 是高敏感、高扰动证据",
+        "en": "HPROF is sensitive and highly perturbing evidence"
+      },
+      "summary": {
+        "zh": "堆快照可能含 URL、token、用户输入、业务缓存和对象关系。采集前需要授权、体积/超时限制、安全存储、访问控制、留存与删除策略；AI 上下文默认只包含哈希、校验和结构化摘要。",
+        "en": "Heap snapshots can contain URLs, tokens, user input, business caches, and object relationships. Require authorization, size/time limits, secure storage, access controls, retention, and deletion; AI context defaults to hashes, validation, and structured summaries."
+      },
+      "intents": ["java-leak", "regression"],
+      "accounting_domains": ["object-graph", "privacy"],
+      "evidence": {
+        "required": ["hprof"],
+        "supporting": ["phase_metadata"]
+      },
+      "does_not_prove": {
+        "zh": "压缩、改扩展名或删除可见字符串不自动构成完整脱敏，也不保证 HPROF 工具兼容。",
+        "en": "Compression, renaming, or deleting visible strings is not complete redaction and does not guarantee HPROF compatibility."
+      },
+      "version_scope": {
+        "baseline": "All Android versions supporting heap dumps",
+        "caveat": "Production profiling permissions and privacy requirements depend on platform, app policy, and jurisdiction."
+      },
+      "theory_origin": {
+        "article": "P09-memory-toolbox-engineering.md",
+        "revision": "2feca977830e99ddfb191022e9ba02409e7f0e19"
+      },
+      "practice": ["tools/hprof_dumper.py", "tools/hprof_parser.py"],
+      "sources": [
+        {
+          "title": "Android profile types and heap dumps",
+          "url": "https://developer.android.com/topic/performance/tracing/profile-types-overview",
+          "type": "official-doc"
+        }
+      ]
+    },
+    {
+      "id": "android-17-production-memory-signals",
+      "title": {
+        "zh": "Android 17 的 memory limiter 与 profiling trigger 需要版本门控",
+        "en": "Android 17 memory-limiter and profiling triggers require version gating"
+      },
+      "summary": {
+        "zh": "Android 17 增加 memory-limiter 退出原因与 OOM/anomaly profiling trigger。诊断应在 API 37+ 使用这些信号，在更早版本明确标记不可用，并回退到 exit-info、Vitals、受控采样或实验室复现。",
+        "en": "Android 17 adds memory-limiter exit evidence and OOM/anomaly profiling triggers. Use them on API 37+, mark them unavailable earlier, and fall back to exit info, Vitals, controlled sampling, or lab reproduction."
+      },
+      "intents": ["system-pressure", "quick-triage", "regression"],
+      "accounting_domains": ["process-exit", "production-profile", "device-policy"],
+      "evidence": {
+        "required": ["device_context"],
+        "supporting": ["exit_info", "memory_limiter_status", "perfetto_trace"]
+      },
+      "does_not_prove": {
+        "zh": "看到高 PSS 不等于触发 memory limiter；必须有平台退出原因、trigger 或对应系统事件。",
+        "en": "High PSS does not prove a memory-limiter event; platform exit reason, trigger, or matching system event is required."
+      },
+      "version_scope": {
+        "baseline": "Android 17 / API 37",
+        "caveat": "Do not project Android 17 runtime behavior or API constants onto older releases."
+      },
+      "theory_origin": {
+        "article": "P13-process-freezer-kill-swap-strategy.md",
+        "revision": "2feca977830e99ddfb191022e9ba02409e7f0e19"
+      },
+      "practice": ["tools/live_dumper.py", "docs/zh/android_17_adaptation_review.md"],
+      "sources": [
+        {
+          "title": "Manage your app memory on Android 17",
+          "url": "https://developer.android.com/topic/performance/memory",
+          "type": "official-doc"
+        },
+        {
+          "title": "ApplicationExitInfo memory limiter reason",
+          "url": "https://developer.android.com/reference/android/app/ApplicationExitInfo#REASON_MEMORY_LIMITER",
+          "type": "official-doc"
+        }
+      ]
+    }
+  ]
+}

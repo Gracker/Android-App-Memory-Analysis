@@ -1,0 +1,4 @@
+interface:
+  display_name: "Android Memory Remediate"
+  short_description: "Plan, implement, and verify evidence-backed memory fixes"
+  default_prompt: "Use $android-memory-remediate to make the smallest evidence-backed memory fix and verify it."

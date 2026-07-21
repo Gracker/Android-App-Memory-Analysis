@@ -1,0 +1,4 @@
+interface:
+  display_name: "Android Memory Evidence"
+  short_description: "Validate evidence and guide missing Android memory captures"
+  default_prompt: "Use $android-memory-evidence to validate my artifacts and tell me exactly what evidence to collect next."

@@ -116,6 +116,37 @@ python3 analyze.py combined --demo --json-output demo_report.json
 - 增强模式下使用 `-p/--pid` 会自动抓取 `smaps`，并尝试抓取 `dumpsys meminfo -d`。
 - 为规避仓库单文件限制，示例 HPROF 以 `heapdump_latest.hprof.gz` 提交。统一入口 `analyze.py` 可直接读取 `.hprof.gz`；如果旧的 `.hprof` 示例路径不存在但同目录存在 `.hprof.gz`，会自动 fallback 到压缩样本。
 
+## AI 证据上下文与 Skills
+
+仓库现在提供模型无关的 `ai-context` 协议：它先校验 artifact、区分内存账本、识别缺失/冲突信息、选择带官方来源的理论条目，再把上下文交给用户选择的 AI。它不会自动上传文件或调用外部模型。
+
+新的 live dump 会同时生成结构化 `manifest.json`，把用户跳过、设备不支持、权限拒绝、命令失败与真实采集成功分别保留，不再全部折叠成“文件缺失”。
+
+```bash
+python3 analyze.py ai-context \
+  -d ./dumps/com.example.app_20260721_120000 \
+  --question "退出页面后 Native 内存仍持续增长" \
+  --format json \
+  -o android-memory-context.json
+```
+
+可导入 AI 项目的 Skills 位于 `skills/`：
+
+- `android-memory-evidence`：校验残缺/错误材料并给出精确补证命令；
+- `android-memory-diagnose`：结合理论、artifact 与版本边界给出详细诊断；
+- `android-memory-remediate`：在 owner/机制被证明后修改代码并做同场景验收。
+
+安装完整公开包到当前 AI 项目（需要 Node.js 18+ 与 Python 3.8+）：
+
+```bash
+npx skills add Gracker/Android-App-Memory-Analysis \
+  --skill '*'
+```
+
+全局安装到 Codex 时增加 `--agent codex --global`。Evidence Skill 已内置校验过的 runtime 和知识目录，安装副本不需要另外 clone 本仓库，也不需要设置 `ANDROID_MEMORY_ANALYSIS_ROOT`。完整分析器 checkout 只作为 live capture、panorama、diff 和 Perfetto helper 的可选增强层。
+
+完整架构、上下文 schema、安装/更新、隐私边界与验证入口见 [Android 内存 AI 工作流](./docs/zh/ai_workflow.md)。
+
 ## 分析内容
 
 ### 全景分析报告
@@ -236,4 +267,4 @@ Android-App-Memory-Analysis/
 
 ## 许可证
 
-本项目开源，详见 LICENSE 文件。
+本项目采用 [Apache License 2.0](./LICENSE)。三个可独立安装的 Skill 都包含同一份许可证文本。

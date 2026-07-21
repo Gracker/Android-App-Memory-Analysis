@@ -7,6 +7,7 @@ This index keeps all teaching docs on one consistent structure: fundamentals -> 
 - [Android Memory Debug Guide](./android_memory_debug_guide.md)
 - [Android 17 / API 37 Adaptation Review](./android_17_adaptation_review.md)
 - [Android 16 / API 36 Adaptation Review](./android_16_adaptation_review.md)
+- [Android Memory AI Workflow](./ai_workflow.md)
 
 ## 2) Single-source Interpretation
 
@@ -31,4 +32,5 @@ This index keeps all teaching docs on one consistent structure: fundamentals -> 
 3. If the target device or target SDK is Android 16, or if the question is specifically about 16 KB page size, run the checklist in `android_16_adaptation_review.md`.
 4. Read `smaps_interpretation_guide.md` and `meminfo_interpretation_guide.md` together.
 5. Move to `analysis_results_interpretation_guide.md` for combined diagnosis.
-6. Use `teaching_playbook.md` as the execution template for team practice and review.
+6. Use `ai_workflow.md` when evidence is incomplete, an AI project consumes the artifacts, or a code change needs an evidence contract.
+7. Use `teaching_playbook.md` as the execution template for team practice and review.

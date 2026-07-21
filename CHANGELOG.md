@@ -1,5 +1,26 @@
 # Changelog
 
+## Unreleased
+
+## v1.2.0 - 2026-07-21
+
+### Added
+- Added the provider-neutral `ai-context` schema and CLI for validated artifacts, mixed-intent coverage, accounting domains, provenance, conflicts, privacy-safe paths, bounded report summaries, and executable missing-evidence guidance.
+- Added a versioned operational knowledge catalog derived from the private theory source with public first-party citations and explicit non-claims.
+- Added importable `android-memory-evidence`, `android-memory-diagnose`, and `android-memory-remediate` Skills, bilingual workflow documentation, a repository verification gate, and Python 3.8/3.12 CI.
+- Added live-capture manifests that preserve per-artifact success, skipped, unsupported, permission, command-failure, and not-collected states with failure hashes.
+- Added a self-contained, versioned runtime and knowledge bundle to `android-memory-evidence`, enabling public `npx skills add` installs without a repository clone or environment variable.
+- Added deterministic runtime synchronization, isolated copied-Skill tests, a pinned real `npx skills` installation smoke test, and a dedicated public-install CI job.
+- Added Apache-2.0 licensing to the repository and every independently installed Skill package.
+
+### Changed
+- Live collection now archives command failures instead of collapsing permission, support, and empty-output cases into a generic absence.
+- The AI context CLI now has one canonical package implementation shared by the repository wrapper and generated Skill runtime, and every context records its generator version.
+
+### Fixed
+- Prevented a single snapshot or mapping name from satisfying regression/leak or native-callsite proof requirements.
+- Prevented external absolute paths and unbounded legacy report bodies from entering AI context by default.
+
 ## v1.1.0 - 2026-06-05
 
 ### Added

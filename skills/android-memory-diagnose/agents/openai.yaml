@@ -1,0 +1,4 @@
+interface:
+  display_name: "Android Memory Diagnose"
+  short_description: "Build theory-grounded Android memory diagnoses"
+  default_prompt: "Use $android-memory-diagnose to analyze this evidence without overstating what it proves."

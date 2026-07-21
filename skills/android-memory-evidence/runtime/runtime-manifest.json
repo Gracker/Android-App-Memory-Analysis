@@ -1,0 +1,63 @@
+{
+  "bundle_schema_version": "1.0",
+  "catalog_id": "android-memory-operational-knowledge",
+  "catalog_version": "2026.07.1",
+  "context_schema_version": "1.0",
+  "files": [
+    {
+      "path": "android_memory_ai/__init__.py",
+      "sha256": "02bc45772e5941e8f660654ba1744261d20c79f3ae8745bac60878d03a534487",
+      "source": "android_memory_ai/__init__.py"
+    },
+    {
+      "path": "android_memory_ai/catalog.py",
+      "sha256": "137825b8a4c8b7aeefab8d40abbcb48f6f9d04eb7812056427ace092c0e4794d",
+      "source": "android_memory_ai/catalog.py"
+    },
+    {
+      "path": "android_memory_ai/cli.py",
+      "sha256": "a9ac1db98ea089b7605e0344d867efb404cb68d9e4b71e0cc75a87d4a23d1cd2",
+      "source": "android_memory_ai/cli.py"
+    },
+    {
+      "path": "android_memory_ai/context.py",
+      "sha256": "f560a3276254177885c654cedc806277423d802f84136fa30aed8f46c2061387",
+      "source": "android_memory_ai/context.py"
+    },
+    {
+      "path": "android_memory_ai/contracts.py",
+      "sha256": "96afcd517bbff9a09109f235e68466d6e212afb8c7c176f0d9aea7a97fc6ae99",
+      "source": "android_memory_ai/contracts.py"
+    },
+    {
+      "path": "android_memory_ai/evidence.py",
+      "sha256": "77dbcf25487e67dbaa9336eba45a4074f14f164531116ebca3cb15c5e6ce31ea",
+      "source": "android_memory_ai/evidence.py"
+    },
+    {
+      "path": "android_memory_ai/guidance.py",
+      "sha256": "a627fc5b8afb1037e21ad947b77a990de30704d1da4fe6515c71fb8f4f24183c",
+      "source": "android_memory_ai/guidance.py"
+    },
+    {
+      "path": "android_memory_ai/render.py",
+      "sha256": "4c509c323d409c4f3ea2617d631348ee2513c0b3b71e76fe78fc20251df26f55",
+      "source": "android_memory_ai/render.py"
+    },
+    {
+      "path": "knowledge/android_memory_catalog.json",
+      "sha256": "e89bcf32321978753dbbe36baae1666d78d1ffb0a5ea65b594daf9cf74e88209",
+      "source": "knowledge/android_memory_catalog.json"
+    },
+    {
+      "path": "run_ai_context.py",
+      "sha256": "20d6f4ff0092fbde25e1a214b1bd8463baa771751272b33a337ab92d91e86948",
+      "source": "generated-entrypoint"
+    }
+  ],
+  "minimum_python": "3.8",
+  "release_version": "1.2.0",
+  "runtime_name": "android-memory-ai",
+  "runtime_version": "1.0.0",
+  "skill": "android-memory-evidence"
+}
