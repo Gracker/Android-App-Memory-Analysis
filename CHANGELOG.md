@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+## v1.3.0 - 2026-07-22
+
+### Added
+- Added folder-first QA intake: recursively inventory the complete handoff directory, classify supported evidence by content rather than filenames alone, preserve multiple artifacts, and surface unclassified files, symlinks, truncation, per-type limits, and hash-budget gaps.
+- Added multi-file QA evidence support for nested Android/logcat/gzip logs, bounded in-place bugreport ZIP scanning, and PNG/JPEG/WebP screenshots, including repeatable CLI overrides.
+- Added bounded privacy-safe log signal extraction for LeakCanary paths, Android component/resource leaks, Java/native allocation failures, GC pressure, JNI reference overflow, graphics/database/Binder pressure, LMKD, and kernel OOM events.
+- Added screenshot format/dimension/hash validation, explicit visual-review requirements, QA evidence Skill protocols, and bilingual workflow guidance.
+- Added iterative-analysis history: automatic prior context/report discovery, bounded evidence deltas, explicit reanalysis/supplement modes, and mandatory confirmed/revised/retracted/unresolved review of prior claims.
+- Added repeatable `--previous-context` and `--previous-analysis` overrides plus bilingual second-analysis protocols for material stored outside the QA folder.
+
+### Changed
+- The AI context schema is now 1.2 and the bundled runtime is 1.2.0; `qa_observations` keeps log signals and screenshot metadata separate from raw content and from proven root causes, while `analysis_history` tracks bounded prior-context and evidence-delta state.
+- The default workflow now needs only the QA folder and issue background; explicit artifact flags are reserved for files outside that directory or deliberate overrides.
+- Evidence-derived branches now augment vague issue-title routing, with an auditable `intent_source` distinguishing question, folder evidence, both, and explicit selection.
+- A complete LeakCanary GC-root/reference-path log can satisfy the managed owner-path branch, while notification screenshots, OOM lines, retained counts, and isolated keywords remain insufficient.
+
 ## v1.2.0 - 2026-07-21
 
 ### Added
