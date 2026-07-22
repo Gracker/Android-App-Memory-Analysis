@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Fixed
+- Restored `[anon:native]` classification in the shared smaps parser so Native PSS and SwapPSS remain visible, and added regression coverage for deep HPROF dominator trees that exceed Python's recursion limit.
+
 ## v1.3.0 - 2026-07-22
 
 ### Added
