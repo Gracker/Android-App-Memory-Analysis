@@ -4,7 +4,7 @@
 
 ## 架构
 
-<table><thead><tr><th>层</th><th>组件</th><th>稳定边界</th></tr></thead><tbody><tr><td>用户与 AI 项目</td><td><code>android-memory-evidence</code><br><code>android-memory-diagnose</code><br><code>android-memory-remediate</code></td><td>用户问题、证据状态、事实/假设/建议分离</td></tr><tr><td>AI 协议层</td><td>Skill 内置 runtime<br><code>analyze.py ai-context</code><br><code>android_memory_ai.context</code></td><td><code>android-memory-ai-context</code> schema 1.0 与生成器版本</td></tr><tr><td>证据与知识层</td><td>artifact validators<br>intent coverage<br><code>android_memory_catalog.json</code></td><td>哈希、来源、账本域、版本、缺口、冲突、理论来源</td></tr><tr><td>现有实战层</td><td>meminfo/smaps/HPROF/gfxinfo/DMA-BUF/ZRAM/Perfetto/panorama/diff</td><td>原始文件与现有派生报告；保持现有 CLI 兼容</td></tr><tr><td>Android / Linux</td><td>ART、Scudo、memtrack、LMKD、PSI、ZRAM、VMA、进程退出</td><td>API/内核/ROM/权限/设备差异</td></tr></tbody></table>
+<table><thead><tr><th>层</th><th>组件</th><th>稳定边界</th></tr></thead><tbody><tr><td>用户与 AI 项目</td><td><code>android-memory-evidence</code><br><code>android-memory-diagnose</code><br><code>android-memory-remediate</code></td><td>用户问题、证据状态、事实/假设/建议分离</td></tr><tr><td>AI 协议层</td><td>Skill 内置 runtime<br><code>analyze.py ai-context</code><br><code>android_memory_ai.context</code></td><td><code>android-memory-ai-context</code> schema 1.2 与生成器版本</td></tr><tr><td>证据与知识层</td><td>artifact validators<br>intent coverage<br>QA 日志/截图观察<br><code>android_memory_catalog.json</code></td><td>哈希、来源、账本域、版本、缺口、冲突、理论来源</td></tr><tr><td>现有实战层</td><td>meminfo/smaps/HPROF/gfxinfo/DMA-BUF/ZRAM/Perfetto/logcat/panorama/diff</td><td>原始文件与现有派生报告；保持现有 CLI 兼容</td></tr><tr><td>Android / Linux</td><td>ART、Scudo、memtrack、LMKD、PSI、ZRAM、VMA、进程退出</td><td>API/内核/ROM/权限/设备差异</td></tr></tbody></table>
 
 贯穿所有层的约束：隐私、采集扰动、package/PID/phase 身份、Android 版本、账本不可混加、派生报告不替代原始证据。
 
@@ -24,11 +24,11 @@
 
 ## 生成 AI 上下文
 
-对已有 dump 目录：
+默认输入是 RD 从 QA 下载的完整材料目录，以及问题标题或现象。无需让用户先判断文件类型或逐个列出：
 
 ```bash
 python3 analyze.py ai-context \
-  -d ./dumps/com.example.app_20260721_120000 \
+  -d ./qa-handoff/ANDROID-1234 \
   --question "退出页面后 Native 内存仍持续增长" \
   --format json \
   -o android-memory-context.json
@@ -61,20 +61,81 @@ python3 analyze.py ai-context \
 
 `--strict` 只用于自动化门禁。必需证据不完整时仍会写出上下文，但返回 exit code 2。交互式分析不应使用 strict 阻止“当前能解释什么”和“下一步怎么采”。
 
+## 二次分析与新增材料
+
+每一次后续分析都要重新扫描当前完整目录。如果目录中保存了旧 `android-memory-ai-context` 或可识别的分析报告，runtime 会把它们识别为分析历史，而不是新的内存证据。它会用最新旧 context 的证据快照与当前扫描结果比较，列出新增、已变更、上次存在但当前缺失，以及按指纹未变化的 artifact。
+
+最常见的操作仍然只需要原目录和用户的新要求：
+
+```bash
+python3 analyze.py ai-context \
+  -d ./qa-handoff/ANDROID-1234 \
+  --question "我不认可上次结论，QA 又补了日志，请重新分析" \
+  --format json \
+  -o android-memory-context-v2.json
+```
+
+如果旧材料不在 QA 目录内，可以显式传入多个旧 context 或旧报告：
+
+```bash
+python3 analyze.py ai-context \
+  -d ./qa-handoff/ANDROID-1234 \
+  --previous-context /reviews/android-memory-context-v1.json \
+  --previous-analysis /reviews/android-memory-analysis-v1.md \
+  --analysis-mode reanalysis-with-new-evidence \
+  --question "用新增日志重新核对旧 owner 结论" \
+  -o android-memory-context-v2.json
+```
+
+除非用户已经明确选择流程，否则保持 `--analysis-mode auto`。runtime 会区分：
+
+- `initial`：没有适用的旧分析；
+- `reanalysis`：用户质疑旧推理，必须从当前证据独立重建 claim ledger，再与旧结论比较；
+- `supplement`：保留证据绑定和 case 身份仍成立的结论，并传播新增、变更或缺失材料的影响；
+- `reanalysis-with-new-evidence`：同时执行重新分析与新增证据传播；
+- `clarification-required`：识别到旧分析、证据又没有变化，但用户没有说明是重做还是补充。此时可以完成目录盘点，但在给出最终诊断前必须请用户明确模式。
+
+Agent 还必须查看当前会话/task 中的旧回答；context JSON 保存的是旧证据快照，不一定包含旧结论正文。每条重要旧结论都要标记为 `confirmed`、`revised`、`retracted` 或 `unresolved`，真正新增的结论单列。文件哈希未变不代表旧解释正确；扫描被截断或文件被重命名时，“当前缺失”也不等于 QA 删除了材料。
+
+## QA 日志与截图
+
+runtime 会先递归盘点 QA 目录，再构建上下文。它不依赖 QA 的命名习惯：已知文件名和扩展名只是发现提示，支持的 artifact 还会通过内容特征分类；多份同类文件保持独立。每个被索引的普通文件都会成为已识别 artifact 或 `unclassified_file`，符号链接跳过、不可读文件、索引截断、单类型溢出和哈希预算不足都会进入显式限制。识别出的 HPROF、高特异性日志信号、Native profile 和对比报告会补充基于问题描述的意图路由；通用支持材料不会打开无关分支。`request.intent_source` 会记录路由来自问题、证据、两者还是显式选择。
+
+目录可以混合放置多份嵌套的纯文本/gzip Android 日志、bugreport ZIP、定向 logcat/LeakCanary/bugreport/tombstone/ANR 文本、PNG/JPEG/WebP 截图、dump、trace、报告或无关附件。默认上限为索引 2048 个文件、每类处理 64 个 artifact、每份日志或归档解码扫描 32 MiB、ZIP 最多 256 个成员、单文件哈希 512 MiB、总哈希 1 GiB。只有文件不在 QA 目录内时才使用可重复参数：
+
+```bash
+python3 analyze.py ai-context \
+  -d ./case \
+  --android-log /qa/logcat-main.log \
+  --android-log /qa/system.log.gz \
+  --qa-screenshot /qa/leakcanary.png \
+  --qa-screenshot /qa/memory-chart.jpg \
+  --question "QA 在五轮操作后看到了 Activity retained 与 OOM"
+```
+
+每份日志或 bugreport ZIP 独立扫描，解码文本最多 32 MiB；ZIP 样本还绑定归档成员，并限制为 256 个成员。`evidence.qa_observations` 只记录信号类型/强度/计数、从 1 开始的行号、匹配行 SHA-256、可解析的 threadtime 时间戳/tag，以及扫描是否截断，不包含原始日志行。信号覆盖完整 LeakCanary 路径候选、Android 组件/StrictMode 清理警告、Java/Native 分配失败、GC 压力、JNI 引用表溢出、Binder/数据库/图形压力、LMKD 与 kernel OOM。
+
+当原始报告、目标/build/phase、生命周期预期和可疑引用边都被核对时，完整的 LeakCanary GC Root/引用链可以满足 managed owner-path 分支。通知截图、retained 数量、OOM 抛出点、GC 行或关键词匹配都不行；增长/回归仍需要可比 phase。
+
+截图只校验格式、尺寸、大小和哈希；上下文不做 OCR，也不包含像素。消费上下文的 AI 必须实际查看已授权图片，把每条可见观察绑定到截图 artifact ID 与区域，并明确裁剪、遮挡、不可读和推断内容。
+
 artifact 路径默认只保留相对路径，目录外文件会脱敏成 `<external>/文件名`。只有消费上下文的 AI 在同一台已授权机器上运行、且确实需要打开原始证据时，才添加 `--include-local-paths`；它会写入绝对 evidence root 与文件路径。未经单独隐私复核，不要把这种上下文外发。
 
 ## 上下文结构
 
 | 字段 | 作用 |
 |------|------|
-| `request` | 显式或推断的意图、候选意图、原始问题 |
+| `request` | 显式或推断的意图、候选意图、原始问题、二次分析模式及其来源 |
 | `subject` | package、PID、时间、Android/API、fingerprint、page size、phase |
 | `subject_candidates` | 每个来源给出的候选值，用于审计冲突 |
 | `evidence.artifacts` | 类型、状态、路径、大小、SHA-256、账本域、扰动、校验信息 |
+| `evidence.folder_inventory` | 递归目录盘点、扩展名计数、识别覆盖、未分类/未哈希文件和扫描限制 |
 | `evidence.coverage` | 当前意图的 required/supporting/any-of 覆盖与分类级别 |
 | `evidence.intent_coverage` | 自动问题中每个候选意图各自的覆盖；整体 support level 取最弱边界 |
 | `evidence.conflicts` | 不会被静默覆盖的 package/PID/phase 等冲突 |
 | `evidence.derived_reports` | 现有报告的安全摘要、账本域与限制 |
+| `evidence.qa_observations` | 多份日志的有界信号索引与截图元数据；不含原始行、OCR 或像素 |
+| `evidence.analysis_history` | 旧 context/报告、case 身份可比性、证据增量、二次分析限制与逐项修订旧结论的协议；不嵌入旧报告正文 |
 | `knowledge.records` | 与问题/证据相关的理论条目、不能证明什么、版本与官方来源 |
 | `analysis_contract` | AI 必须遵守的事实/推导/假设/建议与隐私规则 |
 | `next_evidence` | 可执行命令、前提、扰动、替代入口与解决的问题 |
@@ -158,9 +219,9 @@ npx skills add Gracker/Android-App-Memory-Analysis \
 
 ## 隐私与成本
 
-- 上下文默认不嵌入原始 HPROF、trace 或任意文件正文；
+- 上下文默认不嵌入原始 HPROF、trace、日志行、截图像素或任意文件正文；
 - 上下文默认不暴露目录外绝对路径，本地路径必须显式 `--include-local-paths`；
-- 小于 512 MiB 的 artifact 默认计算 SHA-256，更大文件需显式 `--hash-large-files`；
+- 小于 512 MiB 的 artifact 会在默认 1 GiB 总预算内计算 SHA-256；`--hash-large-files` 会允许大文件并移除总预算；
 - HPROF 和 trace 可能包含用户输入、URL、token、业务对象、进程/线程名与命令行；
 - 向外部模型提供原始 artifact 前必须单独进行授权、合规、访问控制与留存审查；
 - `ai-context` 不会自动运行 HPROF/panorama 等重分析，避免意外 CPU/内存/时间成本。

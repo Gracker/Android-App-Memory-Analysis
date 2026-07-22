@@ -7,6 +7,7 @@ from pathlib import Path
 from .context import build_ai_context
 from .contracts import RUNTIME_NAME, RUNTIME_VERSION
 from .guidance import INTENT_PROFILES
+from .history import ANALYSIS_MODES
 from .render import render_json, render_markdown
 
 
@@ -19,7 +20,12 @@ def build_parser() -> argparse.ArgumentParser:
         action="version",
         version="{} {}".format(RUNTIME_NAME, RUNTIME_VERSION),
     )
-    parser.add_argument("-d", "--dump-dir", required=True, help="Dump/evidence directory")
+    parser.add_argument(
+        "-d",
+        "--dump-dir",
+        required=True,
+        help="Complete QA handoff or dump directory (scanned recursively)",
+    )
     parser.add_argument(
         "--intent",
         default="auto",
@@ -27,6 +33,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Analysis intent; auto infers from --question",
     )
     parser.add_argument("--question", default="", help="User question or symptom description")
+    parser.add_argument(
+        "--analysis-mode",
+        default="auto",
+        choices=ANALYSIS_MODES,
+        help="Initial, reanalysis, supplement, or combined follow-up mode",
+    )
     parser.add_argument("--format", choices=("json", "markdown"), default="json")
     parser.add_argument("--lang", choices=("zh", "en"), default="zh")
     parser.add_argument("-o", "--output", help="Output path; defaults to stdout")
@@ -38,7 +50,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--hash-large-files",
         action="store_true",
-        help="Hash artifacts larger than 512 MiB (can be slow)",
+        help="Hash large files and remove the default 1 GiB folder hash budget (can be slow)",
     )
     parser.add_argument(
         "--include-local-paths",
@@ -63,6 +75,26 @@ def build_parser() -> argparse.ArgumentParser:
     artifact_group.add_argument("--native-heap-profile")
     artifact_group.add_argument("--phase-metadata")
     artifact_group.add_argument("--device-context")
+    artifact_group.add_argument(
+        "--previous-context",
+        action="append",
+        help="Prior android-memory-ai-context JSON; repeat for multiple baselines",
+    )
+    artifact_group.add_argument(
+        "--previous-analysis",
+        action="append",
+        help="Prior analysis Markdown/text/record JSON; repeat for multiple reports",
+    )
+    artifact_group.add_argument(
+        "--android-log",
+        action="append",
+        help="Android/logcat text, .gz, or bugreport ZIP; repeat for multiple QA logs",
+    )
+    artifact_group.add_argument(
+        "--qa-screenshot",
+        action="append",
+        help="PNG, JPEG, or WebP screenshot; repeat for multiple QA screenshots",
+    )
 
     subject_group = parser.add_argument_group("subject overrides")
     subject_group.add_argument("--package")
@@ -94,6 +126,10 @@ def main(argv=None) -> int:
         "native_heap_profile": args.native_heap_profile,
         "phase_metadata": args.phase_metadata,
         "device_context": args.device_context,
+        "previous_ai_context": args.previous_context,
+        "previous_analysis_report": args.previous_analysis,
+        "android_log": args.android_log,
+        "qa_screenshot": args.qa_screenshot,
     }
     artifact_overrides = {key: value for key, value in artifact_overrides.items() if value}
     subject_overrides = {
@@ -118,6 +154,7 @@ def main(argv=None) -> int:
             subject_overrides=subject_overrides,
             hash_large_files=args.hash_large_files,
             include_local_paths=args.include_local_paths,
+            analysis_mode=args.analysis_mode,
         )
     except (OSError, ValueError) as exc:
         print("ai-context error: {}".format(exc), file=sys.stderr)

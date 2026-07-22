@@ -122,9 +122,13 @@ python3 analyze.py combined --demo --json-output demo_report.json
 
 新的 live dump 会同时生成结构化 `manifest.json`，把用户跳过、设备不支持、权限拒绝、命令失败与真实采集成功分别保留，不再全部折叠成“文件缺失”。
 
+常见的 RD 入口是“目录优先”：把 QA 交付的所有材料下载到同一个目录，只提供这个目录和问题标题/现象即可。上下文会递归盘点每个普通文件，把文件名当提示而不是真相，按内容识别支持的证据，保留多份同类 artifact，并显式报告无法分类的文件和扫描限制，不要求用户先整理材料。识别出的证据也会补充意图路由，因此“内存变多”这类模糊描述仍能评估目录实际支持的 Java、Native、Graphics 或系统压力分支。除了 dump 和报告，它也能识别 Android/logcat 日志（纯文本或 gzip）以及 PNG/JPEG/WebP 截图。
+
+纯文本、gzip 与 bugreport ZIP 日志会被有界扫描 LeakCanary、资源泄漏、OOM、GC、JNI、图形/数据库/Binder、LMKD 与 kernel OOM 信号，但不会嵌入原始日志行或截图像素。日志信号绑定行号/哈希（ZIP 还绑定成员路径）；截图只记录尺寸/哈希，必须由 AI 实际查看后才能作为可见观察使用。
+
 ```bash
 python3 analyze.py ai-context \
-  -d ./dumps/com.example.app_20260721_120000 \
+  -d ./qa-handoff/ANDROID-1234 \
   --question "退出页面后 Native 内存仍持续增长" \
   --format json \
   -o android-memory-context.json
@@ -144,6 +148,8 @@ npx skills add Gracker/Android-App-Memory-Analysis \
 ```
 
 全局安装到 Codex 时增加 `--agent codex --global`。Evidence Skill 已内置校验过的 runtime 和知识目录，安装副本不需要另外 clone 本仓库，也不需要设置 `ANDROID_MEMORY_ANALYSIS_ROOT`。完整分析器 checkout 只作为 live capture、panorama、diff 和 Perfetto helper 的可选增强层。
+
+需要二次分析时，仍把同一个完整 QA 目录交给 Skill，并说明是质疑旧结论还是在其上补充。Skill 会重新扫描整个目录，识别旧 context/报告，比较新增、变更、缺失和未变证据，并强制把每条重要旧结论标记为确认、修订、撤回或未决。旧材料在目录外时，可用可重复的 `--previous-context` 与 `--previous-analysis` 显式传入。
 
 完整架构、上下文 schema、安装/更新、隐私边界与验证入口见 [Android 内存 AI 工作流](./docs/zh/ai_workflow.md)。
 

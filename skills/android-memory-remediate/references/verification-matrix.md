@@ -10,6 +10,7 @@
 | WebView | Navigation/process/provider/recreation tests | App and renderer evidence, partition_alloc/buffers | Page state, session, latency, crashes |
 | Background/process policy | Work scheduling and process-state tests | PSI/Perfetto/exit-info/system pages over time | Startup/recovery, battery, notifications |
 | Instrumentation only | Parser/schema/status tests | Expected artifact appears with correct target/phase | Privacy, overhead, permissions, storage |
+| QA-log/screenshot-driven owner | Source/lifecycle test for the exact bound component or callsite | Original line/stack or visible region plus matching retained-path/page/buffer evidence after the same scenario | Build/phase identity, cropped context, log filtering, clock alignment, false keyword matches |
 
 ## Before/after gate
 

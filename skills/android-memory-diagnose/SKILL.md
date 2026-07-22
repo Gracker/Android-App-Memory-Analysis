@@ -1,6 +1,6 @@
 ---
 name: android-memory-diagnose
-description: Produce detailed, theory-grounded Android memory diagnoses from a validated evidence context or raw artifacts. Use for Java/ART leaks, native/Scudo/JNI growth, Graphics/WebView/DMA-BUF memory, PSS/RSS/SwapPss accounting, ZRAM/PSI/LMKD pressure, process kills, before/after regressions, and any request that needs facts, hypotheses, uncertainty, citations, and exact next evidence kept separate.
+description: Produce detailed, theory-grounded Android memory diagnoses from validated QA evidence, including reanalysis and supplementation of a prior conclusion. Use for Java/ART leaks, OOM/GC/resource warnings, native/Scudo/JNI growth, graphics/DMA-BUF memory, PSS/RSS/SwapPss accounting, system pressure, regressions, user dissatisfaction with an earlier analysis, changed or newly supplied artifacts, and requests that need facts, hypotheses, uncertainty, citations, and exact next evidence kept separate.
 ---
 
 # Android Memory Diagnose
@@ -11,19 +11,22 @@ Explain Android memory behavior without collapsing different ledgers or converti
 
 1. Start from an `android-memory-ai-context` JSON when available. If it contains multiple `evaluated_intents`, use the overall support level and inspect every `intent_coverage` entry; branch evidence does not prove a simultaneous growth/leak/pressure claim.
 2. If only raw files exist, invoke `$android-memory-evidence` and use its bundled `scripts/build_context.py` before diagnosing. Do not assume the target project contains `analyze.py`.
-3. Read [references/reasoning-protocol.md](references/reasoning-protocol.md) completely.
-4. Read [references/accounting-domains.md](references/accounting-domains.md) whenever comparing memory values, percentages, or totals.
-5. Read the matching branch in [references/intent-routing.md](references/intent-routing.md).
-6. Confirm target package/PID/phase/device and resolve reported conflicts. Do not merge values across unresolved identities.
-7. Build a claim ledger:
+3. If `evidence.analysis_history.has_prior_analysis` is true or the user refers to an earlier conclusion, read [references/revision-protocol.md](references/revision-protocol.md) completely. Unless the selected mode is explicit `initial`, read the prior conclusion from the current conversation/task and listed report artifacts before writing the follow-up result. If the old conclusion is unavailable, state that blocker rather than inventing a comparison. In explicit `initial` mode, do not apply discovered history as a baseline.
+4. Read [references/reasoning-protocol.md](references/reasoning-protocol.md) completely.
+5. Read [references/accounting-domains.md](references/accounting-domains.md) whenever comparing memory values, percentages, or totals.
+6. Read the matching branch in [references/intent-routing.md](references/intent-routing.md).
+7. When `qa_observations` or attached QA artifacts exist, read [references/qa-signal-interpretation.md](references/qa-signal-interpretation.md) completely. Inspect the original authorized log context and each relevant screenshot; do not diagnose from the pattern inventory or image filename alone.
+8. Confirm target package/PID/phase/device/build and resolve reported conflicts. Do not merge values across unresolved identities or clocks.
+9. Build the current claim ledger independently from the current evidence before comparing it with any old conclusion:
    - observed facts tied to artifact IDs;
    - derived values with formulas and accounting domains;
    - hypotheses with supporting and contradicting evidence;
    - missing evidence that would discriminate hypotheses;
    - recommendations only after ownership and mechanism are supported.
-8. Use the selected knowledge records for definitions, proof boundaries, Android-version caveats, and official source URLs.
-9. Explain current evidence even if coverage is insufficient. Narrow the scope and prioritize collection instead of guessing a root cause.
-10. Hand a supported owner/mechanism finding to `$android-memory-remediate` only when code changes are requested.
+10. For a follow-up, classify every material prior claim as `confirmed`, `revised`, `retracted`, or `unresolved`; list genuinely new claims separately. Explain both the evidence delta and the conclusion delta.
+11. Use the selected knowledge records for definitions, proof boundaries, Android-version caveats, and official source URLs.
+12. Explain current evidence even if coverage is insufficient. Narrow the scope and prioritize collection instead of guessing a root cause.
+13. Hand a supported owner/mechanism finding to `$android-memory-remediate` only when code changes are requested.
 
 ## Non-Negotiable Boundaries
 
@@ -32,6 +35,7 @@ Explain Android memory behavior without collapsing different ledgers or converti
 - Do not infer a native allocation callsite from a VMA name.
 - Do not infer a Java owner from a class histogram without lifecycle expectation and a root/owner path.
 - Do not infer LMKD, OOM, memory limiter, freezer, or user kill from process disappearance alone.
+- Do not treat an OOM throw site, isolated LeakCanary notification, log keyword, screenshot filename, cropped chart, or single visible value as a proven leak owner or trend.
 - Do not present current Android 17 behavior as universal on older devices.
 - Do not hide invalid, denied, stale, mixed, or missing artifacts.
 
@@ -39,14 +43,18 @@ Explain Android memory behavior without collapsing different ledgers or converti
 
 Lead with the strongest bounded conclusion. Then provide:
 
-1. scope and evidence support level;
-2. target identity and conflicts;
-3. observed facts with artifact IDs;
-4. accounting explanation with knowledge IDs and official sources;
-5. ranked hypotheses, including evidence for and against each;
-6. what the evidence cannot prove;
-7. exact next evidence and why it distinguishes the alternatives;
-8. remediation direction only when owner and mechanism are supported;
-9. verification conditions.
+1. analysis mode, baseline used, and evidence support level;
+2. evidence delta: added, changed, missing, and unchanged-by-fingerprint artifacts;
+3. prior-claim revision table for follow-ups: old claim, status, old binding, current binding, and reason;
+4. target identity and conflicts;
+5. observed facts with artifact IDs;
+6. QA observations with screenshot region or log line/hash binding;
+7. accounting explanation with knowledge IDs and official sources;
+8. ranked hypotheses, including evidence for and against each;
+9. new claims and the conclusion delta;
+10. what the evidence cannot prove;
+11. exact next evidence and why it distinguishes the alternatives;
+12. remediation direction only when owner and mechanism are supported;
+13. verification conditions.
 
 Use concrete language: “artifact X shows Y in ledger Z” and “this does not prove Q.” Avoid confidence theater and generic optimization lists.

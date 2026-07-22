@@ -25,6 +25,8 @@
 | ZRAM/swap | Compressed swap state and I/O | Exact user-visible latency by itself | Low |
 | ApplicationExitInfo | Exit reason, time, last sampled memory | Exact memory at the death instant | Low |
 | Perfetto | Timeline, counters, scheduling, optional allocation profiles | Facts not enabled in the trace config | Medium |
+| Android/logcat/LeakCanary logs | Timestamped detector reports, warnings, failures, pressure and kill events | Complete owner, trend, or accounting impact from one line | None to low |
+| QA screenshots | Visible report state, values, filters, warnings, and chart window | Hidden/cropped content, machine-readable values, or trend outside the visible window | None |
 
 `smaps` and `showmap` are alternatives for locating page cost by mapping. They are not substitutes for a symbolized native allocation profile when the question asks for a C/C++ owner or callsite. The repository helper records heapprofd data, but its generic `--analyze` summary does not render allocation callstacks; inspect the heap-profile track in Perfetto with matching symbols.
 
@@ -50,6 +52,8 @@ Always separate:
 
 Never ask only for “more logs.” Name the artifact and the question it resolves.
 
+For supplied QA logs or screenshots, read `qa-artifacts.md`. Multiple files remain distinct artifacts. The generated context contains bounded log signals and screenshot metadata, not raw lines, OCR text, or pixels; inspect the authorized originals before making a claim.
+
 A recognized phase file is not automatically comparison-complete. The context marks it inadequate for leak/regression claims until timestamp, package, PID, process role, user/profile, scenario, phase, loops, cooldown, collection mode, and perturbation are represented; a comparison report is still required to establish a delta.
 
 ## Consistency checks
@@ -60,3 +64,4 @@ A recognized phase file is not automatically comparison-complete. The context ma
 - Do not count the same GraphicBuffer through multiple owners or ledgers.
 - Do not treat `SwapPss` as proof that the swap device is ZRAM; check `/proc/swaps`.
 - Do not treat a process disappearance as LMKD; check exit reason and system timeline.
+- Do not treat an OOM stack as the allocation owner, a LeakCanary notification as the full retained path, or a screenshot filename as visible evidence.

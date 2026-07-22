@@ -50,6 +50,35 @@ def render_markdown(context: Dict[str, Any], language: str = "zh") -> str:
             "本地证据根" if zh else "Local evidence root",
             _escape(evidence["root"]),
         ))
+    folder = evidence.get("folder_inventory", {})
+    if folder:
+        lines.append("- {}: `{}` / `{}`".format(
+            "递归索引文件" if zh else "Recursively indexed files",
+            folder.get("indexed_files", 0),
+            folder.get("total_files", 0),
+        ))
+        lines.append("- {}: `{}`".format(
+            "目录索引截断" if zh else "Folder index truncated",
+            folder.get("index_truncated", False),
+        ))
+        lines.append("- {}: `{}`".format(
+            "未分类文件" if zh else "Unclassified files",
+            folder.get("unclassified_files", 0),
+        ))
+        lines.append("- {}: `{}` / `{}`".format(
+            "已表示/已索引文件" if zh else "Represented/indexed files",
+            folder.get("represented_paths", 0),
+            folder.get("indexed_files", 0),
+        ))
+        lines.append("- {}: `{}`".format(
+            "未哈希文件" if zh else "Unhashed files",
+            folder.get("unhashed_files", 0),
+        ))
+        lines.append("- {}: `{}` / `{}`".format(
+            "跳过符号链接/不可读条目" if zh else "Skipped symlinks/unreadable entries",
+            folder.get("skipped_symlinks", 0),
+            folder.get("unreadable_entries", 0),
+        ))
     lines.append("")
     lines.append("| Type | Status | Domain | Perturbation | Path |")
     lines.append("|------|--------|--------|--------------|------|")
@@ -61,6 +90,115 @@ def render_markdown(context: Dict[str, Any], language: str = "zh") -> str:
             artifact["perturbation"],
             _escape(artifact.get("path", "—")),
         ))
+
+    qa = evidence.get("qa_observations", {})
+    qa_logs = qa.get("android_logs", [])
+    qa_screenshots = qa.get("screenshots", [])
+    if qa_logs or qa_screenshots:
+        lines.extend(["", "## {}".format("QA 日志与截图" if zh else "QA Logs and Screenshots"), ""])
+    for log in qa_logs:
+        lines.append("### `{}` · {}".format(
+            log["artifact_id"],
+            _escape(log.get("path", "—")),
+        ))
+        lines.append("")
+        lines.append("- {}: `{}`".format(
+            "内存信号匹配" if zh else "Memory signal matches",
+            log.get("memory_signal_matches", 0),
+        ))
+        lines.append("- {}: `{}`".format(
+            "扫描被截断" if zh else "Scan truncated",
+            log.get("scan_truncated", False),
+        ))
+        for signal in log.get("signals", []):
+            line_numbers = [sample["line_number"] for sample in signal.get("samples", [])]
+            lines.append("- `{}` · `{}` · count `{}` · {} {}".format(
+                signal["signal_type"],
+                signal["strength"],
+                signal["count"],
+                "行" if zh else "lines",
+                ", ".join(str(value) for value in line_numbers) or "—",
+            ))
+            lines.append("  - {}: {}".format(
+                "不能证明" if zh else "Does not prove",
+                signal["does_not_prove"],
+            ))
+    if qa_screenshots:
+        lines.append("")
+        lines.append("| Screenshot | Format | Dimensions | Review |")
+        lines.append("|------------|--------|------------|--------|")
+        for screenshot in qa_screenshots:
+            image = screenshot.get("image", {})
+            dimensions = "{}x{}".format(image.get("width", "?"), image.get("height", "?"))
+            lines.append("| {} | `{}` | `{}` | {} |".format(
+                _escape(screenshot.get("path", screenshot["artifact_id"])),
+                image.get("format", "unknown"),
+                dimensions,
+                "必须查看可见区域" if zh else "inspect visible region",
+            ))
+
+    history = evidence.get("analysis_history", {})
+    if history and (
+        history.get("has_prior_analysis")
+        or history.get("mode") != "initial"
+    ):
+        lines.extend(["", "## {}".format(
+            "二次分析与历史" if zh else "Analysis Iteration and History"
+        ), ""])
+        lines.append("- {}: `{}` (`{}`)".format(
+            "分析模式" if zh else "Analysis mode",
+            history.get("mode", "unknown"),
+            history.get("mode_source", "unknown"),
+        ))
+        lines.append("- {}: `{}` / `{}`".format(
+            "旧 context / 旧结论报告" if zh else "Prior contexts / conclusion reports",
+            len(history.get("previous_contexts", [])),
+            len(history.get("previous_analysis_reports", [])),
+        ))
+        identity = history.get("case_identity", {})
+        lines.append("- {}: `{}`".format(
+            "Case 身份可比性" if zh else "Case identity comparability",
+            identity.get("status", "unknown"),
+        ))
+        if identity.get("differing_fields"):
+            lines.append("- {}: {}".format(
+                "身份差异字段" if zh else "Differing identity fields",
+                ", ".join(
+                    "`{}`".format(_escape(field))
+                    for field in sorted(identity["differing_fields"])
+                ),
+            ))
+        delta = history.get("evidence_delta", {})
+        lines.append("- {}: `{}` / `{}` / `{}` / `{}`".format(
+            "新增/变更/缺失/未变" if zh else "Added/changed/missing/unchanged",
+            delta.get("added_count", 0),
+            delta.get("changed_count", 0),
+            delta.get("missing_since_previous_count", 0),
+            delta.get("unchanged_by_fingerprint_count", 0),
+        ))
+        for label, key in (
+            ("新增证据" if zh else "Added evidence", "added"),
+            ("变更证据" if zh else "Changed evidence", "changed"),
+            ("上次存在、当前缺失" if zh else "Missing since previous", "missing_since_previous"),
+        ):
+            paths = [item.get("path", "—") for item in delta.get(key, [])]
+            if paths:
+                lines.append("- {}: {}".format(
+                    label,
+                    ", ".join("`{}`".format(_escape(path)) for path in paths),
+                ))
+        if history.get("mode") == "initial":
+            lines.append("- {}".format(
+                "显式 initial 模式只盘点旧分析，不把它用作当前 baseline。"
+                if zh else
+                "Explicit initial mode inventories prior analysis without applying it as the current baseline."
+            ))
+        else:
+            lines.append("- {}".format(
+                "必须先阅读旧结论，并逐项标记 confirmed、revised、retracted、unresolved；新增结论单列。"
+                if zh else
+                "Read the prior conclusion first, then mark material claims confirmed, revised, retracted, or unresolved and list new claims separately."
+            ))
 
     coverage = context["evidence"]["coverage"]
     lines.extend(["", "## {}".format("证据覆盖" if zh else "Evidence Coverage"), ""])

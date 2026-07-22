@@ -320,6 +320,7 @@ def build_ai_evidence_context(args):
     passthrough = {
         '--intent': args.intent,
         '--question': args.question,
+        '--analysis-mode': args.analysis_mode,
         '--format': args.format,
         '--lang': args.lang,
         '--output': args.output,
@@ -339,6 +340,10 @@ def build_ai_evidence_context(args):
         '--native-heap-profile': args.native_heap_profile,
         '--phase-metadata': args.phase_metadata,
         '--device-context': args.device_context,
+        '--previous-context': args.previous_context,
+        '--previous-analysis': args.previous_analysis,
+        '--android-log': args.android_log,
+        '--qa-screenshot': args.qa_screenshot,
         '--package': args.package,
         '--pid': args.pid,
         '--android-release': args.android_release,
@@ -348,8 +353,11 @@ def build_ai_evidence_context(args):
         '--phase': args.phase,
     }
     for option, value in passthrough.items():
-        if value not in (None, ''):
-            command.extend([option, str(value)])
+        if value in (None, ''):
+            continue
+        values = value if isinstance(value, list) else [value]
+        for item in values:
+            command.extend([option, str(item)])
     if args.strict:
         command.append('--strict')
     if args.hash_large_files:
@@ -471,18 +479,24 @@ def main():
         'ai-context',
         help='构建可供 AI 使用的校验证据上下文（不调用外部模型）'
     )
-    ai_parser.add_argument('-d', '--dump-dir', required=True, help='dump/证据目录')
+    ai_parser.add_argument('-d', '--dump-dir', required=True, help='完整 QA 交付或 dump 目录（递归扫描）')
     ai_parser.add_argument(
         '--intent',
         default='auto',
         help='分析意图；auto 根据问题推断，具体取值由 ai_context.py 的唯一注册表校验'
     )
     ai_parser.add_argument('--question', default='', help='用户问题或症状描述')
+    ai_parser.add_argument(
+        '--analysis-mode',
+        default='auto',
+        choices=['auto', 'initial', 'reanalysis', 'supplement', 'reanalysis-with-new-evidence'],
+        help='首次、重新分析、补充分析或带新增证据的重新分析模式'
+    )
     ai_parser.add_argument('--format', choices=['json', 'markdown'], default='json')
     ai_parser.add_argument('--lang', choices=['zh', 'en'], default='zh')
     ai_parser.add_argument('-o', '--output', help='输出文件；默认 stdout')
     ai_parser.add_argument('--strict', action='store_true', help='必需证据不完整时返回 exit code 2')
-    ai_parser.add_argument('--hash-large-files', action='store_true', help='计算超过 512 MiB 文件的 SHA-256')
+    ai_parser.add_argument('--hash-large-files', action='store_true', help='计算大文件哈希并移除默认 1 GiB 目录哈希预算（可能较慢）')
     ai_parser.add_argument(
         '--include-local-paths',
         action='store_true',
@@ -504,6 +518,10 @@ def main():
     ai_parser.add_argument('--native-heap-profile')
     ai_parser.add_argument('--phase-metadata')
     ai_parser.add_argument('--device-context')
+    ai_parser.add_argument('--previous-context', action='append', help='旧 android-memory-ai-context JSON；可重复传入')
+    ai_parser.add_argument('--previous-analysis', action='append', help='旧分析 Markdown/文本/record JSON；可重复传入')
+    ai_parser.add_argument('--android-log', action='append', help='Android/logcat 文本、.gz 或 bugreport ZIP；可重复传入')
+    ai_parser.add_argument('--qa-screenshot', action='append', help='PNG/JPEG/WebP QA 截图；可重复传入')
     ai_parser.add_argument('--package')
     ai_parser.add_argument('--pid')
     ai_parser.add_argument('--android-release')

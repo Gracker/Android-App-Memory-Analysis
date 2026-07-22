@@ -1,4 +1,4 @@
 interface:
   display_name: "Android Memory Diagnose"
-  short_description: "Build theory-grounded Android memory diagnoses"
-  default_prompt: "Use $android-memory-diagnose to analyze this evidence without overstating what it proves."
+  short_description: "Reanalyze memory findings as evidence changes"
+  default_prompt: "Use $android-memory-diagnose to revisit the prior conclusion against the current folder and label each material claim confirmed, revised, retracted, or unresolved."

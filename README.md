@@ -122,9 +122,13 @@ The provider-neutral `ai-context` protocol validates artifacts, separates accoun
 
 New live dumps include a structured `manifest.json`, so skipped, unsupported, permission-denied, failed, and genuinely collected states remain distinguishable instead of becoming a generic “missing” file.
 
+The normal RD workflow is folder-first: download the complete QA handoff into one directory, then provide that directory plus the issue title or symptom. The context recursively inventories every regular file, treats names as hints rather than truth, classifies supported evidence by content, preserves multiple artifacts, and reports unclassified files and scan limits instead of silently ignoring them. Recognized evidence also augments intent routing, so a vague “memory increased” issue can evaluate the Java, native, graphics, or system-pressure branch actually present in the folder. It recognizes Android/logcat logs (plain text or gzip) and PNG/JPEG/WebP screenshots alongside dumps and reports.
+
+Plain, gzip, and bugreport ZIP logs receive a bounded scan for LeakCanary, resource-leak, OOM, GC, JNI, graphics/database/Binder, LMKD, and kernel-OOM signals, but no raw log lines or screenshot pixels are embedded. Signals carry line numbers/hashes (and ZIP member binding); screenshots carry dimensions/hashes and must be visually inspected before use.
+
 ```bash
 python3 analyze.py ai-context \
-  -d ./dumps/com.example.app_20260721_120000 \
+  -d ./qa-handoff/ANDROID-1234 \
   --question "Native memory keeps growing after the screen exits" \
   --format json \
   -o android-memory-context.json
@@ -144,6 +148,8 @@ npx skills add Gracker/Android-App-Memory-Analysis \
 ```
 
 For a global Codex install, add `--agent codex --global`. The Evidence Skill includes its validated runtime and knowledge catalog, so installed copies can create contexts without cloning this repository or setting `ANDROID_MEMORY_ANALYSIS_ROOT`. The full analyzer checkout is only an optional enhancement for live capture, panorama, diff, and helper-driven Perfetto workflows.
+
+For a second pass, point the Skill at the same complete QA folder and describe whether the prior result should be challenged or extended. It rescans the whole tree, recognizes prior contexts/reports, compares added/changed/missing/unchanged evidence, and requires every material old claim to be confirmed, revised, retracted, or left unresolved. Prior material outside the folder can be supplied with repeatable `--previous-context` and `--previous-analysis` options.
 
 See [Android Memory AI Workflow](./docs/en/ai_workflow.md) for architecture, schema, installation, refresh, privacy boundaries, and verification.
 

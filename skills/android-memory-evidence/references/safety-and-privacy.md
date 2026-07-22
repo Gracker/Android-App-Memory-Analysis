@@ -23,9 +23,11 @@ Before capture or upload, establish:
 
 Compression or an extension change is not redaction. Removing visible strings is not necessarily safe or tool-compatible.
 
-## Perfetto and logs
+## Perfetto, logs, and screenshots
 
-Trace packets, ftrace events, atrace names, log buffers, process lists, and command lines can also expose user or business data. Capture only enabled sources needed for the hypothesis and bound the time window.
+Trace packets, ftrace events, atrace names, log buffers, process lists, command lines, screenshots, notifications, account surfaces, and visible app content can expose user or business data. Capture only sources needed for the hypothesis and bound the time window.
+
+The context runtime does not embed log lines or screenshot pixels. Log signal line numbers and hashes are navigation metadata, not redaction of the original file. Inspect or share raw QA artifacts only inside an authorized boundary, and redact an approved copy while retaining the original hash and provenance.
 
 ## Production
 

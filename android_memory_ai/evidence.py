@@ -9,10 +9,18 @@ from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple
 
 from .contracts import ArtifactEvidence, EvidenceConflict
+from .history import (
+    HISTORY_ARTIFACT_TYPES,
+    validate_previous_analysis_report,
+    validate_previous_context,
+)
+from .log_signals import scan_android_log
 
 
 MAX_SNIFF_BYTES = 128 * 1024
 MAX_DEFAULT_HASH_BYTES = 512 * 1024 * 1024
+MAX_TOTAL_DEFAULT_HASH_BYTES = 1024 * 1024 * 1024
+MAX_MULTIPLE_ARTIFACTS_PER_TYPE = 64
 
 Validator = Callable[[Path], Tuple[str, List[str], Dict[str, Any]]]
 
@@ -25,6 +33,7 @@ class ArtifactSpec:
     accounting_domain: str
     perturbation: str
     validator: Validator
+    allow_multiple: bool = True
 
 
 def _read_text(path: Path, limit: int = MAX_SNIFF_BYTES) -> str:
@@ -95,7 +104,9 @@ def _validate_showmap(path: Path) -> Tuple[str, List[str], Dict[str, Any]]:
 
 def _validate_hprof(path: Path) -> Tuple[str, List[str], Dict[str, Any]]:
     try:
-        if path.suffix.lower() == ".gz":
+        with path.open("rb") as source:
+            is_gzip = source.read(2) == b"\x1f\x8b"
+        if is_gzip:
             with gzip.open(str(path), "rb") as handle:
                 header = handle.read(64)
         else:
@@ -264,7 +275,132 @@ def _validate_perfetto(path: Path) -> Tuple[str, List[str], Dict[str, Any]]:
     return "ok", ["non-empty trace artifact; semantic validation requires trace_processor"], {}
 
 
+def _validate_android_log(path: Path) -> Tuple[str, List[str], Dict[str, Any]]:
+    scan = scan_android_log(path)
+    if not scan["text_content_recognized"]:
+        return "invalid", ["file content appears binary rather than a text log"], {
+            "log_scan": scan
+        }
+    matches = scan["memory_signal_matches"]
+    message = "bounded Android log scan found {} memory signal matches".format(matches)
+    if scan["scan_truncated"]:
+        message += "; scan stopped at {} bytes".format(scan["scan_limit_bytes"])
+    return "ok", [message], {"log_scan": scan}
+
+
+def _validate_qa_screenshot(path: Path) -> Tuple[str, List[str], Dict[str, Any]]:
+    with path.open("rb") as handle:
+        header = handle.read(1024 * 1024)
+    image = _image_metadata(header)
+    if not image:
+        return "invalid", ["file does not have a recognized PNG, JPEG, or WebP header"], {}
+    dimensions = "{}x{}".format(image["width"], image["height"])
+    return "ok", ["recognized {} screenshot ({})".format(image["format"], dimensions)], {
+        "image": image,
+        "visual_review_required": True,
+        "ocr_performed": False,
+    }
+
+
+def _image_metadata(data: bytes) -> Optional[Dict[str, Any]]:
+    if (
+        data.startswith(b"\x89PNG\r\n\x1a\n")
+        and len(data) >= 24
+        and data[12:16] == b"IHDR"
+    ):
+        width = int.from_bytes(data[16:20], "big")
+        height = int.from_bytes(data[20:24], "big")
+        return _valid_dimensions("png", width, height)
+    if data.startswith(b"\xff\xd8"):
+        dimensions = _jpeg_dimensions(data)
+        if dimensions:
+            return _valid_dimensions("jpeg", dimensions[0], dimensions[1])
+    if data.startswith(b"RIFF") and data[8:12] == b"WEBP":
+        dimensions = _webp_dimensions(data)
+        if dimensions:
+            return _valid_dimensions("webp", dimensions[0], dimensions[1])
+    return None
+
+
+def _valid_dimensions(image_format: str, width: int, height: int) -> Optional[Dict[str, Any]]:
+    if width <= 0 or height <= 0:
+        return None
+    return {"format": image_format, "width": width, "height": height}
+
+
+def _jpeg_dimensions(data: bytes) -> Optional[Tuple[int, int]]:
+    position = 2
+    start_of_frame = {
+        0xC0, 0xC1, 0xC2, 0xC3, 0xC5, 0xC6, 0xC7,
+        0xC9, 0xCA, 0xCB, 0xCD, 0xCE, 0xCF,
+    }
+    while position + 4 <= len(data):
+        if data[position] != 0xFF:
+            position += 1
+            continue
+        marker = data[position + 1]
+        position += 2
+        if marker in (0xD8, 0xD9) or 0xD0 <= marker <= 0xD7:
+            continue
+        segment_length = int.from_bytes(data[position:position + 2], "big")
+        if segment_length < 2 or position + segment_length > len(data):
+            return None
+        if marker in start_of_frame and segment_length >= 7:
+            height = int.from_bytes(data[position + 3:position + 5], "big")
+            width = int.from_bytes(data[position + 5:position + 7], "big")
+            return width, height
+        position += segment_length
+    return None
+
+
+def _webp_dimensions(data: bytes) -> Optional[Tuple[int, int]]:
+    if len(data) < 30:
+        return None
+    chunk = data[12:16]
+    if chunk == b"VP8X":
+        width = int.from_bytes(data[24:27], "little") + 1
+        height = int.from_bytes(data[27:30], "little") + 1
+        return width, height
+    if chunk == b"VP8L" and len(data) >= 25 and data[20] == 0x2F:
+        bits = int.from_bytes(data[21:25], "little")
+        return (bits & 0x3FFF) + 1, ((bits >> 14) & 0x3FFF) + 1
+    if chunk == b"VP8 ":
+        marker = data.find(b"\x9d\x01\x2a", 20)
+        if marker >= 0 and marker + 7 <= len(data):
+            width = int.from_bytes(data[marker + 3:marker + 5], "little") & 0x3FFF
+            height = int.from_bytes(data[marker + 5:marker + 7], "little") & 0x3FFF
+            return width, height
+    return None
+
+
 ARTIFACT_SPECS: Tuple[ArtifactSpec, ...] = (
+    ArtifactSpec(
+        "previous_ai_context",
+        ("android-memory-context.json", "ai-context.json"),
+        ("**/*android*memory*context*.json", "**/*ai-context*.json"),
+        "analysis-history",
+        "none",
+        validate_previous_context,
+    ),
+    ArtifactSpec(
+        "previous_analysis_report",
+        (
+            "android-memory-analysis.md",
+            "memory-analysis.md",
+            "analysis.md",
+            "diagnosis.md",
+        ),
+        (
+            "**/*memory*analysis*.md",
+            "**/*diagnos*.md",
+            "**/*分析*.md",
+            "**/*结论*.md",
+            "**/*memory*analysis*.json",
+        ),
+        "analysis-history",
+        "none",
+        validate_previous_analysis_report,
+    ),
     ArtifactSpec("device_context", ("manifest.json", "meta.txt", "getprop.txt", "build_fingerprint.txt", "android_sdk.txt"), (), "capture-context", "none", _validate_device_context),
     ArtifactSpec("phase_metadata", ("run_config.json", "run_config.txt", "artifact-manifest.json", "artifact-manifest.tsv", "manifest.json", "notes.md"), (), "capture-context", "none", _validate_phase_metadata),
     ArtifactSpec("meminfo", ("meminfo.txt", "meminfo-local.txt", "meminfo_local.txt"), ("*meminfo*.txt",), "process-pages", "low-to-medium", _validate_meminfo),
@@ -282,35 +418,125 @@ ARTIFACT_SPECS: Tuple[ArtifactSpec, ...] = (
     ArtifactSpec("perfetto_trace", ("trace.perfetto-trace", "trace.perfetto"), ("*.perfetto-trace", "*.perfetto"), "timeline", "medium", _validate_perfetto),
     ArtifactSpec("analysis_report", ("panorama_report.json", "panorama.json", "report.json", "combined.json"), ("*panorama*.json", "*combined*.json"), "derived-analysis", "none", _validate_json_report),
     ArtifactSpec("comparison_report", ("comparison.json", "diff_report.json", "diff.json"), ("*comparison*.json", "*diff*.json"), "derived-comparison", "none", _validate_json_report),
+    ArtifactSpec(
+        "android_log",
+        ("logcat.txt", "logcat.log", "android.log", "leakcanary.txt"),
+        (
+            "**/*.log",
+            "**/*.log.gz",
+            "**/logcat*.txt",
+            "**/logcat*.txt.gz",
+            "**/*leakcanary*.txt",
+            "**/*bugreport*.txt",
+            "**/*bugreport*.zip",
+            "**/*tombstone*.txt",
+            "**/*anr*.txt",
+        ),
+        "diagnostic-log",
+        "none-to-low",
+        _validate_android_log,
+        True,
+    ),
+    ArtifactSpec(
+        "qa_screenshot",
+        (),
+        ("**/*.png", "**/*.jpg", "**/*.jpeg", "**/*.webp"),
+        "qa-visual-observation",
+        "none",
+        _validate_qa_screenshot,
+        True,
+    ),
 )
 
 
 def discover_artifacts(
     root: Path,
-    overrides: Optional[Dict[str, str]] = None,
+    overrides: Optional[Dict[str, Any]] = None,
     hash_large_files: bool = False,
+    folder_files: Optional[Sequence[Path]] = None,
 ) -> List[ArtifactEvidence]:
     root = root.resolve()
     override_map = overrides or {}
+    if folder_files is None:
+        from .folder_scan import scan_evidence_tree
+
+        folder_files, _ = scan_evidence_tree(root)
+    indexed_files = list(folder_files)
     artifacts = []
+    deferred_paths = set()
+    hash_state: Dict[str, Any] = {"hashed_bytes": 0, "digests": {}}
     for spec in ARTIFACT_SPECS:
-        if override_map.get(spec.artifact_type):
-            candidate = Path(override_map[spec.artifact_type]).expanduser().resolve()
-            artifacts.append(
-                _inspect_candidate(root, spec, candidate, "explicit", hash_large_files)
+        explicit_candidates = _override_candidates(
+            override_map.get(spec.artifact_type, [])
+        )
+        discovered_candidates = _find_candidates(root, spec, indexed_files)
+        if spec.allow_multiple:
+            candidates, source_by_path = _merge_candidates(
+                explicit_candidates, discovered_candidates
             )
-        else:
-            candidates = _find_candidates(root, spec)
+            deferred_paths.update(
+                candidate.resolve()
+                for candidate in candidates[MAX_MULTIPLE_ARTIFACTS_PER_TYPE:]
+            )
             if not candidates:
                 artifacts.append(
-                    _inspect_candidate(root, spec, None, "discovered", hash_large_files)
+                    _inspect_candidate(
+                        root,
+                        spec,
+                        None,
+                        "discovered",
+                        hash_large_files,
+                        hash_state=hash_state,
+                    )
+                )
+                continue
+            artifacts.extend(
+                _inspect_multiple_candidates(
+                    root,
+                    spec,
+                    candidates,
+                    source_by_path,
+                    hash_large_files,
+                    hash_state,
+                )
+            )
+            continue
+
+        if explicit_candidates:
+            artifacts.append(
+                _inspect_candidate(
+                    root,
+                    spec,
+                    explicit_candidates[0],
+                    "explicit",
+                    hash_large_files,
+                    hash_state=hash_state,
+                )
+            )
+        else:
+            candidates = discovered_candidates
+            if not candidates:
+                artifacts.append(
+                    _inspect_candidate(
+                        root,
+                        spec,
+                        None,
+                        "discovered",
+                        hash_large_files,
+                        hash_state=hash_state,
+                    )
                 )
                 continue
             first_inspected = None
             selected = None
             for candidate in candidates:
                 inspected = _inspect_candidate(
-                    root, spec, candidate, "discovered", hash_large_files
+                    root,
+                    spec,
+                    candidate,
+                    "discovered",
+                    hash_large_files,
+                    hash_state=hash_state,
                 )
                 if first_inspected is None:
                     first_inspected = inspected
@@ -318,8 +544,427 @@ def discover_artifacts(
                     selected = inspected
                     break
             artifacts.append(selected or first_inspected)
+    processed_counts: Dict[str, int] = {}
+    for artifact in artifacts:
+        if artifact.local_path:
+            processed_counts[artifact.artifact_type] = (
+                processed_counts.get(artifact.artifact_type, 0) + 1
+            )
+
+    content_overflow: Dict[str, int] = {}
+    for candidate in indexed_files:
+        resolved_candidate = candidate.resolve()
+        if resolved_candidate in deferred_paths:
+            continue
+        local_path = str(resolved_candidate)
+        existing = [
+            artifact for artifact in artifacts
+            if artifact.local_path == local_path
+        ]
+        if any(
+            artifact.source == "explicit" or artifact.status != "invalid"
+            for artifact in existing
+        ):
+            continue
+        classified = _classify_additional_file(
+            root, candidate, hash_large_files, hash_state
+        )
+        artifact_type = classified.artifact_type
+        if processed_counts.get(artifact_type, 0) >= MAX_MULTIPLE_ARTIFACTS_PER_TYPE:
+            content_overflow[artifact_type] = content_overflow.get(artifact_type, 0) + 1
+            continue
+        artifacts.append(classified)
+        processed_counts[artifact_type] = processed_counts.get(artifact_type, 0) + 1
+
+    for artifact_type, overflow_count in sorted(content_overflow.items()):
+        spec = _spec_for(artifact_type)
+        artifact_id = "artifact:{}:candidate-limit".format(artifact_type)
+        existing_limit = next(
+            (artifact for artifact in artifacts if artifact.artifact_id == artifact_id),
+            None,
+        )
+        if existing_limit:
+            existing_limit.metadata["candidate_count"] += overflow_count
+        else:
+            _append_candidate_limit(
+                artifacts,
+                spec,
+                "content-signature",
+                processed_counts.get(artifact_type, 0) + overflow_count,
+                processed_counts.get(artifact_type, 0),
+            )
     _apply_capture_manifest_statuses(root, artifacts)
     return artifacts
+
+
+def _override_candidates(value: Any) -> List[Path]:
+    values = value if isinstance(value, (list, tuple)) else [value]
+    return [Path(item).expanduser().resolve() for item in values if item]
+
+
+def _merge_candidates(
+    explicit: Sequence[Path],
+    discovered: Sequence[Path],
+) -> Tuple[List[Path], Dict[str, str]]:
+    candidates = []
+    source_by_path = {}
+    for source, paths in (("explicit", explicit), ("discovered", discovered)):
+        for path in paths:
+            key = str(path.resolve())
+            if key in source_by_path:
+                continue
+            candidates.append(path)
+            source_by_path[key] = source
+    return candidates, source_by_path
+
+
+def _inspect_multiple_candidates(
+    root: Path,
+    spec: ArtifactSpec,
+    candidates: Sequence[Path],
+    source_by_path: Dict[str, str],
+    hash_large_files: bool,
+    hash_state: Dict[str, Any],
+) -> List[ArtifactEvidence]:
+    selected = list(candidates[:MAX_MULTIPLE_ARTIFACTS_PER_TYPE])
+    artifacts = [
+        _inspect_candidate(
+            root,
+            spec,
+            candidate,
+            source_by_path[str(candidate.resolve())],
+            hash_large_files,
+            hash_state=hash_state,
+        )
+        for candidate in selected
+    ]
+    if len(candidates) > MAX_MULTIPLE_ARTIFACTS_PER_TYPE:
+        sources = {source_by_path[str(candidate.resolve())] for candidate in candidates}
+        _append_candidate_limit(
+            artifacts,
+            spec,
+            sources.pop() if len(sources) == 1 else "mixed",
+            len(candidates),
+            len(selected),
+        )
+    return artifacts
+
+
+def _append_candidate_limit(
+    artifacts: List[ArtifactEvidence],
+    spec: ArtifactSpec,
+    source: str,
+    candidate_count: int,
+    processed_count: int,
+) -> None:
+    artifact_id = "artifact:{}:candidate-limit".format(spec.artifact_type)
+    existing = next(
+        (artifact for artifact in artifacts if artifact.artifact_id == artifact_id),
+        None,
+    )
+    if existing:
+        existing.metadata["candidate_count"] = max(
+            existing.metadata.get("candidate_count", 0), candidate_count
+        )
+        existing.metadata["processed_count"] = max(
+            existing.metadata.get("processed_count", 0), processed_count
+        )
+        return
+    artifacts.append(
+        ArtifactEvidence(
+            artifact_id=artifact_id,
+            artifact_type=spec.artifact_type,
+            status="not_collected",
+            accounting_domain=spec.accounting_domain,
+            perturbation=spec.perturbation,
+            validation=[
+                "candidate limit reached; inspect or split the remaining files"
+            ],
+            source=source,
+            metadata={
+                "candidate_count": candidate_count,
+                "processed_count": processed_count,
+                "candidate_limit": MAX_MULTIPLE_ARTIFACTS_PER_TYPE,
+            },
+        )
+    )
+
+
+def _classify_additional_file(
+    root: Path,
+    candidate: Path,
+    hash_large_files: bool,
+    hash_state: Dict[str, Any],
+) -> ArtifactEvidence:
+    try:
+        header = _read_sniff_bytes(candidate)
+    except (OSError, EOFError):
+        return _inspect_candidate(
+            root,
+            _spec_for("unclassified_file"),
+            candidate,
+            "folder-scan",
+            hash_large_files,
+            hash_state=hash_state,
+        )
+
+    if _image_metadata(header):
+        return _inspect_candidate(
+            root, _spec_for("qa_screenshot"), candidate, "content-signature",
+            hash_large_files, hash_state=hash_state,
+        )
+    if header.startswith(b"JAVA PROFILE "):
+        return _inspect_candidate(
+            root, _spec_for("hprof"), candidate, "content-signature",
+            hash_large_files, hash_state=hash_state,
+        )
+    if header[:4] in (b"PK\x03\x04", b"PK\x05\x06", b"PK\x07\x08"):
+        spec = _spec_for("android_log")
+        validation = _validated(spec, candidate)
+        if validation:
+            return _inspect_candidate(
+                root,
+                spec,
+                candidate,
+                "content-signature",
+                hash_large_files,
+                validation,
+                hash_state,
+            )
+    if candidate.suffix.lower() in (".perfetto", ".perfetto-trace"):
+        return _inspect_candidate(
+            root, _spec_for("perfetto_trace"), candidate, "content-signature",
+            hash_large_files, hash_state=hash_state,
+        )
+
+    text = _decode_text_sample(header)
+    if text is not None:
+        stripped = text.lstrip()
+        if candidate.suffix.lower() == ".json" or (
+            stripped.startswith("{")
+            and any(
+                marker in text
+                for marker in ('"memory_overview"', '"native_memory"', '"changes"')
+            )
+        ):
+            previous_context = _validated(_spec_for("previous_ai_context"), candidate)
+            if previous_context:
+                return _inspect_candidate(
+                    root,
+                    _spec_for("previous_ai_context"),
+                    candidate,
+                    "content-signature",
+                    hash_large_files,
+                    previous_context,
+                    hash_state,
+                )
+            report = _validated(_spec_for("analysis_report"), candidate)
+            if report and report[2].get("report_type") == "comparison":
+                return _inspect_candidate(
+                    root,
+                    _spec_for("comparison_report"),
+                    candidate,
+                    "content-signature",
+                    hash_large_files,
+                    report,
+                    hash_state,
+                )
+            if report:
+                return _inspect_candidate(
+                    root,
+                    _spec_for("analysis_report"),
+                    candidate,
+                    "content-signature",
+                    hash_large_files,
+                    report,
+                    hash_state,
+                )
+
+        if _looks_like_previous_analysis(text):
+            previous_analysis = _validated(
+                _spec_for("previous_analysis_report"), candidate
+            )
+            if previous_analysis:
+                return _inspect_candidate(
+                    root,
+                    _spec_for("previous_analysis_report"),
+                    candidate,
+                    "content-signature",
+                    hash_large_files,
+                    previous_analysis,
+                    hash_state,
+                )
+
+        for artifact_type in (
+            "meminfo",
+            "smaps",
+            "showmap",
+            "proc_meminfo",
+            "pressure_memory",
+            "zram",
+            "gfxinfo",
+            "device_context",
+        ):
+            spec = _spec_for(artifact_type)
+            validation = _validated(spec, candidate)
+            if validation:
+                return _inspect_candidate(
+                    root,
+                    spec,
+                    candidate,
+                    "content-signature",
+                    hash_large_files,
+                    validation,
+                    hash_state,
+                )
+
+        if _looks_like_phase_metadata(text):
+            spec = _spec_for("phase_metadata")
+            validation = _validated(spec, candidate)
+            if validation:
+                return _inspect_candidate(
+                    root,
+                    spec,
+                    candidate,
+                    "content-signature",
+                    hash_large_files,
+                    validation,
+                    hash_state,
+                )
+
+        if candidate.suffix.lower() in (".log", ".gz") or _looks_like_android_log(text):
+            spec = _spec_for("android_log")
+            validation = _validated(spec, candidate)
+            if validation:
+                scan = validation[2].get("log_scan", {})
+                if (
+                    candidate.suffix.lower() in (".log", ".gz")
+                    or scan.get("android_format_recognized")
+                    or scan.get("memory_signal_matches", 0) > 0
+                ):
+                    return _inspect_candidate(
+                        root,
+                        spec,
+                        candidate,
+                        "content-signature",
+                        hash_large_files,
+                        validation,
+                        hash_state,
+                    )
+
+    return _inspect_candidate(
+        root,
+        _spec_for("unclassified_file"),
+        candidate,
+        "folder-scan",
+        hash_large_files,
+        hash_state=hash_state,
+    )
+
+
+def _read_sniff_bytes(path: Path) -> bytes:
+    with path.open("rb") as handle:
+        prefix = handle.read(2)
+    if prefix == b"\x1f\x8b":
+        with gzip.open(str(path), "rb") as handle:
+            return handle.read(MAX_SNIFF_BYTES)
+    with path.open("rb") as handle:
+        return handle.read(MAX_SNIFF_BYTES)
+
+
+def _looks_like_android_log(text: str) -> bool:
+    return bool(
+        re.search(
+            r"(?m)^(?:\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\.\d+\s+\d+\s+\d+\s+"
+            r"[VDIWEFAS]\s+[^:]{1,80}\s*:|[VDIWEFAS]/[^(:\n]{1,80}(?:\(\s*\d+\))?:)",
+            text,
+        )
+        or any(
+            marker in text
+            for marker in (
+                "*** *** *** *** *** *** *** *** *** *** *** *** *** *** *** ***",
+                "Abort message:",
+                "backtrace:",
+                "ANR in ",
+                "GC Root:",
+                "LeakCanary",
+            )
+        )
+    )
+
+
+def _looks_like_previous_analysis(text: str) -> bool:
+    return (
+        '"record_type"' in text
+        and "android-memory-analysis-record" in text
+    ) or bool(
+        re.search(
+            r"(?im)^(?:#{1,4}\s*)?(?:bounded conclusion|analysis conclusion|conclusion|"
+            r"revision status|分析结论|结论|修订状态)\s*[:：]?\s*$",
+            text,
+        )
+    )
+
+
+def _validated(
+    spec: ArtifactSpec,
+    candidate: Path,
+) -> Optional[Tuple[str, List[str], Dict[str, Any]]]:
+    try:
+        validation = spec.validator(candidate)
+    except OSError:
+        return None
+    return validation if validation[0] == "ok" else None
+
+
+def _decode_text_sample(data: bytes) -> Optional[str]:
+    if not data:
+        return ""
+    if data.startswith((b"\xff\xfe", b"\xfe\xff")):
+        return data.decode("utf-16", errors="replace")
+    if data.count(b"\x00") > max(4, len(data) // 100):
+        return None
+    return data.decode("utf-8", errors="replace")
+
+
+def _looks_like_phase_metadata(text: str) -> bool:
+    keys = set(
+        match.group(1).lower()
+        for match in re.finditer(
+            r"(?im)^(timestamp(?:_utc)?|captured_at|package|pid|process_role|"
+            r"user_profile|scenario|phase|loops|cooldown_seconds|"
+            r"collection_mode|perturbation)\s*[:=]",
+            text,
+        )
+    )
+    return len(keys) >= 2
+
+
+def _validate_unclassified(path: Path) -> Tuple[str, List[str], Dict[str, Any]]:
+    try:
+        with path.open("rb") as handle:
+            sample = handle.read(4096)
+    except OSError as exc:
+        return "unreadable", ["cannot inspect folder item: {}".format(exc)], {}
+    return "unclassified", ["folder item did not match a supported content signature"], {
+        "extension": "".join(path.suffixes).lower() or "<none>",
+        "content_kind": "text" if _decode_text_sample(sample) is not None else "binary",
+        "manual_review_required": True,
+    }
+
+
+def _spec_for(artifact_type: str) -> ArtifactSpec:
+    if artifact_type == "unclassified_file":
+        return ArtifactSpec(
+            "unclassified_file",
+            (),
+            (),
+            "unknown",
+            "unknown",
+            _validate_unclassified,
+            True,
+        )
+    return next(spec for spec in ARTIFACT_SPECS if spec.artifact_type == artifact_type)
 
 
 def _apply_capture_manifest_statuses(
@@ -385,17 +1030,32 @@ def _apply_capture_manifest_statuses(
         }
 
 
-def _find_candidates(root: Path, spec: ArtifactSpec) -> List[Path]:
+def _find_candidates(
+    root: Path,
+    spec: ArtifactSpec,
+    folder_files: Sequence[Path],
+) -> List[Path]:
     candidates: List[Path] = []
     seen = set()
+    ordered_files = sorted(
+        folder_files,
+        key=lambda path: (
+            0 if path.parent.resolve() == root else 1,
+            path.relative_to(root).as_posix(),
+        ),
+    )
     for filename in spec.filenames:
-        candidate = root / filename
-        if candidate.is_file() and candidate not in seen:
-            candidates.append(candidate)
-            seen.add(candidate)
+        for candidate in ordered_files:
+            if candidate.name == filename and candidate not in seen:
+                candidates.append(candidate)
+                seen.add(candidate)
     for pattern in spec.globs:
-        for candidate in sorted(root.glob(pattern)):
-            if candidate.is_file() and candidate not in seen:
+        for candidate in ordered_files:
+            relative = candidate.relative_to(root)
+            matches = relative.match(pattern)
+            if not matches and pattern.startswith("**/"):
+                matches = relative.match(pattern[3:])
+            if matches and candidate not in seen:
                 candidates.append(candidate)
                 seen.add(candidate)
     return candidates
@@ -407,8 +1067,10 @@ def _inspect_candidate(
     candidate: Optional[Path],
     source: str,
     hash_large_files: bool,
+    prevalidated: Optional[Tuple[str, List[str], Dict[str, Any]]] = None,
+    hash_state: Optional[Dict[str, Any]] = None,
 ) -> ArtifactEvidence:
-    artifact_id = "artifact:{}".format(spec.artifact_type)
+    artifact_id = _artifact_id(root, spec, candidate)
     if candidate is None:
         return ArtifactEvidence(
             artifact_id=artifact_id,
@@ -447,6 +1109,8 @@ def _inspect_candidate(
     size = candidate.stat().st_size
     if size == 0:
         status, messages, metadata = "empty", ["file is empty"], {}
+    elif prevalidated is not None:
+        status, messages, metadata = prevalidated
     else:
         try:
             status, messages, metadata = spec.validator(candidate)
@@ -454,12 +1118,29 @@ def _inspect_candidate(
             status, messages, metadata = "unreadable", ["cannot inspect artifact: {}".format(exc)], {}
 
     digest = None
-    if size <= MAX_DEFAULT_HASH_BYTES or hash_large_files:
+    cache_key = str(candidate.resolve())
+    digest_cache = hash_state.get("digests", {}) if hash_state is not None else {}
+    if cache_key in digest_cache:
+        digest = digest_cache[cache_key]
+    hashed_bytes = hash_state.get("hashed_bytes", 0) if hash_state is not None else 0
+    within_total_budget = hashed_bytes + size <= MAX_TOTAL_DEFAULT_HASH_BYTES
+    if digest is None and (
+        hash_large_files or (size <= MAX_DEFAULT_HASH_BYTES and within_total_budget)
+    ):
         try:
             digest = _sha256(candidate)
+            if hash_state is not None:
+                hash_state["hashed_bytes"] = hashed_bytes + size
+                hash_state.setdefault("digests", {})[cache_key] = digest
         except OSError as exc:
             messages.append("sha256 unavailable: {}".format(exc))
-    else:
+    elif digest is None and size <= MAX_DEFAULT_HASH_BYTES:
+        messages.append(
+            "sha256 skipped because the folder exceeded the default {} byte total hash budget; use --hash-large-files to opt in".format(
+                MAX_TOTAL_DEFAULT_HASH_BYTES
+            )
+        )
+    elif digest is None:
         messages.append(
             "sha256 skipped for file larger than {} bytes; use --hash-large-files to opt in".format(
                 MAX_DEFAULT_HASH_BYTES
@@ -482,6 +1163,15 @@ def _inspect_candidate(
     )
 
 
+def _artifact_id(root: Path, spec: ArtifactSpec, candidate: Optional[Path]) -> str:
+    base = "artifact:{}".format(spec.artifact_type)
+    if not spec.allow_multiple or candidate is None:
+        return base
+    stable_path = str(candidate.expanduser().resolve())
+    suffix = hashlib.sha256(stable_path.encode("utf-8")).hexdigest()[:12]
+    return "{}:{}".format(base, suffix)
+
+
 def _sha256(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as handle:
@@ -501,11 +1191,14 @@ def _display_path(root: Path, path: Path) -> str:
 
 
 def available_artifact_types(artifacts: Iterable[ArtifactEvidence]) -> List[str]:
-    return sorted(
+    return sorted({
         artifact.artifact_type
         for artifact in artifacts
-        if artifact.status == "ok"
-    )
+        if (
+            artifact.status == "ok"
+            and artifact.artifact_type not in HISTORY_ARTIFACT_TYPES
+        )
+    })
 
 
 def collect_subject_context(
@@ -527,11 +1220,14 @@ def collect_subject_context(
         if key in candidates and value not in (None, ""):
             candidates[key]["explicit"] = value
 
-    artifact_map = {item.artifact_type: item for item in artifacts if item.path}
+    artifact_groups: Dict[str, List[ArtifactEvidence]] = {}
+    for item in artifacts:
+        if item.path:
+            artifact_groups.setdefault(item.artifact_type, []).append(item)
     _collect_meta_candidates(root, candidates)
     _collect_standalone_context(root, candidates)
-    _collect_explicit_context(candidates, artifact_map)
-    _collect_artifact_metadata(candidates, artifact_map)
+    _collect_explicit_context(candidates, artifact_groups)
+    _collect_artifact_metadata(candidates, artifact_groups)
     _collect_directory_context(root, candidates)
 
     priority = (
@@ -552,7 +1248,12 @@ def collect_subject_context(
             if value not in (None, "")
         }
         chosen = next(
-            (normalized_values[source] for source in priority if source in normalized_values),
+            (
+                value
+                for preferred in priority
+                for source, value in normalized_values.items()
+                if source == preferred or source.startswith(preferred + ":")
+            ),
             None,
         )
         if chosen is not None:
@@ -640,66 +1341,81 @@ def _collect_standalone_context(root: Path, candidates: Dict[str, Dict[str, Any]
 
 def _collect_artifact_metadata(
     candidates: Dict[str, Dict[str, Any]],
-    artifact_map: Dict[str, ArtifactEvidence],
+    artifact_groups: Dict[str, List[ArtifactEvidence]],
 ) -> None:
-    meminfo = artifact_map.get("meminfo")
-    if meminfo and meminfo.status == "ok":
+    valid_meminfo = [
+        artifact for artifact in artifact_groups.get("meminfo", [])
+        if artifact.status == "ok"
+    ]
+    for meminfo in valid_meminfo:
+        source = "artifact:{}".format(meminfo.artifact_id)
         for key in ("package", "pid"):
             value = meminfo.metadata.get(key)
             if value:
-                candidates[key]["artifact"] = value
+                candidates[key][source] = value
 
 
 def _collect_explicit_context(
     candidates: Dict[str, Dict[str, Any]],
-    artifact_map: Dict[str, ArtifactEvidence],
+    artifact_groups: Dict[str, List[ArtifactEvidence]],
 ) -> None:
     for artifact_type in ("device_context", "phase_metadata"):
-        artifact = artifact_map.get(artifact_type)
-        if not artifact or artifact.source != "explicit" or artifact.status != "ok":
-            continue
-        if not artifact.local_path:
-            continue
-        path = Path(artifact.local_path)
-        try:
-            content = _read_text(path)
-        except OSError:
-            continue
-        if path.suffix.lower() == ".json":
+        context_artifacts = [
+            artifact for artifact in artifact_groups.get(artifact_type, [])
+            if artifact.status == "ok"
+        ]
+        for artifact in context_artifacts:
+            if not artifact.local_path:
+                continue
+            path = Path(artifact.local_path)
             try:
-                data = json.loads(content)
-            except json.JSONDecodeError:
-                data = {}
-            subject = data.get("subject", data) if isinstance(data, dict) else {}
-            device = subject.get("device", {}) if isinstance(subject, dict) else {}
-            values = {
-                "package": subject.get("package"),
-                "pid": subject.get("pid"),
-                "timestamp": subject.get("timestamp") or subject.get("captured_at"),
-                "android_release": subject.get("android_release") or device.get("android_release"),
-                "android_sdk": subject.get("android_sdk") or subject.get("api_level") or device.get("android_sdk"),
-                "build_fingerprint": subject.get("build_fingerprint") or device.get("build_fingerprint"),
-                "page_size": subject.get("page_size") or device.get("page_size"),
-                "phase": subject.get("phase"),
-            }
-        else:
-            patterns = {
-                "package": r"(?im)^Package:\s*(.+)$",
-                "pid": r"(?im)^PID:\s*(\d+)$",
-                "timestamp": r"(?im)^Timestamp:\s*(.+)$",
-                "android_release": r"(?im)^(?:AndroidRelease:|\[ro\.build\.version\.release\]:)\s*\[?([^\]\n]+)",
-                "android_sdk": r"(?im)^(?:AndroidSdk:|\[ro\.build\.version\.sdk\]:)\s*\[?([^\]\n]+)",
-                "build_fingerprint": r"(?im)^(?:BuildFingerprint:|\[ro\.build\.fingerprint\]:)\s*\[?([^\]\n]+)",
-                "page_size": r"(?im)^PageSize:\s*(\d+)$",
-                "phase": r"(?im)^Phase:\s*(.+)$",
-            }
-            values = {}
-            for key, pattern in patterns.items():
-                match = re.search(pattern, content)
-                values[key] = match.group(1).strip() if match else None
-        for key, value in values.items():
-            if value not in (None, ""):
-                candidates[key]["explicit_artifact"] = value
+                content = _read_text(path)
+            except OSError:
+                continue
+            if path.suffix.lower() == ".json":
+                try:
+                    data = json.loads(content)
+                except json.JSONDecodeError:
+                    data = {}
+                subject = data.get("subject", data) if isinstance(data, dict) else {}
+                device = subject.get("device", {}) if isinstance(subject, dict) else {}
+                values = {
+                    "package": subject.get("package"),
+                    "pid": subject.get("pid"),
+                    "timestamp": subject.get("timestamp") or subject.get("captured_at"),
+                    "android_release": subject.get("android_release") or device.get("android_release"),
+                    "android_sdk": subject.get("android_sdk") or subject.get("api_level") or device.get("android_sdk"),
+                    "build_fingerprint": subject.get("build_fingerprint") or device.get("build_fingerprint"),
+                    "page_size": subject.get("page_size") or device.get("page_size"),
+                    "phase": subject.get("phase"),
+                }
+            else:
+                patterns = {
+                    "package": r"(?im)^Package\s*[:=]\s*(.+)$",
+                    "pid": r"(?im)^PID\s*[:=]\s*(\d+)$",
+                    "timestamp": r"(?im)^(?:Timestamp|timestamp_utc|captured_at)\s*[:=]\s*(.+)$",
+                    "android_release": r"(?im)^(?:AndroidRelease|android_release)\s*[:=]\s*\[?([^\]\n]+)|^\[ro\.build\.version\.release\]:\s*\[?([^\]\n]+)",
+                    "android_sdk": r"(?im)^(?:AndroidSdk|android_sdk)\s*[:=]\s*\[?([^\]\n]+)|^\[ro\.build\.version\.sdk\]:\s*\[?([^\]\n]+)",
+                    "build_fingerprint": r"(?im)^(?:BuildFingerprint|build_fingerprint)\s*[:=]\s*\[?([^\]\n]+)|^\[ro\.build\.fingerprint\]:\s*\[?([^\]\n]+)",
+                    "page_size": r"(?im)^(?:PageSize|page_size)\s*[:=]\s*(\d+)$",
+                    "phase": r"(?im)^Phase\s*[:=]\s*(.+)$",
+                }
+                values = {}
+                for key, pattern in patterns.items():
+                    match = re.search(pattern, content)
+                    values[key] = next(
+                        (
+                            group.strip()
+                            for group in match.groups()
+                            if group not in (None, "")
+                        ),
+                        None,
+                    ) if match else None
+            prefix = "explicit_artifact" if artifact.source == "explicit" else "artifact"
+            source = "{}:{}".format(prefix, artifact.artifact_id)
+            for key, value in values.items():
+                if value not in (None, ""):
+                    candidates[key][source] = value
 
 
 def _collect_directory_context(root: Path, candidates: Dict[str, Dict[str, Any]]) -> None:

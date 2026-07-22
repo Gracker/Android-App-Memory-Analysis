@@ -20,12 +20,14 @@ from .evidence import (
     discover_artifacts,
     load_report_summaries,
 )
+from .folder_scan import scan_evidence_tree, summarize_inventory
 from .guidance import (
     assess_coverage,
     build_gaps,
     infer_intent,
     intent_inadequate_artifacts,
 )
+from .history import build_analysis_history
 
 
 ANALYSIS_RULES = [
@@ -55,6 +57,16 @@ ANALYSIS_RULES = [
         "en": "Absolute MB, count, or percentage thresholds trigger investigation; they do not diagnose a leak without product budgets, device buckets, and trends.",
     },
     {
+        "id": "qa-artifacts-need-binding",
+        "zh": "QA 截图是可见状态，日志匹配是诊断信号；必须绑定目标、时间、phase、原始行或可见区域，并用 owner/趋势证据复核，不能把单张截图或单条日志直接升级为已证明根因。",
+        "en": "QA screenshots are visual observations and log matches are diagnostic signals; bind them to target, time, phase, original line or visible region, then verify ownership and trend before claiming a root cause.",
+    },
+    {
+        "id": "prior-analysis-is-derived",
+        "zh": "旧分析结论只能作为待复核的 derived claim：先用当前目录重新建立证据快照，再把旧结论逐项标记为 confirmed、revised、retracted 或 unresolved；新增结论单列。",
+        "en": "Treat prior conclusions as derived claims awaiting review: rebuild the evidence snapshot from the current folder, then mark each material prior claim confirmed, revised, retracted, or unresolved and list new claims separately.",
+    },
+    {
         "id": "fixes-need-verification",
         "zh": "代码修改必须说明 owner、机制、预期变化、回归风险、同场景 before/after/cooldown 验证和回滚条件。",
         "en": "Code changes must state owner, mechanism, expected change, regression risk, matching before/after/cooldown validation, and rollback conditions.",
@@ -66,11 +78,12 @@ def build_ai_context(
     root: Path,
     intent: str = "auto",
     question: str = "",
-    artifact_overrides: Optional[Dict[str, str]] = None,
+    artifact_overrides: Optional[Dict[str, Any]] = None,
     subject_overrides: Optional[Dict[str, Any]] = None,
     catalog_path: Optional[Path] = None,
     hash_large_files: bool = False,
     include_local_paths: bool = False,
+    analysis_mode: str = "auto",
 ) -> Dict[str, Any]:
     root_path = Path(root).expanduser().resolve()
     if not root_path.is_dir():
@@ -81,12 +94,25 @@ def build_ai_context(
         )
 
     resolved_intent, candidates = infer_intent(intent, question)
+    question_candidates = list(candidates)
+    evidence_candidates: List[str] = []
+    primary_from_evidence = False
+    folder_files, folder_scan = scan_evidence_tree(root_path)
     artifacts = discover_artifacts(
         root_path,
         overrides=artifact_overrides,
         hash_large_files=hash_large_files,
+        folder_files=folder_files,
     )
     available = available_artifact_types(artifacts)
+    if intent == "auto":
+        evidence_candidates = _infer_evidence_intents(artifacts, available)
+        candidates = list(dict.fromkeys(candidates + evidence_candidates))
+        if resolved_intent == "quick-triage" and evidence_candidates:
+            resolved_intent = evidence_candidates[0]
+            primary_from_evidence = True
+        if resolved_intent not in candidates and candidates:
+            candidates.insert(0, resolved_intent)
     evaluated_intents = candidates or [resolved_intent]
     coverage_by_intent = {}
     for evaluated_intent in evaluated_intents:
@@ -113,6 +139,16 @@ def build_ai_context(
         _serialize_artifact(artifact, include_local_paths)
         for artifact in artifacts
     ]
+    qa_observations = _build_qa_observations(serialized_artifacts)
+    folder_inventory = summarize_inventory(folder_scan, serialized_artifacts)
+    analysis_history = build_analysis_history(
+        artifacts,
+        serialized_artifacts,
+        question,
+        requested_mode=analysis_mode,
+        folder_inventory=folder_inventory,
+        current_subject=subject,
+    )
     unavailable_artifacts = [
         serialized
         for artifact, serialized in zip(artifacts, serialized_artifacts)
@@ -124,6 +160,52 @@ def build_ai_context(
         conflicts,
         reports,
     )
+    if any(item.get("scan_truncated") for item in qa_observations["android_logs"]):
+        limitations.append({
+            "severity": "medium",
+            "zh": "至少一份 Android 日志超过有界扫描上限；当前信号清单不是整份日志的完整索引，应按时间窗拆分或显式检查未扫描部分。",
+            "en": "At least one Android log exceeded the bounded scan limit; the signal inventory is not a complete index of that file. Split it by time window or inspect the unscanned remainder explicitly.",
+        })
+    if folder_inventory["index_truncated"]:
+        limitations.append({
+            "severity": "high",
+            "zh": "证据目录文件数超过递归索引上限；当前 context 未覆盖全部文件，应拆分目录或提高受控扫描能力后重建。",
+            "en": "The evidence folder exceeded the recursive file index limit; this context does not cover every file. Split the folder or rebuild with a controlled higher-capacity scanner.",
+        })
+    if (
+        not folder_inventory["index_truncated"]
+        and not folder_inventory["all_indexed_files_represented"]
+    ):
+        limitations.append({
+            "severity": "medium",
+            "zh": "至少一种同类材料超过每类处理上限；所有文件都已被目录索引发现，但部分文件只保留了 overflow 状态，需拆分后重建才能逐项分析。",
+            "en": "At least one artifact type exceeded its per-type processing limit. Every file was discovered by the folder index, but some are represented only by an overflow status; split the folder and rebuild for per-file analysis.",
+        })
+    if folder_inventory["unhashed_files"]:
+        limitations.append({
+            "severity": "medium",
+            "zh": "部分已索引文件因单文件或全目录默认哈希预算没有 SHA-256；需要强 provenance 时使用显式大文件哈希选项并评估时间/IO 成本。",
+            "en": "Some indexed files have no SHA-256 because they exceeded the default per-file or folder hash budget. Use the explicit large-file hashing option when strong provenance is required and its time/I/O cost is acceptable.",
+        })
+    if folder_inventory["unclassified_files"]:
+        limitations.append({
+            "severity": "medium",
+            "zh": "目录中存在无法按内容签名分类的文件；它们仍保留在 artifact inventory 中，不能静默忽略，应结合问题背景决定是否人工查看或补充解析器。",
+            "en": "Some folder files did not match supported content signatures. They remain in the artifact inventory and must not be silently ignored; use the case context to decide whether to inspect them or add a parser.",
+        })
+    if folder_inventory["skipped_symlinks"]:
+        limitations.append({
+            "severity": "medium",
+            "zh": "递归扫描跳过了符号链接，避免无意读取证据目录之外的内容；如链接目标属于授权证据，请复制到目录内或显式传入。",
+            "en": "The recursive scan skipped symbolic links to avoid reading outside the evidence folder. Copy authorized targets into the folder or pass them explicitly.",
+        })
+    if folder_inventory["unreadable_entries"]:
+        limitations.append({
+            "severity": "high",
+            "zh": "递归扫描遇到不可读目录或文件；这些内容没有进入当前 context，应先修复授权或由 QA 提供可读副本。",
+            "en": "The recursive scan encountered unreadable files or directories. They are absent from this context; fix access or obtain readable copies from QA.",
+        })
+    limitations.extend(analysis_history["limitations"])
 
     evidence_location = {
         "root_id": root_path.name,
@@ -142,15 +224,23 @@ def build_ai_context(
         "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "request": {
             "intent": resolved_intent,
-            "intent_source": "explicit" if intent != "auto" else "inferred",
+            "intent_source": _intent_source(
+                intent,
+                bool(question_candidates),
+                bool(evidence_candidates),
+                primary_from_evidence,
+            ),
             "intent_candidates": candidates,
             "evaluated_intents": evaluated_intents,
             "question": question,
+            "analysis_mode": analysis_history["mode"],
+            "analysis_mode_source": analysis_history["mode_source"],
         },
         "subject": subject,
         "subject_candidates": context_candidates,
         "evidence": {
             **evidence_location,
+            "folder_inventory": folder_inventory,
             "artifacts": serialized_artifacts,
             "coverage": coverage.to_dict(),
             "intent_coverage": {
@@ -159,6 +249,8 @@ def build_ai_context(
             },
             "conflicts": [conflict.to_dict() for conflict in conflicts],
             "derived_reports": reports,
+            "qa_observations": qa_observations,
+            "analysis_history": analysis_history,
         },
         "knowledge": {
             "catalog_id": catalog["catalog_id"],
@@ -173,8 +265,8 @@ def build_ai_context(
             "privacy": {
                 "raw_contents_embedded": False,
                 "local_paths_included": include_local_paths,
-                "policy_zh": "上下文不嵌入原始 HPROF、trace 或任意文件正文；向外部 AI 发送文件前必须单独做授权与隐私审查。",
-                "policy_en": "The context embeds no raw HPROF, trace, or arbitrary file contents; review authorization and privacy before sending artifacts to an external AI.",
+                "policy_zh": "上下文不嵌入原始 HPROF、trace、截图像素或日志正文；日志只保留有界信号、行号与行哈希。向外部 AI 发送原始文件前必须单独做授权与隐私审查。",
+                "policy_en": "The context embeds no raw HPROF, trace, screenshot pixels, or log lines; logs expose only bounded signals, line numbers, and line hashes. Review authorization and privacy before sending raw artifacts to an external AI.",
             },
         },
         "next_evidence": [gap.to_dict() for gap in gaps],
@@ -190,6 +282,95 @@ def _serialize_artifact(
     if include_local_paths and artifact.local_path:
         serialized["path"] = artifact.local_path
     return serialized
+
+
+def _build_qa_observations(artifacts: List[Dict[str, Any]]) -> Dict[str, Any]:
+    logs = []
+    screenshots = []
+    for artifact in artifacts:
+        if artifact.get("status") != "ok":
+            continue
+        metadata = artifact.get("metadata", {})
+        if artifact.get("artifact_type") == "android_log":
+            scan = metadata.get("log_scan", {})
+            logs.append({
+                "artifact_id": artifact["artifact_id"],
+                "path": artifact.get("path"),
+                "bytes_scanned": scan.get("bytes_scanned"),
+                "compression": scan.get("compression"),
+                "scan_truncated": scan.get("scan_truncated", False),
+                "archive_members_scanned": scan.get("archive_members_scanned"),
+                "archive_members_examined": scan.get("archive_members_examined"),
+                "archive_members_skipped": scan.get("archive_members_skipped"),
+                "memory_signal_matches": scan.get("memory_signal_matches", 0),
+                "managed_owner_path_candidate": scan.get(
+                    "managed_owner_path_candidate", False
+                ),
+                "signals": scan.get("signals", []),
+            })
+        elif artifact.get("artifact_type") == "qa_screenshot":
+            screenshots.append({
+                "artifact_id": artifact["artifact_id"],
+                "path": artifact.get("path"),
+                "image": metadata.get("image", {}),
+                "visual_review_required": True,
+                "ocr_performed": False,
+            })
+    return {
+        "android_logs": logs,
+        "screenshots": screenshots,
+        "raw_log_lines_embedded": False,
+        "screenshot_pixels_embedded": False,
+    }
+
+
+def _infer_evidence_intents(
+    artifacts: Iterable[ArtifactEvidence],
+    available: Iterable[str],
+) -> List[str]:
+    available_types = set(available)
+    signal_types = {
+        signal.get("signal_type")
+        for artifact in artifacts
+        if artifact.status == "ok" and artifact.artifact_type == "android_log"
+        for signal in artifact.metadata.get("log_scan", {}).get("signals", [])
+    }
+    intents = []
+    if "hprof" in available_types or signal_types.intersection({
+        "leakcanary-retained-object",
+        "android-component-leak",
+        "strictmode-resource-leak",
+    }):
+        intents.append("java-leak")
+    if "native_heap_profile" in available_types or signal_types.intersection({
+        "native-allocation-failure",
+        "jni-reference-table-overflow",
+    }):
+        intents.append("native-memory")
+    if "graphics-allocation-failure" in signal_types:
+        intents.append("graphics")
+    if signal_types.intersection({"lmkd-kill", "kernel-oom-kill"}):
+        intents.append("system-pressure")
+    if "comparison_report" in available_types:
+        intents.append("regression")
+    return intents
+
+
+def _intent_source(
+    requested_intent: str,
+    question_inferred: bool,
+    evidence_inferred: bool,
+    primary_from_evidence: bool,
+) -> str:
+    if requested_intent != "auto":
+        return "explicit"
+    if primary_from_evidence:
+        return "evidence"
+    if question_inferred and evidence_inferred:
+        return "question-and-evidence"
+    if question_inferred:
+        return "question"
+    return "default"
 
 
 def _combined_support_level(coverages: Iterable[EvidenceCoverage]) -> str:

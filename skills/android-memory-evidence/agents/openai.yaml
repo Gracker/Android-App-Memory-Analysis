@@ -1,4 +1,4 @@
 interface:
   display_name: "Android Memory Evidence"
-  short_description: "Validate evidence and guide missing Android memory captures"
-  default_prompt: "Use $android-memory-evidence to validate my artifacts and tell me exactly what evidence to collect next."
+  short_description: "Rescan QA folders and compare prior evidence"
+  default_prompt: "Use $android-memory-evidence to rescan this complete QA folder, compare it with the prior context or conclusion, and prepare the correct reanalysis or supplement."

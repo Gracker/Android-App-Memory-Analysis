@@ -2,7 +2,7 @@
   "bundle_schema_version": "1.0",
   "catalog_id": "android-memory-operational-knowledge",
   "catalog_version": "2026.07.1",
-  "context_schema_version": "1.0",
+  "context_schema_version": "1.2",
   "files": [
     {
       "path": "android_memory_ai/__init__.py",
@@ -16,32 +16,47 @@
     },
     {
       "path": "android_memory_ai/cli.py",
-      "sha256": "a9ac1db98ea089b7605e0344d867efb404cb68d9e4b71e0cc75a87d4a23d1cd2",
+      "sha256": "4510ced2cb50373b27cc3144377744915c45add363d0f377e45ea6e84171f95f",
       "source": "android_memory_ai/cli.py"
     },
     {
       "path": "android_memory_ai/context.py",
-      "sha256": "f560a3276254177885c654cedc806277423d802f84136fa30aed8f46c2061387",
+      "sha256": "836f3e7a895132a4900b63ccfb2d8ee6939942c63e93c812bd9ab98e5c0fb3d8",
       "source": "android_memory_ai/context.py"
     },
     {
       "path": "android_memory_ai/contracts.py",
-      "sha256": "96afcd517bbff9a09109f235e68466d6e212afb8c7c176f0d9aea7a97fc6ae99",
+      "sha256": "66d8ae951f7446e4a1d8c7d6d9b56d055f137160b7e41c91007f522064169563",
       "source": "android_memory_ai/contracts.py"
     },
     {
       "path": "android_memory_ai/evidence.py",
-      "sha256": "77dbcf25487e67dbaa9336eba45a4074f14f164531116ebca3cb15c5e6ce31ea",
+      "sha256": "5eed24d68d77ff44ca7a6f84434f5ca19ad7195c139898685e7ad476710db425",
       "source": "android_memory_ai/evidence.py"
     },
     {
+      "path": "android_memory_ai/folder_scan.py",
+      "sha256": "9756356e8da613cafe0ed7715a19b1418a91ba678081c2d71432ddd404331134",
+      "source": "android_memory_ai/folder_scan.py"
+    },
+    {
       "path": "android_memory_ai/guidance.py",
-      "sha256": "a627fc5b8afb1037e21ad947b77a990de30704d1da4fe6515c71fb8f4f24183c",
+      "sha256": "ed3384204f8ca4e052ca2e86cbd6265399575b7ab7c36191cdc8f5825ddbfe34",
       "source": "android_memory_ai/guidance.py"
     },
     {
+      "path": "android_memory_ai/history.py",
+      "sha256": "ca04ad785e15ed964cf7622da6aa99d50a42617a3d2e3b33721b548179c5080c",
+      "source": "android_memory_ai/history.py"
+    },
+    {
+      "path": "android_memory_ai/log_signals.py",
+      "sha256": "6eea47e12b2c795f69c27136e3285e5c2c72468b51682895b7141162240107da",
+      "source": "android_memory_ai/log_signals.py"
+    },
+    {
       "path": "android_memory_ai/render.py",
-      "sha256": "4c509c323d409c4f3ea2617d631348ee2513c0b3b71e76fe78fc20251df26f55",
+      "sha256": "61fbe13bb5479eb0c484c7a08d6bb79382cccdec1c65213a945f0264a7201f92",
       "source": "android_memory_ai/render.py"
     },
     {
@@ -58,6 +73,6 @@
   "minimum_python": "3.8",
   "release_version": "1.2.0",
   "runtime_name": "android-memory-ai",
-  "runtime_version": "1.0.0",
+  "runtime_version": "1.2.0",
   "skill": "android-memory-evidence"
 }

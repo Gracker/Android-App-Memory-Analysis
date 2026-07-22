@@ -24,9 +24,9 @@ import sys
 
 with open(sys.argv[1], "r", encoding="utf-8") as handle:
     data = json.load(handle)
-assert data["schema_version"] == "1.0"
+assert data["schema_version"] == "1.2"
 assert data["context_type"] == "android-memory-ai-context"
-assert data["generator"] == {"name": "android-memory-ai", "version": "1.0.0"}
+assert data["generator"] == {"name": "android-memory-ai", "version": "1.2.0"}
 assert data["request"]["intent"] == "native-memory"
 assert data["request"]["evaluated_intents"] == ["native-memory", "regression"]
 assert data["analysis_contract"]["support_level"] == "insufficient"
@@ -34,6 +34,81 @@ assert data["analysis_contract"]["privacy"]["raw_contents_embedded"] is False
 assert data["analysis_contract"]["privacy"]["local_paths_included"] is False
 assert data["evidence"]["path_policy"] == "relative-or-redacted"
 assert "root" not in data["evidence"]
+PY
+
+mkdir -p "$VERIFY_TMP/qa-evidence"
+printf '%s\n' \
+  '07-22 09:10:11.123 1234 1234 D LeakCanary: APPLICATION LEAKS' \
+  'GC Root: System class' \
+  '├─ com.example.LeakOwner instance' \
+  '│    Leaking: YES (Activity received Activity#onDestroy())' \
+  '╰→ com.example.LeakedActivity instance' \
+  > "$VERIFY_TMP/qa-evidence/leakcanary.log"
+printf '%s\n' \
+  "07-22 09:10:12.456 1000 1000 I lmkd: Killing 'com.example.app'" \
+  > "$VERIFY_TMP/qa-evidence/system.log"
+python3 - "$VERIFY_TMP/qa-evidence/leakcanary.png" <<'PY'
+import sys
+
+with open(sys.argv[1], "wb") as handle:
+    handle.write(
+        b"\x89PNG\r\n\x1a\n\x00\x00\x00\x0dIHDR"
+        + (1080).to_bytes(4, "big")
+        + (2400).to_bytes(4, "big")
+    )
+PY
+
+python3 analyze.py ai-context \
+  -d "$VERIFY_TMP/qa-evidence" \
+  --question "QA supplied a LeakCanary trace and LMKD log" \
+  --format json \
+  -o "$VERIFY_TMP/qa-context.json"
+
+python3 - "$VERIFY_TMP/qa-context.json" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], "r", encoding="utf-8") as handle:
+    data = json.load(handle)
+qa = data["evidence"]["qa_observations"]
+assert len(qa["android_logs"]) == 2
+assert len(qa["screenshots"]) == 1
+assert qa["raw_log_lines_embedded"] is False
+assert qa["screenshot_pixels_embedded"] is False
+assert any(item["managed_owner_path_candidate"] for item in qa["android_logs"])
+signal_types = {
+    signal["signal_type"]
+    for item in qa["android_logs"]
+    for signal in item["signals"]
+}
+assert "leakcanary-retained-object" in signal_types
+assert "lmkd-kill" in signal_types
+PY
+
+cp "$VERIFY_TMP/qa-context.json" "$VERIFY_TMP/qa-evidence/previous-context.json"
+printf '%s\n' \
+  '07-22 09:11:13.789 1234 1234 E AndroidRuntime: java.lang.OutOfMemoryError' \
+  > "$VERIFY_TMP/qa-evidence/supplemental.log"
+python3 analyze.py ai-context \
+  -d "$VERIFY_TMP/qa-evidence" \
+  --question "I disagree with the prior conclusion and QA added evidence; reanalyze" \
+  --format json \
+  -o "$VERIFY_TMP/qa-context-v2.json"
+
+python3 - "$VERIFY_TMP/qa-context-v2.json" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], "r", encoding="utf-8") as handle:
+    data = json.load(handle)
+history = data["evidence"]["analysis_history"]
+assert data["request"]["analysis_mode"] == "reanalysis-with-new-evidence"
+assert history["mode_source"] == "question-and-evidence-delta"
+assert len(history["previous_contexts"]) == 1
+assert history["evidence_delta"]["added_count"] == 1
+assert history["evidence_delta"]["added"][0]["path"] == "supplemental.log"
+assert history["evidence_delta"]["changed_count"] == 0
+assert "previous_ai_context" not in data["evidence"]["coverage"]["available"]
 PY
 
 mkdir -p "$VERIFY_TMP/installed/.agents/skills"
@@ -57,7 +132,7 @@ import sys
 
 with open(sys.argv[1], "r", encoding="utf-8") as handle:
     data = json.load(handle)
-assert data["generator"] == {"name": "android-memory-ai", "version": "1.0.0"}
+assert data["generator"] == {"name": "android-memory-ai", "version": "1.2.0"}
 assert data["subject"]["phase"] == "copied-skill-test"
 assert data["analysis_contract"]["privacy"]["local_paths_included"] is False
 PY

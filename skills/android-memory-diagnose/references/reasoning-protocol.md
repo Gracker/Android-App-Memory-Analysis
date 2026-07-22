@@ -13,6 +13,8 @@ Build every analysis around four claim kinds.
 
 Never write a hypothesis in observed-fact grammar.
 
+For QA artifacts, bind a log observation to artifact ID plus archive member when present and line number/hash, and bind a screenshot observation to artifact ID plus visible region. Signal inventories and image metadata only navigate the raw artifact; they are not the observation itself.
+
 ## Evidence support
 
 - `insufficient`: explain the artifact, terminology, and limits; do not select a root cause or code fix.
@@ -45,6 +47,7 @@ Treat panorama, combined, diff, and third-party reports as derived evidence.
 - Respect their schema version; treat absent versions as unversioned.
 - Do not repeat threshold recommendations as diagnosis.
 - Explicitly flag summaries that place object/runtime values next to page totals as non-comparable.
+- Treat automated log matches as derived indexes and screenshot OCR as unperformed unless an authorized visual/OCR step actually occurred.
 
 ## Citation policy
 

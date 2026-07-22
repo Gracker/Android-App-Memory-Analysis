@@ -12,9 +12,9 @@ INTENT_PROFILES: Dict[str, Dict[str, Any]] = {
         "any_of": [],
     },
     "java-leak": {
-        "required": ["hprof", "phase_metadata", "comparison_report"],
+        "required": ["phase_metadata", "comparison_report"],
         "supporting": ["meminfo", "smaps", "analysis_report"],
-        "any_of": [],
+        "any_of": [["hprof", "android_log"]],
     },
     "native-memory": {
         "required": ["meminfo"],
@@ -54,8 +54,9 @@ INTENT_KEYWORDS: Dict[str, Tuple[str, ...]] = {
         "lmkd", "low memory", "pressure", "psi", "zram", "swap", "oom", "卡顿", "低内存", "杀进程",
     ),
     "regression": (
-        "regression", "before", "after", "compare", "growth", "grow", "leak", "回归", "前后",
-        "增长", "持续增长", "不回落", "泄漏", "对比",
+        "regression", "before", "after", "compare", "growth", "grow", "increase", "rising",
+        "memory leak", "gets larger", "higher memory", "leak", "回归", "前后", "增长", "持续增长",
+        "变多", "越来越多", "上涨", "升高", "不回落", "泄漏", "泄露", "对比",
     ),
 }
 
@@ -112,6 +113,18 @@ COLLECTION_GUIDANCE: Dict[str, Dict[str, Any]] = {
         "prerequisites_en": ["debuggable/profileable capability or root", "A controlled scenario and privacy approval", "Enough storage"],
         "perturbation": "high",
         "alternatives": ["Android Studio Memory Profiler", "LeakCanary report with retained paths"],
+    },
+    "android_log": {
+        "command": "adb logcat -b main,system,crash -v threadtime -T '<start-time>' > logcat.txt",
+        "reason_zh": "QA 日志可以保存 LeakCanary 引用链、组件/资源未释放、OOM、GC 压力与 LMKD 事件；必须保留时间、tag、PID 和上下文行，单条匹配不能独立证明 owner 或增长。",
+        "reason_en": "QA logs can preserve LeakCanary paths, component/resource cleanup warnings, OOMs, GC pressure, and LMKD events; retain time, tag, PID, and surrounding lines because one match cannot prove ownership or growth.",
+        "prerequisites_zh": ["固定复现时间窗与目标 package/PID", "确认 main/system/crash buffer 访问范围", "上传前检查账号、URL、token、业务内容与用户数据"],
+        "prerequisites_en": ["A fixed reproduction window and target package/PID", "Access to the required main/system/crash buffers", "Privacy review for accounts, URLs, tokens, business content, and user data"],
+        "perturbation": "none-to-low",
+        "alternatives": [
+            "adb logcat -d -b main,system,crash -v threadtime > logcat.txt",
+            "Export the complete LeakCanary leak trace, not only the notification screenshot",
+        ],
     },
     "native_heap_profile": {
         "command": "python3 \"$ANDROID_MEMORY_ANALYSIS_ROOT/tools/perfetto_helper.py\" record --package <package> --duration 30s --output native-heap.perfetto-trace",
@@ -318,13 +331,24 @@ def intent_inadequate_artifacts(
     intent: str,
     artifacts: Iterable[ArtifactEvidence],
 ) -> List[str]:
-    if intent not in ("java-leak", "native-memory", "regression"):
-        return []
+    inadequate = []
     for artifact in artifacts:
         if (
             artifact.artifact_type == "phase_metadata"
             and artifact.status == "ok"
             and artifact.metadata.get("comparison_context_complete") is False
         ):
-            return ["phase_metadata"]
-    return []
+            if intent in ("java-leak", "native-memory", "regression"):
+                inadequate.append("phase_metadata")
+            break
+    if intent == "java-leak":
+        logs = [
+            artifact for artifact in artifacts
+            if artifact.artifact_type == "android_log" and artifact.status == "ok"
+        ]
+        if logs and not any(
+            artifact.metadata.get("log_scan", {}).get("managed_owner_path_candidate")
+            for artifact in logs
+        ):
+            inadequate.append("android_log")
+    return inadequate

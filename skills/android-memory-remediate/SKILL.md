@@ -10,10 +10,12 @@ Turn a supported Android memory diagnosis into the smallest architecture-correct
 ## Entry Gate
 
 1. Require a diagnosis with artifact IDs, accounting domain, owner, mechanism, and residual alternatives.
-2. If evidence support is `insufficient` or the owner is unresolved, invoke `$android-memory-evidence` and `$android-memory-diagnose` first.
-3. Permit a collection/instrumentation change without a root cause when its explicit purpose is to obtain the missing discriminator.
-4. Never implement a generic memory tip merely because a threshold fired.
-5. Confirm the target source root, module, revision, and build variant. When a workspace contains both an analyzer and a demo/test fixture, do not infer the edit target from package name alone.
+2. If the diagnosis revises a prior analysis, use only the current `confirmed` or newly supported owner/mechanism as the entry gate. A retracted, unresolved, or merely inherited prior claim cannot authorize a code change.
+3. Treat QA logs and screenshots as admissible evidence only when the diagnosis binds the exact line/hash or visible region to the matching target/build/phase. An OOM line, keyword match, notification, or chart screenshot alone does not open the code-change gate.
+4. If evidence support is `insufficient` or the owner is unresolved, invoke `$android-memory-evidence` and `$android-memory-diagnose` first.
+5. Permit a collection/instrumentation change without a root cause when its explicit purpose is to obtain the missing discriminator.
+6. Never implement a generic memory tip merely because a threshold fired.
+7. Confirm the target source root, module, revision, and build variant. When a workspace contains both an analyzer and a demo/test fixture, do not infer the edit target from package name alone.
 
 ## Workflow
 

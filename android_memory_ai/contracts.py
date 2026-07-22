@@ -5,8 +5,8 @@ from typing import Any, Dict, List, Optional
 
 
 RUNTIME_NAME = "android-memory-ai"
-RUNTIME_VERSION = "1.0.0"
-SCHEMA_VERSION = "1.0"
+RUNTIME_VERSION = "1.2.0"
+SCHEMA_VERSION = "1.2"
 
 
 @dataclass
