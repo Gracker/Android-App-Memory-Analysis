@@ -339,11 +339,11 @@ def match_type(name, prewhat):
     # All native allocator patterns should be classified as HEAP_NATIVE
     #
     # Supported patterns (per AOSP):
-    # - [heap]: Traditional native heap (Android 4.x - 10)
+    # - [heap] / [anon:native]: Generic native heap markers
     # - [anon:libc_malloc]: libc malloc allocator (Android 5.x - 10)
     # - [anon:scudo:primary/secondary]: Scudo allocator (Android 11+)
     # - [anon:GWP-ASan]: GWP-ASan debugging allocator (Android 11+)
-    if name.startswith("[heap]"):
+    if name.startswith("[heap]") or name.startswith("[anon:native]"):
         which_heap = HEAP_NATIVE
     elif name.startswith("[anon:libc_malloc]"):
         which_heap = HEAP_NATIVE
