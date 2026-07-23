@@ -7,7 +7,6 @@ import argparse
 import os
 import sys
 import json
-import re
 from datetime import datetime
 import subprocess
 
@@ -15,16 +14,18 @@ if __package__ in (None, ""):
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from tools.android_shell_utils import read_smaps_with_adb
-
-# 导入现有的解析器
-from hprof_parser import HprofParser
-import smaps_parser
+from tools.hprof_parser import HprofParser
+from tools import smaps_parser
+from tools.meminfo_parser import parse_meminfo_file
+from tools.accounting_ledger import build_accounting_ledger, render_ledger_text
 
 class MemoryAnalyzer:
     def __init__(self):
         self.hprof_data = None
         self.smaps_data = None
+        self.smaps_summary = None
         self.meminfo_data = None
+        self.meminfo_model = None
         self.analysis_result = {}
         
     def analyze_hprof(self, hprof_file):
@@ -55,15 +56,24 @@ class MemoryAnalyzer:
         
         try:
             smaps_parser.parse_smaps(smaps_file)
+            self.smaps_summary = smaps_parser.parse_smaps_summary(smaps_file)
+            aggregates = self.smaps_summary.get("aggregates", {})
+            pss_by_type_id = {
+                row["type_id"]: row["pss_kb"]
+                for row in self.smaps_summary.get("by_type", [])
+            }
             
             self.smaps_data = {
                 'pss_by_type': {},
                 'swap_pss_by_type': {},
                 'total_pss': {},
                 'total_memory_kb': sum(smaps_parser.pssSum_count),
-                'native_heap_kb': smaps_parser.pssSum_count[35] if len(smaps_parser.pssSum_count) > 35 else 0,  # HEAP_NATIVE_HEAP
-                'dalvik_heap_kb': smaps_parser.pssSum_count[1] if len(smaps_parser.pssSum_count) > 1 else 0,    # HEAP_DALVIK
-                'native_code_kb': smaps_parser.pssSum_count[2] if len(smaps_parser.pssSum_count) > 2 else 0     # HEAP_NATIVE
+                'native_heap_kb': aggregates.get("native_heap_kb", 0),
+                'dalvik_heap_kb': aggregates.get("dalvik_heap_kb", 0),
+                'native_code_kb': pss_by_type_id.get(
+                    smaps_parser.HEAP_SO,
+                    0,
+                ),
             }
             
             # 详细分类数据
@@ -88,20 +98,12 @@ class MemoryAnalyzer:
     def analyze_meminfo(self, meminfo_file):
         """分析dumpsys meminfo输出文件"""
         print(f"正在分析meminfo文件: {meminfo_file}")
-
-        pattern = re.compile(
-            r'^\s*(Native Heap|Dalvik Heap|Dalvik Other|Stack|Ashmem|Gfx dev|Other dev|'
-            r'\.so mmap|\.jar mmap|\.apk mmap|\.ttf mmap|\.dex mmap|\.oat mmap|\.art mmap|'
-            r'Other mmap|EGL mtrack|GL mtrack|Unknown|TOTAL)\s+(\d+)'
-        )
-
-        category_pss_kb = {}
         try:
-            with open(meminfo_file, 'r', encoding='utf-8', errors='ignore') as f:
-                for line in f:
-                    match = pattern.match(line)
-                    if match:
-                        category_pss_kb[match.group(1)] = int(match.group(2))
+            self.meminfo_model = parse_meminfo_file(meminfo_file)
+            category_pss_kb = {
+                name: category.pss_total
+                for name, category in self.meminfo_model.categories.items()
+            }
 
             if not category_pss_kb:
                 print("✗ meminfo文件中未解析到有效内存数据")
@@ -139,17 +141,39 @@ class MemoryAnalyzer:
         if not self.smaps_data:
             return {}
 
-        scudo_heap_kb = self._sum_smaps_types('scudo heap (Scudo安全内存分配器)')
-        native_heap_map_kb = self._sum_smaps_types('native heap (本地堆内存)')
-        legacy_native_kb = self._sum_smaps_types('Native (本地C/C++代码内存)')
-        native_heap_total_kb = scudo_heap_kb + native_heap_map_kb + legacy_native_kb
-
-        gfx_dev_kb = self._sum_smaps_types('Gfx dev (图形设备内存)')
-        graphics_kb = self._sum_smaps_types('graphics (图形相关内存)')
-        gl_kb = self._sum_smaps_types('gl (OpenGL图形内存)')
-        dmabuf_kb = self._sum_smaps_types('dmabuf (直接内存缓冲区)')
-        other_memtrack_kb = self._sum_smaps_types('other memtrack (其他内存追踪)')
-        graphics_smaps_total_kb = gfx_dev_kb + graphics_kb + gl_kb + dmabuf_kb + other_memtrack_kb
+        aggregates = (self.smaps_summary or {}).get("aggregates", {})
+        if aggregates:
+            pss_by_type_id = {
+                row["type_id"]: row["pss_kb"]
+                for row in self.smaps_summary.get("by_type", [])
+            }
+            native_heap_total_kb = aggregates.get("native_heap_kb", 0)
+            scudo_heap_kb = aggregates.get("native_scudo_kb", 0)
+            native_heap_map_kb = aggregates.get("native_legacy_heap_kb", 0)
+            legacy_native_kb = native_heap_total_kb
+            graphics_total_kb = aggregates.get("graphics_kb", 0)
+            gfx_dev_kb = pss_by_type_id.get(smaps_parser.HEAP_GL_DEV, 0)
+            graphics_kb = max(graphics_total_kb - gfx_dev_kb, 0)
+            gl_kb = 0
+            dmabuf_kb = aggregates.get("dmabuf_kb", 0)
+            other_memtrack_kb = 0
+            graphics_smaps_total_kb = graphics_total_kb
+        else:
+            scudo_heap_kb = self._sum_smaps_types('scudo heap (Scudo安全内存分配器)')
+            native_heap_map_kb = self._sum_smaps_types('native heap (本地堆内存)')
+            legacy_native_kb = self._sum_smaps_types('Native (本地C/C++代码内存)')
+            native_heap_total_kb = scudo_heap_kb + native_heap_map_kb + legacy_native_kb
+            gfx_dev_kb = self._sum_smaps_types('Gfx dev (图形设备内存)')
+            graphics_kb = self._sum_smaps_types('graphics (图形相关内存)')
+            gl_kb = self._sum_smaps_types('gl (OpenGL图形内存)')
+            dmabuf_kb = self._sum_smaps_types('dmabuf (直接内存缓冲区)')
+            other_memtrack_kb = self._sum_smaps_types('other memtrack (其他内存追踪)')
+            graphics_smaps_total_kb = (
+                gfx_dev_kb
+                + graphics_kb
+                + gl_kb
+                + other_memtrack_kb
+            )
 
         return {
             'total_memory_kb': self.smaps_data['total_memory_kb'],
@@ -189,6 +213,12 @@ class MemoryAnalyzer:
             self._generate_hprof_only_summary()
         elif self.smaps_data:
             self._generate_smaps_only_summary()
+
+        if self.meminfo_model:
+            self.analysis_result["accounting_ledger"] = build_accounting_ledger(
+                self.meminfo_model,
+                self.smaps_summary,
+            )
         
         return self.analysis_result
     
@@ -496,6 +526,18 @@ class MemoryAnalyzer:
         print("\n" + "="*60)
         print("          Android 应用内存综合分析报告")
         print("="*60)
+
+        ledger = self.analysis_result.get("accounting_ledger")
+        if ledger and ledger.get("status") == "available":
+            print()
+            print(render_ledger_text(ledger))
+        elif ledger:
+            print(
+                "\n[ meminfo/smaps 逐行对账 ] {}: {}".format(
+                    ledger.get("status", "unknown"),
+                    ledger.get("reason", "unspecified"),
+                )
+            )
         
         # 总结信息
         print("\n📊 内存使用总结:")
@@ -609,7 +651,7 @@ class MemoryAnalyzer:
             'native_heap_smaps_mb': 'Native堆内存(SMAPS口径)',
             'scudo_heap_mb': 'Scudo堆内存',
             'native_heap_map_mb': 'Native Heap映射内存',
-            'legacy_native_mb': 'Native传统分类内存',
+            'legacy_native_mb': 'SMAPS Native主分类',
             'dalvik_runtime_mb': 'Dalvik运行时',
             'native_code_mb': 'Native代码',
             'java_heap_percentage': 'Java堆占比',

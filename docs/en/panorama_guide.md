@@ -2,15 +2,16 @@
 
 ## Overview
 
-Panorama Analysis is the core feature of this toolkit, providing deep insights into Android application memory usage by correlating multiple data sources. Unlike traditional single-source analysis, panorama analysis can:
+Panorama Analysis is the core feature of this toolkit, providing deep insights into Android application memory usage by correlating multiple data sources. Its quantitative entry point is the familiar `dumpsys meminfo` row order; `smaps` supplements each comparable row rather than replacing the Android summary with a separate TOP list. Panorama analysis can:
 
-1. **Correlate Java and Native memory**: e.g., link Java Bitmap objects to their Native pixel memory
-2. **Track Native memory allocations**: Distinguish between tracked and untracked Native memory
-3. **Integrate GPU/Graphics memory**: Including GraphicBuffer and GPU cache
-4. **System memory context**: Analyze system memory pressure and Swap/zRAM usage
-5. **DMA-BUF analysis**: Track hardware buffer memory for GPU, Camera, Display, etc.
-6. **Detect potential issues**: Automatically discover memory anomalies and provide optimization suggestions
-7. **Threshold alerts**: Support custom thresholds for CI/CD integration
+1. **Reconcile meminfo and smaps row by row**: Preserve every meminfo field and attach comparable smaps PSS/SwapPss and mapping evidence
+2. **Correlate Java and Native memory**: e.g., link Java Bitmap objects to their Native pixel memory
+3. **Track Native memory allocations**: Distinguish between tracked and untracked Native memory
+4. **Integrate GPU/Graphics memory**: Including GraphicBuffer and GPU cache
+5. **System memory context**: Analyze system memory pressure and Swap/zRAM usage
+6. **DMA-BUF analysis**: Track hardware buffer memory for GPU, Camera, Display, etc.
+7. **Detect potential issues**: Automatically discover memory anomalies and provide optimization suggestions
+8. **Threshold alerts**: Support custom thresholds for CI/CD integration
 
 ## Data Sources
 
@@ -122,6 +123,23 @@ python3 tools/panorama_analyzer.py -d ./dump \
 | `--threshold-bitmap-size` | Bitmap total size threshold | MB |
 
 ## Report Interpretation
+
+### meminfo Primary Ledger + smaps Row Evidence
+
+When both sources are available, the report starts with every main-table
+meminfo row in source order. `Native Heap`, `Dalvik Heap`, mappings, stacks,
+devices, `Unknown`, and `TOTAL` remain recognizable, while comparable smaps
+PSS/SwapPss and mapping details appear alongside them.
+
+`EGL mtrack`, `GL mtrack`, and other driver/HAL rows are labelled
+`not-comparable`; absence from `/proc/<pid>/smaps` is expected. The total
+reconciliation uses the explicit formula
+`smaps_total_pss_kb + meminfo_memtrack_only_pss_kb` and reports the residual
+delta. HPROF retained bytes, system DMA-BUF totals, and other accounting
+domains are not added to that formula.
+
+Dalvik Details follow the main table as drill-down rows and do not form another
+process total.
 
 ### Memory Overview
 

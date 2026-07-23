@@ -3,6 +3,8 @@
 import json
 from typing import Any, Dict, Iterable, List
 
+from tools.accounting_ledger import render_ledger_markdown
+
 
 def render_json(context: Dict[str, Any], indent: int = 2) -> str:
     return json.dumps(context, ensure_ascii=False, indent=indent, sort_keys=False) + "\n"
@@ -34,6 +36,31 @@ def render_markdown(context: Dict[str, Any], language: str = "zh") -> str:
             "未识别；需要补充 package/PID/设备信息。"
             if zh else "Not identified; add package, PID, and device context."
         ))
+
+    accounting_ledger = context["evidence"].get("accounting_ledger")
+    if accounting_ledger and accounting_ledger.get("status") == "available":
+        lines.extend([
+            "",
+            render_ledger_markdown(
+                accounting_ledger,
+                language=language,
+                heading_level=2,
+            ),
+        ])
+    elif accounting_ledger:
+        lines.extend([
+            "",
+            "## {}".format(
+                "meminfo/smaps 逐行对账"
+                if zh else
+                "meminfo/smaps Row Reconciliation"
+            ),
+            "",
+            "- `{}`: `{}`".format(
+                accounting_ledger.get("status", "unknown"),
+                accounting_ledger.get("reason", "unspecified"),
+            ),
+        ])
 
     lines.extend(["", "## {}".format("证据清单" if zh else "Evidence Inventory"), ""])
     evidence = context["evidence"]

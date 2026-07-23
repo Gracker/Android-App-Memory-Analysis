@@ -2,8 +2,18 @@
 
 ## Unreleased
 
+### Added
+- Added a shared meminfo-first accounting ledger for panorama, enhanced combined analysis, and AI contexts. It preserves every meminfo main/Dalvik-detail row and attaches same-category smaps PSS, SwapPss, allocator subtype, mappings, and an explicit total-reconciliation formula.
+
+### Changed
+- Panorama and AI Markdown output now lead with the complete meminfo row ledger when available; smaps TOP summaries remain a secondary drill-down view, and memtrack rows are explicitly non-comparable.
+- The Diagnose Skill now requires complete meminfo-row coverage before focusing the narrative on the symptom-specific branch.
+- Legacy CLI, structured summaries, comprehensive analysis, and combined HPROF/smaps analysis now consume the same main-type, subtype, and derived mapping classifications instead of reading unpopulated synthetic heap slots.
+
 ### Fixed
+- Fixed the meminfo parser failing to recognize current two-line table headers, and added schema-aware support for older full tables with Pss Clean and Shared Dirty/Clean columns.
 - Restored `[anon:native]` classification in the shared smaps parser so Native PSS and SwapPSS remain visible, and added regression coverage for deep HPROF dominator trees that exceed Python's recursion limit.
+- Replaced collision-prone smaps substring checks with ordered terminal-suffix, strict device-prefix, and adjacent-VMA rules, so names such as `libart.so`, `libdexfile.so`, and `libdmabufheap.so` remain library mappings while real ART, DEX, DMA-BUF, graphics, legacy ashmem, and anonymous `.so` BSS mappings retain their intended categories.
 
 ## v1.3.0 - 2026-07-22
 

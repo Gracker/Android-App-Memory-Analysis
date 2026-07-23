@@ -2,15 +2,16 @@
 
 ## 概述
 
-全景分析（Panorama Analysis）是本工具集的核心功能，通过关联多个数据源来提供对 Android 应用内存使用的深度洞察。与传统的单一数据源分析不同，全景分析能够：
+全景分析（Panorama Analysis）是本工具集的核心功能，通过关联多个数据源来提供对 Android 应用内存使用的深度洞察。定量结果先沿用大家熟悉的 `dumpsys meminfo` 原始行序，再让 `smaps` 逐行补充，而不是用另一份 TOP 列表取代 Android 汇总。全景分析能够：
 
-1. **关联 Java 和 Native 内存**：例如，将 Java Bitmap 对象与其 Native 像素内存关联
-2. **追踪 Native 内存分配**：区分可追踪和未追踪的 Native 内存
-3. **整合 GPU/图形内存**：包括 GraphicBuffer 和 GPU 缓存
-4. **系统内存上下文**：分析系统内存压力和 Swap/zRAM 使用情况
-5. **DMA-BUF 分析**：追踪 GPU、Camera、Display 等硬件缓冲区内存
-6. **检测潜在问题**：自动发现内存异常并给出优化建议
-7. **阈值告警**：支持自定义阈值，CI/CD 集成
+1. **逐行对账 meminfo 与 smaps**：保留每个 meminfo 字段，并附加同类 smaps PSS/SwapPss 与映射证据
+2. **关联 Java 和 Native 内存**：例如，将 Java Bitmap 对象与其 Native 像素内存关联
+3. **追踪 Native 内存分配**：区分可追踪和未追踪的 Native 内存
+4. **整合 GPU/图形内存**：包括 GraphicBuffer 和 GPU 缓存
+5. **系统内存上下文**：分析系统内存压力和 Swap/zRAM 使用情况
+6. **DMA-BUF 分析**：追踪 GPU、Camera、Display 等硬件缓冲区内存
+7. **检测潜在问题**：自动发现内存异常并给出优化建议
+8. **阈值告警**：支持自定义阈值，CI/CD 集成
 
 ## 数据源
 
@@ -122,6 +123,19 @@ python3 tools/panorama_analyzer.py -d ./dump \
 | `--threshold-bitmap-size` | Bitmap 总大小阈值 | MB |
 
 ## 报告解读
+
+### meminfo 主账本 + smaps 逐行旁证
+
+同时存在两份来源时，报告先按原始顺序列出 meminfo 主表全部行。
+`Native Heap`、`Dalvik Heap`、各类 mapping、Stack、device、`Unknown` 和
+`TOTAL` 都保持熟悉的入口；可比较的 smaps PSS/SwapPss 与映射明细附在同一行。
+
+`EGL mtrack`、`GL mtrack` 等驱动/HAL 行会标为 `not-comparable`，它们不出现在
+`/proc/<pid>/smaps` 是预期边界。总量只使用显式公式
+`smaps_total_pss_kb + meminfo_memtrack_only_pss_kb`，并报告剩余差值；
+不会把 HPROF retained bytes、系统 DMA-BUF 总量或其他账本加进来。
+
+Dalvik Details 放在主表之后用于下钻，不再作为另一份进程总量。
 
 ### 内存概览
 

@@ -75,4 +75,5 @@ Return:
 7. what cannot be proved now;
 8. prioritized collection commands with prerequisites and perturbation;
 9. privacy or production-safety constraints;
-10. path to the generated context, when created.
+10. the `evidence.accounting_ledger` status; when available, preserve the complete meminfo row order and its row-level smaps supplements for diagnosis instead of reducing it to overview totals;
+11. path to the generated context, when created.

@@ -134,6 +134,7 @@ artifact 路径默认只保留相对路径，目录外文件会脱敏成 `<exter
 | `evidence.intent_coverage` | 自动问题中每个候选意图各自的覆盖；整体 support level 取最弱边界 |
 | `evidence.conflicts` | 不会被静默覆盖的 package/PID/phase 等冲突 |
 | `evidence.derived_reports` | 现有报告的安全摘要、账本域与限制 |
+| `evidence.accounting_ledger` | 完整 meminfo 主表按原始行序作为主账本、逐行附加同阶段 smaps PSS/SwapPss；只有摘要时标记 `unavailable`，多份候选标记 `ambiguous`，均不猜测缺失行或配对 |
 | `evidence.qa_observations` | 多份日志的有界信号索引与截图元数据；不含原始行、OCR 或像素 |
 | `evidence.analysis_history` | 旧 context/报告、case 身份可比性、证据增量、二次分析限制与逐项修订旧结论的协议；不嵌入旧报告正文 |
 | `knowledge.records` | 与问题/证据相关的理论条目、不能证明什么、版本与官方来源 |

@@ -121,6 +121,14 @@ class EvidenceContextTests(unittest.TestCase):
         gap_types = {gap["artifact_type"] for gap in context["next_evidence"]}
         self.assertIn("device_context", gap_types)
         self.assertIn("smaps", gap_types)
+        self.assertEqual(
+            "unavailable",
+            context["evidence"]["accounting_ledger"]["status"],
+        )
+        self.assertEqual(
+            "meminfo-main-table-not-parsed",
+            context["evidence"]["accounting_ledger"]["reason"],
+        )
 
     def test_malformed_named_artifact_is_not_counted_as_evidence(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -317,6 +325,37 @@ class EvidenceContextTests(unittest.TestCase):
         self.assertTrue(reports)
         self.assertEqual("unversioned", reports[0]["schema_version"])
         self.assertIn("hprof", reports[0]["unverified_dependencies"])
+
+    def test_demo_context_leads_with_meminfo_rows_and_smaps_supplements(self):
+        root = Path(__file__).resolve().parent.parent / "demo" / "smaps_sample"
+        context = build_ai_context(root, intent="quick-triage")
+        ledger = context["evidence"]["accounting_ledger"]
+        rows = {row["name"]: row for row in ledger["rows"]}
+
+        self.assertEqual("available", ledger["status"])
+        self.assertEqual(
+            "artifact:meminfo:6578c50e4ca4",
+            ledger["source_artifacts"]["meminfo"],
+        )
+        self.assertEqual(19, len(ledger["rows"]))
+        self.assertEqual(80860, rows["Native Heap"]["meminfo"]["pss_total_kb"])
+        self.assertEqual(80860, rows["Native Heap"]["smaps"]["pss_kb"])
+        self.assertEqual(
+            80860,
+            rows["Native Heap"]["smaps"]["allocator_breakdown"]["scudo_pss_kb"],
+        )
+        self.assertNotIn("top_pss_mappings", rows["Native Heap"]["smaps"])
+        self.assertEqual(
+            "not-comparable",
+            rows["EGL mtrack"]["comparison"]["status"],
+        )
+
+        markdown = render_markdown(context, "zh")
+        self.assertLess(
+            markdown.index("## meminfo 主账本 + smaps 逐行旁证"),
+            markdown.index("## 证据清单"),
+        )
+        self.assertIn("| Native Heap | 80860 kB", markdown)
 
     def test_markdown_uses_same_contract(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -958,6 +997,13 @@ class EvidenceContextTests(unittest.TestCase):
             {"com.before.app", "com.after.app"},
             set(package_conflicts[0]["values"].values()),
         )
+        ledger = context["evidence"]["accounting_ledger"]
+        self.assertEqual("ambiguous", ledger["status"])
+        self.assertEqual(
+            "multiple-meminfo-artifacts-require-explicit-phase-pairing",
+            ledger["reason"],
+        )
+        self.assertEqual(2, len(ledger["meminfo_artifact_ids"]))
 
     def test_folder_scan_does_not_follow_symlinks_outside_evidence_root(self):
         with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as external:

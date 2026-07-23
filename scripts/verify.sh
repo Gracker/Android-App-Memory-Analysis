@@ -34,6 +34,64 @@ assert data["analysis_contract"]["privacy"]["raw_contents_embedded"] is False
 assert data["analysis_contract"]["privacy"]["local_paths_included"] is False
 assert data["evidence"]["path_policy"] == "relative-or-redacted"
 assert "root" not in data["evidence"]
+ledger = data["evidence"]["accounting_ledger"]
+assert ledger["status"] == "available"
+assert ledger["view"] == "meminfo-primary-smaps-supplemental"
+assert len(ledger["rows"]) == 19
+rows = {row["name"]: row for row in ledger["rows"]}
+assert rows["Native Heap"]["meminfo"]["pss_total_kb"] == 80860
+assert rows["Native Heap"]["smaps"]["pss_kb"] == 80860
+assert (
+    rows["Native Heap"]["smaps"]["allocator_breakdown"]["scudo_pss_kb"]
+    == 80860
+)
+assert rows["EGL mtrack"]["comparison"]["status"] == "not-comparable"
+assert ledger["total_reconciliation"]["formula"] == (
+    "smaps_total_pss_kb + meminfo_memtrack_only_pss_kb"
+)
+PY
+
+python3 analyze.py panorama \
+  -m demo/smaps_sample/meminfo.txt \
+  -S demo/smaps_sample/smaps \
+  --json \
+  -o "$VERIFY_TMP/panorama.json"
+
+python3 - "$VERIFY_TMP/panorama.json" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], "r", encoding="utf-8") as handle:
+    data = json.load(handle)
+assert list(data).index("accounting_ledger") < list(data).index("memory_overview")
+ledger = data["accounting_ledger"]
+assert ledger["status"] == "available"
+assert [row["name"] for row in ledger["rows"]][:3] == [
+    "Native Heap",
+    "Dalvik Heap",
+    "Dalvik Other",
+]
+assert len(ledger["rows"]) == 19
+assert len(ledger["dalvik_detail_rows"]) == 12
+PY
+
+python3 analyze.py combined \
+  --modern \
+  --smaps demo/smaps_sample/smaps \
+  --meminfo demo/smaps_sample/meminfo.txt \
+  --json-output "$VERIFY_TMP/combined.json"
+
+python3 - "$VERIFY_TMP/combined.json" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], "r", encoding="utf-8") as handle:
+    data = json.load(handle)
+ledger = data["accounting_ledger"]
+assert ledger["status"] == "available"
+assert len(ledger["rows"]) == 19
+assert ledger["total_reconciliation"]["status"] == "aligned"
+assert data["native_memory"]["scudo_heap_mb"] > 78
 PY
 
 mkdir -p "$VERIFY_TMP/qa-evidence"

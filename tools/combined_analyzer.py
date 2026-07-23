@@ -19,11 +19,11 @@ import sys
 from datetime import datetime
 from collections import defaultdict
 
-# Import parsers
-from hprof_parser import HprofParser
+if __package__ in (None, ""):
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# smaps parser uses global variables, we need to import them
-import smaps_parser
+from tools.hprof_parser import HprofParser
+from tools import smaps_parser
 
 
 class CombinedAnalyzer:
@@ -34,6 +34,7 @@ class CombinedAnalyzer:
         self.smaps_file = smaps_file
         self.hprof_data = None
         self.smaps_data = None
+        self.smaps_summary = None
 
     def parse_hprof(self):
         """解析 HPROF 文件"""
@@ -71,45 +72,56 @@ class CombinedAnalyzer:
         print(f"正在解析 smaps 文件: {self.smaps_file}")
         print('='*60)
 
-        # Reset global counters
-        smaps_parser.pss_count = [0] * smaps_parser.type_length
-        smaps_parser.pssSum_count = [0] * smaps_parser.type_length
-        smaps_parser.swapPss_count = [0] * smaps_parser.type_length
-
-        # Reset type lists
-        for i in range(smaps_parser.type_length):
-            smaps_parser.pss_type_list[i] = {}
-            smaps_parser.swap_type_list[i] = {}
-
-        # Parse smaps
         smaps_parser.parse_smaps(self.smaps_file)
+        self.smaps_summary = smaps_parser.parse_smaps_summary(self.smaps_file)
+        aggregates = self.smaps_summary.get("aggregates", {})
+        pss_by_type_id = {
+            row["type_id"]: row["pss_kb"]
+            for row in self.smaps_summary.get("by_type", [])
+        }
+        pss_by_subtype_id = {
+            row["type_id"]: row["pss_kb"]
+            for row in self.smaps_summary.get("by_subtype", [])
+        }
 
-        # Extract data
         self.smaps_data = {
-            'total_pss_kb': sum(smaps_parser.pssSum_count),
-            'total_swap_kb': sum(smaps_parser.swapPss_count),
+            'total_pss_kb': self.smaps_summary["total_pss_kb"],
+            'total_swap_kb': self.smaps_summary["total_swap_pss_kb"],
 
             # Major categories (KB)
-            'dalvik_heap_kb': smaps_parser.pss_count[smaps_parser.HEAP_DALVIK],
-            'native_heap_kb': smaps_parser.pss_count[smaps_parser.HEAP_NATIVE],
-            'dalvik_other_kb': smaps_parser.pss_count[smaps_parser.HEAP_DALVIK_OTHER],
-            'stack_kb': smaps_parser.pss_count[smaps_parser.HEAP_STACK],
-            'so_kb': smaps_parser.pss_count[smaps_parser.HEAP_SO],
-            'dex_kb': smaps_parser.pss_count[smaps_parser.HEAP_DEX],
-            'oat_kb': smaps_parser.pss_count[smaps_parser.HEAP_OAT],
-            'art_kb': smaps_parser.pss_count[smaps_parser.HEAP_ART],
-            'graphics_kb': smaps_parser.pss_count[smaps_parser.HEAP_GRAPHICS],
-            'gl_kb': smaps_parser.pss_count[smaps_parser.HEAP_GL],
-            'apk_kb': smaps_parser.pss_count[smaps_parser.HEAP_APK],
-            'ttf_kb': smaps_parser.pss_count[smaps_parser.HEAP_TTF],
-            'ashmem_kb': smaps_parser.pss_count[smaps_parser.HEAP_ASHMEM],
-            'unknown_kb': smaps_parser.pss_count[smaps_parser.HEAP_UNKNOWN],
+            'dalvik_heap_kb': aggregates.get("dalvik_heap_kb", 0),
+            'native_heap_kb': aggregates.get("native_heap_kb", 0),
+            'dalvik_other_kb': aggregates.get("dalvik_other_kb", 0),
+            'stack_kb': aggregates.get("stack_kb", 0),
+            'so_kb': pss_by_type_id.get(smaps_parser.HEAP_SO, 0),
+            'dex_kb': pss_by_type_id.get(smaps_parser.HEAP_DEX, 0),
+            'oat_kb': pss_by_type_id.get(smaps_parser.HEAP_OAT, 0),
+            'art_kb': pss_by_type_id.get(smaps_parser.HEAP_ART, 0),
+            'graphics_kb': aggregates.get("graphics_kb", 0),
+            'gl_kb': 0,
+            'dmabuf_kb': aggregates.get("dmabuf_kb", 0),
+            'apk_kb': pss_by_type_id.get(smaps_parser.HEAP_APK, 0),
+            'ttf_kb': pss_by_type_id.get(smaps_parser.HEAP_TTF, 0),
+            'ashmem_kb': pss_by_type_id.get(smaps_parser.HEAP_ASHMEM, 0),
+            'unknown_kb': pss_by_type_id.get(smaps_parser.HEAP_UNKNOWN, 0),
 
             # Dalvik subdivisions
-            'dalvik_normal_kb': smaps_parser.pss_count[smaps_parser.HEAP_DALVIK_NORMAL],
-            'dalvik_large_kb': smaps_parser.pss_count[smaps_parser.HEAP_DALVIK_LARGE],
-            'dalvik_zygote_kb': smaps_parser.pss_count[smaps_parser.HEAP_DALVIK_ZYGOTE],
-            'dalvik_non_moving_kb': smaps_parser.pss_count[smaps_parser.HEAP_DALVIK_NON_MOVING],
+            'dalvik_normal_kb': pss_by_subtype_id.get(
+                smaps_parser.HEAP_DALVIK_NORMAL,
+                0,
+            ),
+            'dalvik_large_kb': pss_by_subtype_id.get(
+                smaps_parser.HEAP_DALVIK_LARGE,
+                0,
+            ),
+            'dalvik_zygote_kb': pss_by_subtype_id.get(
+                smaps_parser.HEAP_DALVIK_ZYGOTE,
+                0,
+            ),
+            'dalvik_non_moving_kb': pss_by_subtype_id.get(
+                smaps_parser.HEAP_DALVIK_NON_MOVING,
+                0,
+            ),
 
             # Raw data for detailed analysis
             'pss_count': list(smaps_parser.pss_count),

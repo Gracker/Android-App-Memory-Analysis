@@ -38,7 +38,7 @@ A comprehensive toolkit for Android application memory analysis, featuring **one
 
 - The Demo APK now uses `compileSdk = 37`, `targetSdk = 37`, and demo version `1.1.0`, while keeping Android 16 edge-to-edge handling and 16 KB page-size alignment for native `.so` output.
 - The toolkit supports Android 4.0 through Android 17+ input formats; parsing logic includes newer allocator and mapping names such as Scudo, GWP-ASan, DMA-BUF, stack/TLS, and JIT caches.
-- Panorama analysis now treats `smaps` as a first-class process-mapping source. It can run with smaps-only input and reports smaps PSS/SwapPSS, native allocator, graphics, DMA-BUF, code, stack, and top mapping evidence without overwriting `dumpsys meminfo` metrics.
+- Panorama analysis now treats `dumpsys meminfo` as the primary row ledger and attaches same-category `smaps` PSS/SwapPSS and mapping evidence to every comparable row. Memtrack rows remain explicitly non-comparable, while smaps-only input still reports native allocator, graphics, DMA-BUF, code, stack, and top mappings.
 - Android 17 app memory limits are an Android 17 all-app runtime behavior on supported devices. Live dump now archives `exit_info.txt`, `memory_limiter_status.txt`, package UID, process lists, Android release/sdk, build fingerprint, and page size before requiring PID-dependent artifacts.
 - For `smaps` collection, use fallback order for better device compatibility:
   1) `adb shell cat /proc/<pid>/smaps`
@@ -157,21 +157,24 @@ See [Android Memory AI Workflow](./docs/en/ai_workflow.md) for architecture, sch
 
 ### Panorama Analysis Output
 
-The panorama analysis provides a comprehensive view of memory usage:
+The panorama analysis starts from the familiar `dumpsys meminfo` table, preserves
+every row in source order, and uses `smaps` as drill-down evidence rather than a
+separate replacement summary:
 
 ```
-================================================================================
-                     Android 内存全景分析报告
-================================================================================
+[ meminfo Primary Ledger + smaps Row Evidence ]
+Category          Mem PSS  PrivDirty  SwapPss  smaps PSS  Delta  Status
+Native Heap          80860      80824        25      80860     +0  aligned
+Dalvik Heap          59439      59420        69      59439     +0  aligned
+EGL mtrack           54432      54432         0          -      -  not-comparable
+...
+TOTAL               337790     293788       162          -      -  see-total
 
-📊 Memory Overview:
-------------------------------
-  Total PSS:        245.67 MB
-  Java Heap:        89.34 MB
-  Native Heap:      34.21 MB
-  Graphics:         45.67 MB
-  Code:             23.78 MB
-  Stack:            1.23 MB
+Row interpretation:
+- Native Heap: smaps identifies Scudo primary/secondary mappings without
+  overwriting the meminfo Native Heap value.
+- EGL mtrack: driver/HAL attribution is preserved and is not subtracted from
+  `/proc/<pid>/smaps`.
 
 🖼️ Bitmap Deep Analysis:
 ------------------------------
@@ -197,11 +200,13 @@ The panorama analysis provides a comprehensive view of memory usage:
 
 ### Key Analysis Features
 
-1. **Bitmap Correlation**: Links Java Bitmap objects to Native pixel memory
-2. **Native Memory Tracking**: Identifies tracked vs untracked Native allocations
-3. **GPU Memory Analysis**: GraphicBuffer and GPU cache usage
-4. **UI Resource Counting**: View hierarchy and Activity leak detection
-5. **Anomaly Detection**: Automatic warnings for potential issues
+1. **meminfo-first row ledger**: Preserves every familiar meminfo category and field
+2. **smaps row supplements**: Adds category PSS/SwapPSS, allocator subtypes, mappings, and explicit reconciliation
+3. **Bitmap Correlation**: Links Java Bitmap objects to Native pixel memory
+4. **Native Memory Tracking**: Identifies tracked vs untracked Native allocations
+5. **GPU Memory Analysis**: GraphicBuffer and GPU cache usage
+6. **UI Resource Counting**: View hierarchy and Activity leak detection
+7. **Anomaly Detection**: Automatic warnings for potential issues
 
 ## Project Structure
 

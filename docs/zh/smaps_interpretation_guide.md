@@ -642,6 +642,15 @@ Shared_Clean:        15 kB
 - **极低PSS**: 单个应用几乎不承担字体内存成本
 - **按需加载**: 只加载使用的字符
 
+#### 解析器分类边界
+
+仓库解析器按 [AOSP `android_os_Debug.cpp`](https://android.googlesource.com/platform/frameworks/base/+/refs/tags/android-13.0.0_r63/core/jni/android_os_Debug.cpp) 的映射优先级处理名称：
+
+- 文件类型看结尾而不是任意子串，并先去掉 ` (deleted)`；因此 `libart.so`、`libdexfile.so`、`libdmabufheap.so` 都是 `.so`，只有以 `.art`、`.dex`/`.odex`、`.vdex` 等格式结尾或具有明确 DEX 标记边界的映射才进入对应类别。
+- 设备分类要求真实 `/dev/` 前缀；旧版 `/dev/ashmem/dalvik-*`、`CursorWindow`、`libc malloc` 与新版 `[anon:dalvik-*]` 使用同一套语义分类。
+- 无名称 VMA 只有在地址紧邻前一个 `.so` VMA 时才作为该库的匿名 BSS；不会再因前一个 JAR 或其他不相邻映射而继承类别。
+- DMA-BUF、Graphics 与普通文件映射的汇总只接受对应映射命名空间或设备节点；`/dev/dma_heap/*` 是分配器入口而不是 DMA-BUF 所有权证据，库名、属性节点中的 `dmabuf`、`gralloc`、`gpu` 文字也不是缓冲区证据。
+
 ### ART 运行时
 
 #### Boot ART 文件

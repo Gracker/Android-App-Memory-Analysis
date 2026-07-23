@@ -28,6 +28,7 @@ from .guidance import (
     intent_inadequate_artifacts,
 )
 from .history import build_analysis_history
+from tools.accounting_ledger import build_accounting_ledger_from_files
 
 
 ANALYSIS_RULES = [
@@ -45,6 +46,11 @@ ANALYSIS_RULES = [
         "id": "respect-accounting-domains",
         "zh": "不同 accounting_domain 的值默认不可直接相加、相减或计算占比，除非知识条目明确给出公式。",
         "en": "Do not add, subtract, or calculate ratios across accounting domains unless a knowledge record supplies the formula.",
+    },
+    {
+        "id": "meminfo-primary-smaps-supplemental",
+        "zh": "同时存在 meminfo 与同阶段 smaps 时，以 meminfo 原始行序作为主账本，逐行附加 smaps PSS、SwapPss 与映射旁证；mtrack 等不可比较行必须显式保留。",
+        "en": "When same-phase meminfo and smaps exist, keep the original meminfo row order as the primary ledger and attach smaps PSS, SwapPss, and mapping evidence row by row; preserve non-comparable rows such as memtrack explicitly.",
     },
     {
         "id": "preserve-alternatives",
@@ -140,6 +146,7 @@ def build_ai_context(
         for artifact in artifacts
     ]
     qa_observations = _build_qa_observations(serialized_artifacts)
+    accounting_ledger = _build_accounting_ledger(artifacts)
     folder_inventory = summarize_inventory(folder_scan, serialized_artifacts)
     analysis_history = build_analysis_history(
         artifacts,
@@ -160,6 +167,32 @@ def build_ai_context(
         conflicts,
         reports,
     )
+    if accounting_ledger and accounting_ledger.get("status") == "ambiguous":
+        limitations.append({
+            "severity": "high",
+            "zh": "存在多份 meminfo 或 smaps，当前无法在不猜测 phase 的前提下建立逐行对账；先按 package/PID/scenario/phase 明确配对。",
+            "en": "Multiple meminfo or smaps artifacts are present, so row reconciliation cannot be built without guessing the phase. Pair them explicitly by package, PID, scenario, and phase.",
+        })
+    elif accounting_ledger and accounting_ledger.get("status") in {
+        "invalid",
+        "unavailable",
+    }:
+        ledger_invalid = accounting_ledger.get("status") == "invalid"
+        limitations.append({
+            "severity": "high" if ledger_invalid else "medium",
+            "zh": (
+                "meminfo/smaps 逐行账本构建失败；不要用派生汇总替代缺失的行级证据。"
+                if ledger_invalid
+                else
+                "meminfo 文件没有形成可用的完整主表；不要用 App Summary 或派生汇总冒充缺失的逐行证据。"
+            ),
+            "en": (
+                "The meminfo/smaps row-ledger build failed. Do not substitute a derived overview for the missing row evidence."
+                if ledger_invalid
+                else
+                "The meminfo artifact did not yield a usable complete main table. Do not substitute App Summary or a derived overview for the missing row evidence."
+            ),
+        })
     if any(item.get("scan_truncated") for item in qa_observations["android_logs"]):
         limitations.append({
             "severity": "medium",
@@ -249,6 +282,7 @@ def build_ai_context(
             },
             "conflicts": [conflict.to_dict() for conflict in conflicts],
             "derived_reports": reports,
+            "accounting_ledger": accounting_ledger,
             "qa_observations": qa_observations,
             "analysis_history": analysis_history,
         },
@@ -282,6 +316,71 @@ def _serialize_artifact(
     if include_local_paths and artifact.local_path:
         serialized["path"] = artifact.local_path
     return serialized
+
+
+def _build_accounting_ledger(
+    artifacts: List[ArtifactEvidence],
+) -> Optional[Dict[str, Any]]:
+    meminfo_artifacts = [
+        artifact
+        for artifact in artifacts
+        if artifact.artifact_type == "meminfo"
+        and artifact.status == "ok"
+        and artifact.local_path
+    ]
+    smaps_artifacts = [
+        artifact
+        for artifact in artifacts
+        if artifact.artifact_type == "smaps"
+        and artifact.status == "ok"
+        and artifact.local_path
+    ]
+    if not meminfo_artifacts:
+        return None
+    if len(meminfo_artifacts) != 1:
+        return {
+            "status": "ambiguous",
+            "reason": "multiple-meminfo-artifacts-require-explicit-phase-pairing",
+            "meminfo_artifact_ids": [
+                artifact.artifact_id for artifact in meminfo_artifacts
+            ],
+            "smaps_artifact_ids": [
+                artifact.artifact_id for artifact in smaps_artifacts
+            ],
+        }
+    if len(smaps_artifacts) > 1:
+        return {
+            "status": "ambiguous",
+            "reason": "multiple-smaps-artifacts-require-explicit-phase-pairing",
+            "meminfo_artifact_ids": [
+                meminfo_artifacts[0].artifact_id
+            ],
+            "smaps_artifact_ids": [
+                artifact.artifact_id for artifact in smaps_artifacts
+            ],
+        }
+
+    meminfo = meminfo_artifacts[0]
+    smaps = smaps_artifacts[0] if smaps_artifacts else None
+    try:
+        ledger = build_accounting_ledger_from_files(
+            meminfo.local_path,
+            smaps.local_path if smaps else None,
+            source_artifacts={
+                "meminfo": meminfo.artifact_id,
+                **({"smaps": smaps.artifact_id} if smaps else {}),
+            },
+            include_top_mappings=False,
+        )
+        return ledger
+    except (OSError, ValueError) as error:
+        return {
+            "status": "invalid",
+            "reason": "accounting-ledger-build-failed",
+            "error": str(error),
+            "meminfo_artifact_ids": [meminfo.artifact_id],
+            "smaps_artifact_ids": [smaps.artifact_id] if smaps else [],
+        }
 
 
 def _build_qa_observations(artifacts: List[Dict[str, Any]]) -> Dict[str, Any]:

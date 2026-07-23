@@ -29,6 +29,10 @@ SOURCE_MAPPINGS: Tuple[Tuple[str, str], ...] = (
     ("android_memory_ai/history.py", "android_memory_ai/history.py"),
     ("android_memory_ai/log_signals.py", "android_memory_ai/log_signals.py"),
     ("android_memory_ai/render.py", "android_memory_ai/render.py"),
+    ("tools/accounting_ledger.py", "tools/accounting_ledger.py"),
+    ("tools/android_shell_utils.py", "tools/android_shell_utils.py"),
+    ("tools/meminfo_parser.py", "tools/meminfo_parser.py"),
+    ("tools/smaps_parser.py", "tools/smaps_parser.py"),
     ("knowledge/android_memory_catalog.json", "knowledge/android_memory_catalog.json"),
 )
 

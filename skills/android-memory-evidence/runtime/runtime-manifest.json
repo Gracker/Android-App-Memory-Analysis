@@ -21,7 +21,7 @@
     },
     {
       "path": "android_memory_ai/context.py",
-      "sha256": "836f3e7a895132a4900b63ccfb2d8ee6939942c63e93c812bd9ab98e5c0fb3d8",
+      "sha256": "2f5be32d62f2df1508c454120957d1604577243c272d2fa17451b6e469097421",
       "source": "android_memory_ai/context.py"
     },
     {
@@ -56,7 +56,7 @@
     },
     {
       "path": "android_memory_ai/render.py",
-      "sha256": "61fbe13bb5479eb0c484c7a08d6bb79382cccdec1c65213a945f0264a7201f92",
+      "sha256": "f3fb1f41d1f7ac202e055c2f0c73e6054cf5ed95c97de5ecbe6279ebad32a7c5",
       "source": "android_memory_ai/render.py"
     },
     {
@@ -68,6 +68,26 @@
       "path": "run_ai_context.py",
       "sha256": "20d6f4ff0092fbde25e1a214b1bd8463baa771751272b33a337ab92d91e86948",
       "source": "generated-entrypoint"
+    },
+    {
+      "path": "tools/accounting_ledger.py",
+      "sha256": "578b0253c1d545b0f859ed160998d054eeca50aeb6a92f1ad7908f5211a3a55d",
+      "source": "tools/accounting_ledger.py"
+    },
+    {
+      "path": "tools/android_shell_utils.py",
+      "sha256": "bc938fefdf7b962bb2a1d00ce7c14932368ef9dc965534334b09384145c44e04",
+      "source": "tools/android_shell_utils.py"
+    },
+    {
+      "path": "tools/meminfo_parser.py",
+      "sha256": "e54b802a6ffa841499ec24d9188b1ac67207ce5d34ab0551abf0c2d7290cfaa7",
+      "source": "tools/meminfo_parser.py"
+    },
+    {
+      "path": "tools/smaps_parser.py",
+      "sha256": "378f9dd12be57909c35316f0af4e6e777888a5316444cfda0c2d7dd37c837f00",
+      "source": "tools/smaps_parser.py"
     }
   ],
   "minimum_python": "3.8",

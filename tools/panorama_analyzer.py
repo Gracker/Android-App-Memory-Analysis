@@ -35,6 +35,11 @@ from proc_meminfo_parser import parse_proc_meminfo_file, ProcMeminfoData
 from dmabuf_parser import parse_dmabuf_file, DmaBufData
 from zram_parser import parse_zram_swap_file, ZramSwapData
 from smaps_parser import parse_smaps_summary
+from accounting_ledger import (
+    build_accounting_ledger,
+    render_ledger_markdown,
+    render_ledger_text,
+)
 
 
 @dataclass
@@ -243,6 +248,9 @@ class PanoramaResult:
     # smaps 映射分析
     smaps_context: SmapsContext = field(default_factory=SmapsContext)
 
+    # 以 dumpsys meminfo 为主视角、smaps 为逐行旁证的共享账本
+    accounting_ledger: Optional[Dict[str, Any]] = None
+
     # UI 资源
     views_count: int = 0
     activities_count: int = 0
@@ -413,6 +421,10 @@ class PanoramaAnalyzer:
         if self.meminfo_data:
             result.package_name = self.meminfo_data.package_name
             result.pid = self.meminfo_data.pid
+            result.accounting_ledger = build_accounting_ledger(
+                self.meminfo_data,
+                self.smaps_data,
+            )
 
         # 内存概览
         self._analyze_memory_overview(result)
@@ -1109,6 +1121,20 @@ class PanoramaAnalyzer:
         print(f"\n包名: {result.package_name}")
         print(f"PID: {result.pid}")
 
+        if (
+            result.accounting_ledger
+            and result.accounting_ledger.get("status") == "available"
+        ):
+            print()
+            print(render_ledger_text(result.accounting_ledger))
+        elif result.accounting_ledger:
+            print(
+                "\n[ meminfo/smaps 逐行对账 ] {}: {}".format(
+                    result.accounting_ledger.get("status", "unknown"),
+                    result.accounting_ledger.get("reason", "unspecified"),
+                )
+            )
+
         # 内存概览
         print(f"\n{'─' * 40}")
         print("[ 内存概览 ]")
@@ -1320,6 +1346,7 @@ class PanoramaAnalyzer:
             'timestamp': datetime.now().isoformat(),
             'package_name': result.package_name,
             'pid': result.pid,
+            'accounting_ledger': result.accounting_ledger,
             'memory_overview': {
                 'total_pss_mb': round(result.total_pss_mb, 2),
                 'java_heap_mb': round(result.java_heap_mb, 2),
@@ -1452,6 +1479,29 @@ class PanoramaAnalyzer:
         lines.append(f"**包名**: `{result.package_name}`")
         lines.append(f"**PID**: {result.pid}")
         lines.append("")
+
+        if (
+            result.accounting_ledger
+            and result.accounting_ledger.get("status") == "available"
+        ):
+            lines.append(
+                render_ledger_markdown(
+                    result.accounting_ledger,
+                    language="zh",
+                    heading_level=2,
+                )
+            )
+            lines.append("")
+        elif result.accounting_ledger:
+            lines.extend([
+                "## meminfo/smaps 逐行对账",
+                "",
+                "- `{}`: `{}`".format(
+                    result.accounting_ledger.get("status", "unknown"),
+                    result.accounting_ledger.get("reason", "unspecified"),
+                ),
+                "",
+            ])
 
         # Memory Overview
         lines.append("## 内存概览")

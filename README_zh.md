@@ -38,7 +38,7 @@
 
 - Demo APK 已升级到 `compileSdk = 37`、`targetSdk = 37`，demo 版本为 `1.1.0`，并继续保留 Android 16 edge-to-edge 与 16 KB page size Native `.so` 对齐。
 - 工具支持 Android 4.0 到 Android 17+ 的输入格式，解析逻辑覆盖 Scudo、GWP-ASan、DMA-BUF、stack/TLS、JIT cache 等较新的分配器与映射命名。
-- 全景分析现在把 `smaps` 作为一等进程映射数据源；可以只输入 smaps，并输出 smaps PSS/SwapPSS、native allocator、graphics、DMA-BUF、code、stack 和 top mapping 证据，同时不覆盖 `dumpsys meminfo` 口径。
+- 全景分析现在以 `dumpsys meminfo` 原始行序作为主账本，在每个可比较行上附加同类 `smaps` PSS/SwapPSS 与映射证据；memtrack 行明确标为不可比较。仅输入 smaps 时仍可输出 native allocator、graphics、DMA-BUF、code、stack 和 top mapping。
 - Android 17 app memory limits 是 Android 17 设备上的 all-app 运行时行为。Live dump 现在会在依赖 PID 的采集前归档 `exit_info.txt`、`memory_limiter_status.txt`、package UID、进程列表、Android release/sdk、build fingerprint 和 page size。
 - `smaps` 采集按以下兜底顺序执行，兼容更多设备：
   1) `adb shell cat /proc/<pid>/smaps`
@@ -157,21 +157,21 @@ npx skills add Gracker/Android-App-Memory-Analysis \
 
 ### 全景分析报告
 
-全景分析提供全面的内存使用视图：
+全景分析先从大家熟悉的 `dumpsys meminfo` 表格进入，保留原始顺序中的
+每一行，再把 `smaps` 作为下钻旁证，而不是另起一份替代性的汇总：
 
 ```
-================================================================================
-                     Android 内存全景分析报告
-================================================================================
+[ meminfo 主账本 + smaps 逐行旁证 ]
+分类              Mem PSS  PrivDirty  SwapPss  smaps PSS  差值  状态
+Native Heap          80860      80824        25      80860    +0  aligned
+Dalvik Heap          59439      59420        69      59439    +0  aligned
+EGL mtrack           54432      54432         0          -     -  not-comparable
+...
+TOTAL               337790     293788       162          -     -  see-total
 
-📊 内存概览:
-------------------------------
-  Total PSS:        245.67 MB
-  Java Heap:        89.34 MB
-  Native Heap:      34.21 MB
-  Graphics:         45.67 MB
-  Code:             23.78 MB
-  Stack:            1.23 MB
+逐行解释：
+- Native Heap：smaps 补充 Scudo primary/secondary 映射，但不覆盖 meminfo 值。
+- EGL mtrack：保留驱动/HAL 归因，不与 `/proc/<pid>/smaps` 强行相减。
 
 🖼️ Bitmap 深度分析:
 ------------------------------
@@ -197,11 +197,13 @@ npx skills add Gracker/Android-App-Memory-Analysis \
 
 ### 核心分析特性
 
-1. **Bitmap 关联分析**：将 Java Bitmap 对象与 Native 像素内存关联
-2. **Native 内存追踪**：识别可追踪 vs 未追踪的 Native 分配
-3. **GPU 内存分析**：GraphicBuffer 和 GPU 缓存使用情况
-4. **UI 资源统计**：View 层级和 Activity 泄漏检测
-5. **异常检测**：自动检测潜在问题并发出警告
+1. **meminfo 逐行主账本**：保留熟悉的每个 meminfo 分类和字段
+2. **smaps 行级旁证**：补充分类 PSS/SwapPSS、allocator subtype、映射与显式对账
+3. **Bitmap 关联分析**：将 Java Bitmap 对象与 Native 像素内存关联
+4. **Native 内存追踪**：识别可追踪 vs 未追踪的 Native 分配
+5. **GPU 内存分析**：GraphicBuffer 和 GPU 缓存使用情况
+6. **UI 资源统计**：View 层级和 Activity 泄漏检测
+7. **异常检测**：自动检测潜在问题并发出警告
 
 ## 项目结构
 

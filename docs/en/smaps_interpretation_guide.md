@@ -639,6 +639,15 @@ Shared_Clean:        15 kB
 - **Extremely Low PSS**: Single application bears almost no font memory cost
 - **On-Demand Loading**: Only loads used characters
 
+#### Parser Classification Boundaries
+
+The repository parser follows the mapping precedence in [AOSP `android_os_Debug.cpp`](https://android.googlesource.com/platform/frameworks/base/+/refs/tags/android-13.0.0_r63/core/jni/android_os_Debug.cpp):
+
+- File types use terminal suffixes instead of arbitrary substrings after removing ` (deleted)`. As a result, `libart.so`, `libdexfile.so`, and `libdmabufheap.so` remain `.so` mappings; only terminal `.art`, `.dex`/`.odex`, `.vdex`, or an explicit bounded DEX marker enters the corresponding category.
+- Device classification requires a real `/dev/` prefix. Legacy `/dev/ashmem/dalvik-*`, `CursorWindow`, and `libc malloc` names share the same semantic categories as modern `[anon:dalvik-*]` mappings.
+- An unnamed VMA is treated as anonymous `.so` BSS only when its address immediately follows the preceding `.so` VMA. It cannot inherit a JAR category or a non-adjacent mapping.
+- DMA-BUF, Graphics, and regular-file aggregates accept only their mapping namespaces or device nodes. `/dev/dma_heap/*` is an allocator interface rather than DMA-BUF ownership evidence, and text such as `dmabuf`, `gralloc`, or `gpu` inside a library or property name is not buffer evidence.
+
 ### ART Runtime
 
 #### Boot ART Files
