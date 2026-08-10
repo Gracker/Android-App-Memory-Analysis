@@ -331,10 +331,15 @@ class EvidenceContextTests(unittest.TestCase):
         context = build_ai_context(root, intent="quick-triage")
         ledger = context["evidence"]["accounting_ledger"]
         rows = {row["name"]: row for row in ledger["rows"]}
+        meminfo = next(
+            artifact
+            for artifact in context["evidence"]["artifacts"]
+            if artifact["artifact_type"] == "meminfo" and artifact["status"] == "ok"
+        )
 
         self.assertEqual("available", ledger["status"])
         self.assertEqual(
-            "artifact:meminfo:6578c50e4ca4",
+            meminfo["artifact_id"],
             ledger["source_artifacts"]["meminfo"],
         )
         self.assertEqual(19, len(ledger["rows"]))

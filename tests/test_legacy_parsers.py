@@ -15,6 +15,71 @@ from tools.memory_analyzer import MemoryAnalyzer
 
 
 class HprofParserRegressionTests(unittest.TestCase):
+    def test_gc_root_path_excludes_all_non_strong_reference_variants(self):
+        cases = (
+            ('java.lang.ref.WeakReference', None),
+            ('java.lang.ref.SoftReference', None),
+            ('java.lang.ref.PhantomReference', None),
+            ('sun.misc.Cleaner', None),
+            ('com.example.CustomCleanupReference', 'java.lang.ref.PhantomReference'),
+        )
+
+        for class_name, superclass_name in cases:
+            with self.subTest(class_name=class_name):
+                parser = HprofParser("unused.hprof")
+                wrapper_class_id = 20
+                parser.classes[wrapper_class_id] = {'name': class_name}
+                parser.instances[2] = {'class_id': wrapper_class_id}
+
+                if superclass_name:
+                    superclass_id = 21
+                    parser.classes[superclass_id] = {'name': superclass_name}
+                    parser.class_fields[wrapper_class_id] = {
+                        'super_class_id': superclass_id,
+                    }
+
+                parser.gc_roots[3] = {'type': parser.HEAP_TAG_ROOT_UNKNOWN}
+                parser.incoming_refs[1].add(2)
+                parser.incoming_refs[2].add(3)
+
+                self.assertIsNone(parser.find_path_to_gc_root(1))
+                self.assertEqual(
+                    [1, 2, 3],
+                    parser.find_path_to_gc_root(1, exclude_weak_refs=False),
+                )
+
+    def test_gc_root_path_keeps_ordinary_strong_reference_holders(self):
+        parser = HprofParser("unused.hprof")
+        parser.classes[20] = {'name': 'com.example.ReferenceCache'}
+        parser.instances[2] = {'class_id': 20}
+        parser.gc_roots[3] = {'type': parser.HEAP_TAG_ROOT_UNKNOWN}
+        parser.incoming_refs[1].add(2)
+        parser.incoming_refs[2].add(3)
+
+        self.assertEqual([1, 2, 3], parser.find_path_to_gc_root(1))
+
+    def test_markdown_export_formats_duplicate_bitmap_dimensions(self):
+        parser = HprofParser("unused.hprof")
+        parser.bitmap_info[1] = {
+            'width': 100,
+            'height': 200,
+            'estimated_size': 80_000,
+            'config': 'ARGB_8888',
+        }
+        parser.duplicate_bitmaps = [{
+            'size': (100, 200),
+            'count': 2,
+            'bitmap_ids': [1, 2],
+            'total_wasted': 80_000,
+        }]
+
+        with tempfile.TemporaryDirectory() as directory:
+            report_path = Path(directory) / "report.md"
+            parser.export_markdown(str(report_path))
+            report = report_path.read_text(encoding="utf-8")
+
+        self.assertIn("**100x200**: 2 个相同尺寸", report)
+
     def test_retained_size_handles_a_chain_deeper_than_the_recursion_limit(self):
         parser = HprofParser("unused.hprof")
         depth = sys.getrecursionlimit() + 500
