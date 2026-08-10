@@ -303,7 +303,7 @@ def print_report(data: DmaBufData):
     print("\n" + "=" * 60)
 
 
-def to_json(data: DmaBufData) -> dict[str, object]:
+def to_json(data: DmaBufData) -> Dict[str, object]:
     """转换为 JSON 格式"""
     categories = {}
     for cat in data.get_categories():
