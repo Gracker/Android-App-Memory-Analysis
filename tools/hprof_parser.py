@@ -87,6 +87,18 @@ class HprofParser:
             'sun.security.jca.ServiceId',
         }
 
+        # References whose referents do not keep an object strongly reachable.
+        # Keep exact-name fallbacks for incomplete HPROF class hierarchies and
+        # also walk superclasses when checking instances below.
+        self.NON_STRONG_REFERENCE_CLASSES = {
+            'java.lang.ref.Reference',
+            'java.lang.ref.WeakReference',
+            'java.lang.ref.SoftReference',
+            'java.lang.ref.PhantomReference',
+            'sun.misc.Cleaner',
+            'jdk.internal.ref.Cleaner',
+        }
+
         # Interesting holder patterns (business objects)
         self.INTERESTING_PATTERNS = [
             'Activity', 'Fragment', 'View', 'Adapter', 'Holder',
@@ -788,8 +800,27 @@ class HprofParser:
 
         return refs
 
+    def _is_non_strong_reference_instance(self, obj_id):
+        """Return whether an instance belongs to a non-strong Reference hierarchy."""
+        class_id = self.instances.get(obj_id, {}).get('class_id')
+        visited = set()
+
+        while class_id and class_id not in visited:
+            visited.add(class_id)
+            class_info = self.classes.get(class_id, {})
+            if class_info.get('name', '') in self.NON_STRONG_REFERENCE_CLASSES:
+                return True
+
+            class_definition = self.class_fields.get(class_id, {})
+            class_id = class_definition.get(
+                'super_class_id',
+                class_info.get('super_class_id', 0),
+            )
+
+        return False
+
     def find_path_to_gc_root(self, obj_id, max_depth=50, exclude_weak_refs=True):
-        """Find shortest path from object to GC root (Phase 2.3)"""
+        """Find shortest strong-reference path from an object to a GC root."""
         if obj_id in self.gc_roots:
             return [obj_id]
 
@@ -813,13 +844,11 @@ class HprofParser:
             # Check incoming references
             for ref_id in self.incoming_refs.get(current_id, []):
                 if ref_id not in visited:
-                    # Skip weak/soft references if requested
-                    if exclude_weak_refs:
-                        ref_class_id = self.instances.get(ref_id, {}).get('class_id')
-                        if ref_class_id:
-                            class_name = self.classes.get(ref_class_id, {}).get('name', '')
-                            if 'WeakReference' in class_name or 'SoftReference' in class_name:
-                                continue
+                    # The historical option name is retained for compatibility,
+                    # but all Reference variants with non-strong referents must
+                    # be excluded from leak paths, including Phantom/Cleaner.
+                    if exclude_weak_refs and self._is_non_strong_reference_instance(ref_id):
+                        continue
                     queue.append((ref_id, path + [ref_id]))
 
         return None  # No path found
@@ -2956,7 +2985,8 @@ class HprofParser:
                     if hasattr(self, 'duplicate_bitmaps') and self.duplicate_bitmaps:
                         f.write("<details>\n<summary>重复 Bitmap 检测</summary>\n\n")
                         for dup in self.duplicate_bitmaps[:10]:
-                            f.write(f"- **{dup['dimensions']}**: {dup['count']} 个相同尺寸，浪费 {dup['total_wasted']/1024:.1f} KB\n")
+                            width, height = dup['size']
+                            f.write(f"- **{width}x{height}**: {dup['count']} 个相同尺寸，浪费 {dup['total_wasted']/1024:.1f} KB\n")
                         f.write("\n</details>\n\n")
                 else:
                     f.write("*未检测到 Bitmap 对象*\n\n")
